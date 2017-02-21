@@ -42,11 +42,11 @@ type TableDrivenAgentProgram <: AgentProgram
 	percepts::Array{Percept, 1}
 	table::Dict{Any, Any}
 
-	function TableDrivenAgentProgram(;t=C_NULL, trace=false)
-		if (t == C_NULL)			#no table given, create empty dictionary
+	function TableDrivenAgentProgram(;table_dict=C_NULL, trace=false)
+		if (table_dict == C_NULL)			#no table given, create empty dictionary
 			return new(Bool(trace), Array{Percept, 1}(), Dict{Any, Any}());
 		else
-			return new(Bool(trace), Array{Percept, 1}(), t);
+			return new(Bool(trace), Array{Percept, 1}(), table_dict);
 		end
 	end
 end
@@ -73,6 +73,12 @@ type Agent
 	function Agent()
 		return new(Bool(true))
 	end
+
+	function Agent{T <: AgentProgram}(ap::T)
+		new_agent = new(Bool(true));	#program is undefined
+		new_agent.program = ap;
+		return new_agent;
+	end
 end
 
 
@@ -83,4 +89,30 @@ end
 function setAlive{T <: Agent}(a::T, bv::Bool)
 	a.alive = bv;
 	nothing;
+end
+
+#=
+
+	Load a implemented AgentProgram into a Agent.
+
+=#
+
+loc_A = (0, 0)
+loc_B = (1, 0)
+
+function TableDrivenVacuumAgent()
+	#dictionary representation of table (Fig. 2.3)
+	local table = Dict{Any, Any}([
+				Pair(((loc_A, "Clean"),), "Right"),
+				Pair(((loc_A, "Dirty"),), "Suck"),
+				Pair(((loc_B, "Clean"),), "Left"),
+				Pair(((loc_B, "Dirty"),), "Suck"),
+				Pair(((loc_A, "Clean"), (loc_A, "Clean")), "Right"),
+				Pair(((loc_A, "Clean"), (loc_A, "Dirty")), "Suck"),
+				# ...
+				Pair(((loc_A, "Clean"), (loc_A, "Clean"), (loc_A, "Clean")), "Right"),
+				Pair(((loc_A, "Clean"), (loc_A, "Clean"), (loc_A, "Dirty")), "Suck"),
+				# ...
+				]);
+    return Agent(TableDrivenAgentProgram(table_dict=table));
 end
