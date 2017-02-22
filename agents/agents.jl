@@ -62,6 +62,21 @@ type ReflexVacuumAgentProgram <: AgentProgram
 	end
 end
 
+type ModelBasedVacuumAgentProgram <: AgentProgram
+	isTracing::Bool
+	model::Dict{Any, Any}
+
+	function ModelBasedVacuumAgentProgram(;trace=false, model=Void)
+		if (typeof(model) <: Dict{Any, Any})
+			new_ap = new(Bool(trace));
+			new_ap.model = deepcopy(model);
+			return new_ap;
+		else
+			return new(Bool(trace), Dict{Any, Any}());
+		end
+	end
+end
+
 #=
 
 	Agents can interact with the environment through percepts and actions.
@@ -114,6 +129,21 @@ function execute(ap::ReflexVacuumAgentProgram, location_status::Percept)
 	end
 end
 
+function execute(ap::ModelBasedVacuumAgentProgram, location_status::Percept)
+	local location = location_status[1];
+	local status = location_status[2];
+	ap.model[location] = status;							#update existing model
+	if (ap.model[loc_A] == ap.model[loc_B] == "Clean")		#return "NoOp" when no work is necessary
+		return "NoOp";
+	elseif (status == "Dirty")
+		return "Suck";
+	elseif (location == loc_A)
+		return "Right";
+	elseif (location == loc_B)
+		return "Left";
+	end
+end
+
 function TableDrivenVacuumAgent()
 	#dictionary representation of table (Fig. 2.3) of percept sequences (key) mappings to actions (value).
 	local table = Dict{Any, Any}([
@@ -134,4 +164,12 @@ end
 function ReflexVacuumAgent()
     "Return a reflex agent for the two-state vacuum environment (Fig. 2.8)."
     return Agent(ReflexVacuumAgentProgram());
+end
+
+function ModelBasedVacuumAgent()
+	"Return a agent that tracks statuses of clean and dirty locations."
+	return Agent(ModelBasedVacuumAgentProgram(model=Dict{Any, Any}([
+			Pair(loc_A, Void),
+			Pair(loc_B, Void),
+			])));
 end
