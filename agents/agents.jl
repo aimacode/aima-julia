@@ -162,12 +162,12 @@ function TableDrivenVacuumAgent()
 end
 
 function ReflexVacuumAgent()
-    "Return a reflex agent for the two-state vacuum environment (Fig. 2.8)."
+    #Return a reflex agent for the two-state vacuum environment (Fig. 2.8).
     return Agent(ReflexVacuumAgentProgram());
 end
 
 function ModelBasedVacuumAgent()
-	"Return a agent that tracks statuses of clean and dirty locations."
+	#Return a agent that tracks statuses of clean and dirty locations.
 	return Agent(ModelBasedVacuumAgentProgram(model=Dict{Any, Any}([
 			Pair(loc_A, Void),
 			Pair(loc_B, Void),
