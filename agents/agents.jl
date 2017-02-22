@@ -1,10 +1,4 @@
-type Percept
-	attr::Dict{Any, Any}
-
-	function Percept()
-		return new(Dict{Any, Any}());
-	end
-end
+typealias Percept Tuple{Any, Any}
 
 abstract Action;		#declare Action as a supertype
 
@@ -60,6 +54,14 @@ function execute(ap::TableDrivenAgentProgram, p::Percept)
 	return action;
 end
 
+type ReflexVacuumAgentProgram <: AgentProgram
+	isTracing::Bool
+
+	function ReflexVacuumAgentProgram(;trace=false)
+		return new(Bool(trace));
+	end
+end
+
 #=
 
 	Agents can interact with the environment through percepts and actions.
@@ -100,8 +102,20 @@ end
 loc_A = (0, 0)
 loc_B = (1, 0)
 
+function execute(ap::ReflexVacuumAgentProgram, location_status::Percept)
+	local location = location_status[1];
+	local status = location_status[2];
+	if (status == "Dirty")
+		return "Suck";
+	elseif (location == loc_A)
+		return "Right";
+	elseif (location == loc_B)
+		return "Left";
+	end
+end
+
 function TableDrivenVacuumAgent()
-	#dictionary representation of table (Fig. 2.3)
+	#dictionary representation of table (Fig. 2.3) of percept sequences (key) mappings to actions (value).
 	local table = Dict{Any, Any}([
 				Pair(((loc_A, "Clean"),), "Right"),
 				Pair(((loc_A, "Dirty"),), "Suck"),
@@ -115,4 +129,9 @@ function TableDrivenVacuumAgent()
 				# ...
 				]);
     return Agent(TableDrivenAgentProgram(table_dict=table));
+end
+
+function ReflexVacuumAgent()
+    "Return a reflex agent for the two-state vacuum environment (Fig. 2.8)."
+    return Agent(ReflexVacuumAgentProgram());
 end
