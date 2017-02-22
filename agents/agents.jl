@@ -1,6 +1,6 @@
 typealias Percept Tuple{Any, Any}
 
-abstract Action;		#declare Action as a supertype
+abstract Action;		#declare Action as a supertype for Action implementations
 
 type AAction <: Action
 	isNoOp::Bool
@@ -20,7 +20,7 @@ type NoOpAction <: Action
 	end
 end
 
-abstract AgentProgram;
+abstract AgentProgram;		#declare AgentProgram as a supertype for AgentProgram implementations
 
 #=
 
@@ -29,7 +29,10 @@ abstract AgentProgram;
 		
 =#
 
-execute{T <: AgentProgram}(ap::T, p::Percept) = function() end		#implement functionality later
+function execute{T <: AgentProgram}(ap::T, p::Percept)		#implement functionality later
+	println("execute() not yet implemented for ", typeof(ap), "!");
+	nothing;
+end
 
 type TableDrivenAgentProgram <: AgentProgram
 	isTracing::Bool
@@ -85,14 +88,16 @@ end
 
 type Agent
 	alive::Bool
+	performance::Float64
 	program::AgentProgram
+	location::Tuple{Any, Any}		#initialized when adding agent to environment
 
 	function Agent()
-		return new(Bool(true))
+		return new(Bool(true), Float64(0));
 	end
 
 	function Agent{T <: AgentProgram}(ap::T)
-		new_agent = new(Bool(true));	#program is undefined
+		new_agent = new(Bool(true), Float64(0));	#program is undefined
 		new_agent.program = ap;
 		return new_agent;
 	end
@@ -110,7 +115,7 @@ end
 
 #=
 
-	Load a implemented AgentProgram into a Agent.
+	Implement execute() methods for implemented AgentPrograms.
 
 =#
 
@@ -144,6 +149,12 @@ function execute(ap::ModelBasedVacuumAgentProgram, location_status::Percept)
 	end
 end
 
+#=
+
+	Load a implemented AgentProgram into a Agent.
+
+=#
+
 function TableDrivenVacuumAgent()
 	#dictionary representation of table (Fig. 2.3) of percept sequences (key) mappings to actions (value).
 	local table = Dict{Any, Any}([
@@ -172,4 +183,11 @@ function ModelBasedVacuumAgent()
 			Pair(loc_A, Void),
 			Pair(loc_B, Void),
 			])));
+end
+
+abstract Environment;				#declare Environment as a supertype for Environment implementations
+
+function percept{T1 <: Environment, T2 <: Action}(e::T1, a::Agent, act::T2)		#implement this later
+	println("percept() not yet implemented for ", typeof(e), "!");
+	nothing;
 end
