@@ -86,7 +86,9 @@ end
 
 =#
 
-type Agent
+abstract EnvironmentObject;			#declare EnvironmentObject as a supertype for EnvironmentObject implementations
+
+type Agent <: EnvironmentObject		#the Agent exist in the environment like other environment objects such as gold
 	alive::Bool
 	performance::Float64
 	program::AgentProgram
@@ -186,6 +188,15 @@ function ModelBasedVacuumAgent()
 end
 
 abstract Environment;				#declare Environment as a supertype for Environment implementations
+
+type XYEnvironment <: Environment
+	objects::Array{EnvironmentObject, 1}
+	agents::Array{Agent, 1}					#agents found in this field should also be found in the objects field
+
+	function XYEnvironment()
+		return new(Array{EnvironmentObject, 1}(), Array{Agent, 1}());
+	end
+end
 
 function percept{T1 <: Environment, T2 <: Action}(e::T1, a::Agent, act::T2)		#implement this later
 	println("percept() not yet implemented for ", typeof(e), "!");
