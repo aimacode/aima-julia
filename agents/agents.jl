@@ -192,13 +192,61 @@ abstract Environment;				#declare Environment as a supertype for Environment imp
 type XYEnvironment <: Environment
 	objects::Array{EnvironmentObject, 1}
 	agents::Array{Agent, 1}					#agents found in this field should also be found in the objects field
+	width::Float64
+	height::Float64
 
 	function XYEnvironment()
-		return new(Array{EnvironmentObject, 1}(), Array{Agent, 1}());
+		return new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10));
+	end
+end
+
+type VacuumEnvironment <: Environment
+	objects::Array{EnvironmentObject, 1}
+	agents::Array{Agent, 1}					#agents found in this field should also be found in the objects field
+	width::Float64
+	height::Float64
+
+	function VacuumEnvironment()
+		return new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10));
+	end
+end
+
+type TrivialVacuumEnvironment <: Environment
+	objects::Array{EnvironmentObject, 1}
+	agents::Array{Agent, 1}
+	status::Dict{Tuple{Any, Any}, String}
+
+	function TrivialVacuumEnvironment()
+		return new(
+				Array{EnvironmentObject, 1}(),
+				Array{Agent, 1}(),
+				Dict{Tuple{Any, Any}, String}([
+					Pair(loc_A, rand(RandomDevice(), ["Clean", "Dirty"])),
+					Pair(loc_B, rand(RandomDevice(), ["Clean", "Dirty"])),
+					]));
+	end
+end
+
+type WumpusEnvironment <: Environment
+	objects::Array{EnvironmentObject, 1}
+	agents::Array{Array, 1}
+	width::Float64
+	height::Float64
+
+	function WumpusEnvironment()
+		return new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10));
 	end
 end
 
 function percept{T1 <: Environment, T2 <: Action}(e::T1, a::Agent, act::T2)		#implement this later
 	println("percept() not yet implemented for ", typeof(e), "!");
 	nothing;
+end
+
+function get_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::DataType)
+	if (objType <: EnvironmentObject)
+		return [obj for obj in e.objects if (typeof(obj) == objType && obj.location == loc)];
+	else
+		error(@sprintf("InvalidEnvironmentObjectError: %s is not a subtype of EnvironmentObject!", string(typeof(objType))));
+	end
 end
