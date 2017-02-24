@@ -1,24 +1,6 @@
 typealias Percept Tuple{Any, Any}
 
-abstract Action;		#declare Action as a supertype for Action implementations
-
-type AAction <: Action
-	isNoOp::Bool
-	name::String
-
-	function AAction(n::String)
-		return new(Bool(false), n);
-	end
-end
-
-type NoOpAction <: Action
-	isNoOp::Bool
-	name::String
-
-	function NoOpAction()
-		return new(Bool(true), "NoOp");
-	end
-end
+typealias Action String;
 
 abstract AgentProgram;		#declare AgentProgram as a supertype for AgentProgram implementations
 
