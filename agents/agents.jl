@@ -1,3 +1,5 @@
+include("utils.jl");
+
 typealias Percept Tuple{Any, Any}
 
 typealias Action String;
@@ -126,6 +128,66 @@ end
 
 #=
 
+	Obstacle Environment Objects
+
+=#
+
+abstract Obstacle <: EnvironmentObject
+
+type Wall <: Obstacle
+	location::Tuple{Any, Any}
+
+	function Wall()
+		return new();
+	end
+end
+
+#=
+
+	Vacuum Environment Objects
+
+=#
+
+type Dirt <: EnvironmentObject
+	location::Tuple{Any, Any}
+
+	function Dirt()
+		return new();
+	end
+end
+
+#=
+
+	Wumpus Environment Objects
+
+=#
+
+type Gold <: EnvironmentObject
+	location::Tuple{Any, Any}
+
+	function Gold()
+		return new();
+	end
+end
+
+type Pit <: EnvironmentObject
+	location::Tuple{Any, Any}
+
+	function Pit()
+		return new();
+	end
+end
+
+type Arrow <: EnvironmentObject
+	location::Tuple{Any, Any}
+
+	function Array()
+		return new();
+	end
+end
+
+#=
+
 	Implement execute() methods for implemented AgentPrograms.
 
 =#
@@ -193,9 +255,10 @@ end
 function rule_match(state::String, rules::Array{Rule, 1})
 	for element in rules
 		if (state == element.condition)
-			return element
+			return element;
 		end
 	end
+	return C_NULL;					#the function did not find a matching rule
 end
 
 function interpret_input{T <: AgentProgram}(ap::T, percept::Percept)		#implement this later
@@ -330,4 +393,39 @@ function get_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::D
 	else
 		error(@sprintf("InvalidEnvironmentObjectError: %s is not a subtype of EnvironmentObject!", string(typeof(objType))));
 	end
+end
+
+function some_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::DataType)
+	object_array = get_objects_at(e, loc, objType);
+	if (length(object_array) == 0)
+		return false;
+	else
+		return true;
+	end
+end
+
+function is_done{T <:Environment}(e::T)
+	for a in e.agents
+		if (a.alive)
+			return false;
+		end
+	end
+	return true;
+end
+
+function exogenous_change{T <: Environment}(e::T)	#implement this later
+	#println("exogenous_change() not yet implemented for ", typeof(e), "!");#comment this line to reduce verbosity
+	nothing;
+end
+
+function default_location{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2)	#implement this later
+	return false;
+end
+
+function default_location{T <: EnvironmentObject}(e::TrivialVacuumEnvironment, obj::T)
+	return rand(RandomDevice(), [loc_A, loc_B]);
+end
+
+function default_location{T <: EnvironmentObject}(e::XYEnvironment, obj::T)
+	return (rand(RandomDevice(), range(0, e.width)), rand(RandomDevice(), range(0, e.height)));
 end
