@@ -14,7 +14,8 @@ abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgra
 =#
 
 function execute{T <: AgentProgram}(ap::T, p::Percept)      #implement functionality later
-    println("execute() is not implemented yet for ", typeof(ap), "!");
+    #comment the following line to reduce verbosity
+    #println("execute() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
 
@@ -380,7 +381,9 @@ type XYEnvironment <: Environment
     perceptible_distance::Float64
 
     function XYEnvironment()
-        return new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10), Float64(1));
+        local xy = new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10), Float64(1));
+        add_walls(xy);
+        return xy;
     end
 end
 
@@ -389,9 +392,12 @@ type VacuumEnvironment <: Environment
     agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
     width::Float64
     height::Float64
+    perceptible_distance::Float64
 
     function VacuumEnvironment()
-        return new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10));
+        local ve = new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10), Float64(1));
+        add_walls(ve);
+        return ve;
     end
 end
 
@@ -399,15 +405,18 @@ type TrivialVacuumEnvironment <: Environment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}
     status::Dict{Tuple{Any, Any}, String}
+    perceptible_distance::Float64
 
     function TrivialVacuumEnvironment()
-        return new(
+        local tve = new(
                 Array{EnvironmentObject, 1}(),
                 Array{Agent, 1}(),
                 Dict{Tuple{Any, Any}, String}([
                     Pair(loc_A, rand(RandomDevice(), ["Clean", "Dirty"])),
                     Pair(loc_B, rand(RandomDevice(), ["Clean", "Dirty"])),
-                    ]));
+                    ]), Float64(1));
+        add_walls(tve);
+        return tve;
     end
 end
 
@@ -416,9 +425,12 @@ type WumpusEnvironment <: Environment
     agents::Array{Array, 1}
     width::Float64
     height::Float64
+    perceptible_distance::Float64
 
     function WumpusEnvironment()
-        return new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10));
+        local we = new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10), Float64(1));
+        add_walls(we);
+        return we;
     end
 end
 
@@ -454,7 +466,8 @@ function is_done{T <:Environment}(e::T)
 end
 
 function exogenous_change{T <: Environment}(e::T)   #implement this later
-    #println("exogenous_change() not yet implemented for ", typeof(e), "!");#comment this line to reduce verbosity
+    #comment the following line to reduce verbosity
+    #println("exogenous_change() not yet implemented for ", typeof(e), "!");
     nothing;
 end
 
@@ -475,10 +488,14 @@ function environment_objects{T <: Environment}(e::T)
 end
 
 function environment_objects(e::VacuumEnvironment)
+    #ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, and ModelBasedVacuumAgent
+    #are functions that generate new agents with their respective AgentPrograms
     return [Wall, Dirt, ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, ModelBasedVacuumAgent];
 end
 
 function environment_objects(e::TrivialVacuumEnvironment)
+    #ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, and ModelBasedVacuumAgent
+    #are functions that generate new agents with their respective AgentPrograms
     return [Wall, Dirt, ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, ModelBasedVacuumAgent];
 end
 
@@ -534,5 +551,16 @@ function delete_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T
     i = utils.index(e.agents, obj);
     if (i > -1)
         deleteat!(e.agents, i);
+    end
+end
+
+function add_walls{T <: Environment}(e::T)
+    for x in range(0, e.width)
+        add_object(Wall(), location=(x, 0));
+        add_object(Wall(), location=(x, e.height - 1));
+    end
+    for y in range(0, e.height)
+        add_object(Wall(), location=(0, y));
+        add_object(Wall(), location=(e.width - 1, 0));
     end
 end
