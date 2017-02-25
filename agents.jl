@@ -497,7 +497,7 @@ function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius=C_NULL)
         radius = e.perceptible_distance;
     end
     sq_radius = radius * radius;
-    return [obj for obj in e.objects if (distance2(loc, obj.location) <= sq_radius)];
+    return [obj for obj in e.objects if (utils.distance2(loc, obj.location) <= sq_radius)];
 end
 
 function percept(e::XYEnvironment, a::Agent)
@@ -507,4 +507,15 @@ end
 function execute_action{T1 <: Environment, T2 <: EnvironmentAgent}(e::T1, a::T2, act::Action)   #implement this later
     println("execute_action() is not implemented yet for ", string(typeof(e)), "!");
     nothing;
+end
+
+function delete_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T, obj::T2)
+    local i = utils.index(e.objects, obj);
+    if (i > -1)
+        deleteat!(e.objects, i);
+    end
+    i = utils.index(e.agents), obj);
+    if (i > -1)
+        deleteat!(e.agents, i);
+    end
 end
