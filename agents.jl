@@ -443,7 +443,7 @@ end
 
 function get_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::DataType)
     if (objType <: EnvironmentObject)
-        return [obj for obj in e.objects if (typeof(obj) == objType && obj.location == loc)];
+        return [obj for obj in e.objects if (typeof(obj) <: objType && obj.location == loc)];
     else
         error(@sprintf("InvalidEnvironmentObjectError: %s is not a subtype of EnvironmentObject!", string(typeof(objType))));
     end
