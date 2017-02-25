@@ -509,6 +509,23 @@ function execute_action{T1 <: Environment, T2 <: EnvironmentAgent}(e::T1, a::T2,
     nothing;
 end
 
+function add_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2; location=C_NULL)
+    if (!(obj in e.objects))
+        if (location != C_NULL)
+            obj.location = location;
+        else
+            obj.location = default_location(e, obj);
+        end
+        append!(e.objects, obj);
+        if (typeof(obj) <: EnvironmentAgent)
+            obj.performance = Float64(0);
+            append!(e.agents, obj);
+        end
+    else
+        println("add_object(): object already exists in environment!");
+    end
+end
+
 function delete_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2)
     local i = utils.index(e.objects, obj);
     if (i > -1)
