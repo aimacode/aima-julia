@@ -105,15 +105,16 @@ abstract EnvironmentAgent <: EnvironmentObject;
 type Agent <: EnvironmentAgent
 	alive::Bool
 	performance::Float64
+	bump::Bool
 	program::AgentProgram
 	location::Tuple{Any, Any}		#initialized when adding agent to environment
 
 	function Agent()
-		return new(Bool(true), Float64(0));
+		return new(Bool(true), Float64(0), Bool(false));
 	end
 
 	function Agent{T <: AgentProgram}(ap::T)
-		new_agent = new(Bool(true), Float64(0));	#program is undefined
+		new_agent = new(Bool(true), Float64(0), Bool(false));	#program is undefined
 		new_agent.program = ap;
 		return new_agent;
 	end
@@ -122,15 +123,16 @@ end
 type Wumpus <: EnvironmentAgent
 	alive::Bool
 	performance::Float64
+	bump::Bool
 	program::AgentProgram
 	location::Tuple{Any, Any}		#initialized when adding agent to environment
 
 	function Wumpus()
-		return new(Bool(true), Float64(0));
+		return new(Bool(true), Float64(0), Bool(false));
 	end
 
 	function Wumpus{T <: AgentProgram}(ap::T)
-		new_agent = new(Bool(true), Float64(0));	#program is undefined
+		new_agent = new(Bool(true), Float64(0), Bool(false));	#program is undefined
 		new_agent.program = ap;
 		return new_agent;
 	end
@@ -139,15 +141,16 @@ end
 type Explorer <: EnvironmentAgent
 	alive::Bool
 	performance::Float64
+	bump::Bool
 	program::AgentProgram
 	location::Tuple{Any, Any}		#initialized when adding agent to environment
 
 	function Explorer()
-		return new(Bool(true), Float64(0));
+		return new(Bool(true), Float64(0), Bool(false));
 	end
 
 	function Explorer{T <: AgentProgram}(ap::T)
-		new_agent = new(Bool(true), Float64(0));	#program is undefined
+		new_agent = new(Bool(true), Float64(0), Bool(false));	#program is undefined
 		new_agent.program = ap;
 		return new_agent;
 	end
@@ -480,4 +483,10 @@ end
 
 function environment_objects(e::WumpusEnvironment)
 	return [Wall, Gold, Pit, Arrow, Wumpus, Explorer];
+end
+
+function percept(e::VacuumEnvironment, a::Agent)
+	local status = if_(some_objects_at(a.location, Dirt), "Dirty", "Clean");
+	local bump = if_(a.bump, "Bump", "None");
+	return (status, bump)
 end
