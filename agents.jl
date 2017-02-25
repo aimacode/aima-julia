@@ -14,7 +14,7 @@ abstract AgentProgram;		#declare AgentProgram as a supertype for AgentProgram im
 =#
 
 function execute{T <: AgentProgram}(ap::T, p::Percept)		#implement functionality later
-	println("execute() not yet implemented for ", typeof(ap), "!");
+	println("execute() is not implemented yet for ", typeof(ap), "!");
 	nothing;
 end
 
@@ -301,12 +301,12 @@ function rule_match(state::String, rules::Array{Rule, 1})
 end
 
 function interpret_input{T <: AgentProgram}(ap::T, percept::Percept)		#implement this later
-	println("interpret_input() is not yet implemented for ", typeof(ap), "!");
+	println("interpret_input() is not implemented yet for ", typeof(ap), "!");
 	nothing;
 end
 
 function update_state{T <: AgentProgram}(ap::T, percept::Percept)			#implement this later
-	println("update_state() is not yet implemented for ", typeof(ap), "!");
+	println("update_state() is not implemented yet for ", typeof(ap), "!");
 	nothing;
 end
 
@@ -423,7 +423,7 @@ type WumpusEnvironment <: Environment
 end
 
 function percept{T1 <: Environment, T2 <: EnvironmentAgent, T3 <: Action}(e::T1, a::T2, act::T3)		#implement this later
-	println("percept() not yet implemented for ", typeof(e), "!");
+	println("percept() is not implemented yet for ", typeof(e), "!");
 	nothing;
 end
 
@@ -501,5 +501,10 @@ function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius=C_NULL)
 end
 
 function percept(e::XYEnvironment, a::Agent)
-	return [string(typeof(obj)) for obj in objects_near(a.location)]
+	return [string(typeof(obj)) for obj in objects_near(a.location)];
+end
+
+function execute_action{T1 <: Environment, T2 <: EnvironmentAgent}(e::T1, a::T2, act::Action)	#implement this later
+	println("execute_action() is not implemented yet for ", string(typeof(e)), "!");
+	nothing;
 end
