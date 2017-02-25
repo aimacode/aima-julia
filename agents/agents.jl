@@ -99,7 +99,9 @@ end
 
 abstract EnvironmentObject;			#declare EnvironmentObject as a supertype for EnvironmentObject implementations
 
-type Agent <: EnvironmentObject		#the Agent exist in the environment like other environment objects such as gold
+abstract EnvironmentAgent <: EnvironmentObject;			#the Agent exist in the environment like other environment objects such as gold
+
+type Agent <: EnvironmentAgent
 	alive::Bool
 	performance::Float64
 	program::AgentProgram
@@ -116,6 +118,39 @@ type Agent <: EnvironmentObject		#the Agent exist in the environment like other 
 	end
 end
 
+type Wumpus <: EnvironmentAgent
+	alive::Bool
+	performance::Float64
+	program::AgentProgram
+	location::Tuple{Any, Any}		#initialized when adding agent to environment
+
+	function Wumpus()
+		return new(Bool(true), Float64(0));
+	end
+
+	function Wumpus{T <: AgentProgram}(ap::T)
+		new_agent = new(Bool(true), Float64(0));	#program is undefined
+		new_agent.program = ap;
+		return new_agent;
+	end
+end
+
+type Explorer <: EnvironmentAgent
+	alive::Bool
+	performance::Float64
+	program::AgentProgram
+	location::Tuple{Any, Any}		#initialized when adding agent to environment
+
+	function Explorer()
+		return new(Bool(true), Float64(0));
+	end
+
+	function Explorer{T <: AgentProgram}(ap::T)
+		new_agent = new(Bool(true), Float64(0));	#program is undefined
+		new_agent.program = ap;
+		return new_agent;
+	end
+end
 
 function isAlive{T <: Agent}(a::T)
 	return a.alive;
@@ -428,4 +463,20 @@ end
 
 function default_location{T <: EnvironmentObject}(e::XYEnvironment, obj::T)
 	return (rand(RandomDevice(), range(0, e.width)), rand(RandomDevice(), range(0, e.height)));
+end
+
+function environment_objects{T <: Environment}(e::T)
+	return [];
+end
+
+function environment_objects(e::VacuumEnvironment)
+	return [Wall, Dirt, ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, ModelBasedVacuumAgent];
+end
+
+function environment_objects(e::TrivialVacuumEnvironment)
+	return [Wall, Dirt, ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, ModelBasedVacuumAgent];
+end
+
+function environment_objects(e::WumpusEnvironment)
+	return [Wall, Gold, Pit, Arrow, Wumpus, Explorer];
 end
