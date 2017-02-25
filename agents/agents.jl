@@ -418,7 +418,7 @@ type WumpusEnvironment <: Environment
 	end
 end
 
-function percept{T1 <: Environment, T2 <: Action}(e::T1, a::Agent, act::T2)		#implement this later
+function percept{T1 <: Environment, T2 <: EnvironmentAgent, T3 <: Action}(e::T1, a::T2, act::T3)		#implement this later
 	println("percept() not yet implemented for ", typeof(e), "!");
 	nothing;
 end
