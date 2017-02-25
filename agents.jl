@@ -373,7 +373,9 @@ end
 
 abstract Environment;               #declare Environment as a supertype for Environment implementations
 
-type XYEnvironment <: Environment
+abstract TwoDimensionalEnvironment <: Environment;
+
+type XYEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
     width::Float64
@@ -387,7 +389,7 @@ type XYEnvironment <: Environment
     end
 end
 
-type VacuumEnvironment <: Environment
+type VacuumEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
     width::Float64
@@ -401,7 +403,7 @@ type VacuumEnvironment <: Environment
     end
 end
 
-type TrivialVacuumEnvironment <: Environment
+type TrivialVacuumEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}
     status::Dict{Tuple{Any, Any}, String}
@@ -420,7 +422,7 @@ type TrivialVacuumEnvironment <: Environment
     end
 end
 
-type WumpusEnvironment <: Environment
+type WumpusEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Array, 1}
     width::Float64
@@ -554,7 +556,7 @@ function delete_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T
     end
 end
 
-function add_walls{T <: Environment}(e::T)
+function add_walls{T <: TwoDimensionalEnvironment}(e::T)
     for x in range(0, e.width)
         add_object(Wall(), location=(x, 0));
         add_object(Wall(), location=(x, e.height - 1));
@@ -562,5 +564,12 @@ function add_walls{T <: Environment}(e::T)
     for y in range(0, e.height)
         add_object(Wall(), location=(0, y));
         add_object(Wall(), location=(e.width - 1, 0));
+    end
+end
+
+function move_to{T <: TwoDimensionalEnvironment}(e::T, obj::EnvironmentObject, destination::Tuple{Any, Any})
+    obj.bump = some_objects_at(e, destination, Wall);   #Wall is a subtype of Obstacle, not an alias
+    if (!obj.bump)
+        obj.location = destination;
     end
 end
