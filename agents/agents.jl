@@ -30,15 +30,6 @@ type TableDrivenAgentProgram <: AgentProgram
 	end
 end
 
-function execute(ap::TableDrivenAgentProgram, p::Percept)
-	ap.percepts.push(p);
-	action = ap.table[Tuple((ap.percepts...))]	#convert percept sequence to tuple
-	if (ap.isTracing)
-		@printf("%s perceives %s and does %s", string(typeof(ap)), string(p), action.name);
-	end
-	return action;
-end
-
 type ReflexVacuumAgentProgram <: AgentProgram
 	isTracing::Bool
 
@@ -59,6 +50,42 @@ type ModelBasedVacuumAgentProgram <: AgentProgram
 		else
 			return new(Bool(trace), Dict{Any, Any}());
 		end
+	end
+end
+
+type Rule	#condition-action rules
+	condition::String
+	action::Action
+
+	function Rule(cond::String, act::Action)
+		return new(cond, act);
+	end
+end
+
+type SimpleReflexAgentProgram <: AgentProgram
+	isTracing::Bool
+	rules::Array{Rule, 1}
+
+	function SimpleReflexAgentProgram(rules_array::Array{Rule, 1};trace=false)
+		srap = new(Bool(trace));
+		srap.rules = deepcopy(rules_array);
+		return rules_array;
+	end
+end
+
+type ModelBasedReflexAgentProgram <: AgentProgram
+	isTracing::Bool
+	state::Dict{Any, Any}
+	model::Dict{Any, Any}
+	rules::Array{Rule, 1}
+	action::Action			#most recent action, initialized to empty string ""
+
+	function ModelBasedReflexAgentProgram(state, model, rules;trace=false)
+		mbrap = new(Bool(trace));
+		mbrap.state = deepcopy(state);
+		mbrap.model = deepcopy(model);
+		mbrap.rules = deepcopy(rules);
+		return mbrap;
 	end
 end
 
@@ -106,14 +133,32 @@ end
 loc_A = (0, 0)
 loc_B = (1, 0)
 
+function execute(ap::TableDrivenAgentProgram, percept::Percept)
+	ap.percepts.push(percept);
+	action = ap.table[Tuple((ap.percepts...))]	#convert percept sequence to tuple
+	if (ap.isTracing)
+		@printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), action.name);
+	end
+	return action;
+end
+
 function execute(ap::ReflexVacuumAgentProgram, location_status::Percept)
 	local location = location_status[1];
 	local status = location_status[2];
 	if (status == "Dirty")
+		if (ap.isTracing)
+			@printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Suck");
+		end
 		return "Suck";
 	elseif (location == loc_A)
+		if (ap.isTracing)
+			@printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Right");
+		end
 		return "Right";
 	elseif (location == loc_B)
+		if (ap.isTracing)
+			@printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Left");
+		end
 		return "Left";
 	end
 end
@@ -123,14 +168,65 @@ function execute(ap::ModelBasedVacuumAgentProgram, location_status::Percept)
 	local status = location_status[2];
 	ap.model[location] = status;							#update existing model
 	if (ap.model[loc_A] == ap.model[loc_B] == "Clean")		#return "NoOp" when no work is necessary
+		if (ap.isTracing)
+			@printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "NoOp");
+		end
 		return "NoOp";
 	elseif (status == "Dirty")
+		if (ap.isTracing)
+			@printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Suck");
+		end
 		return "Suck";
 	elseif (location == loc_A)
+		if (ap.isTracing)
+			@printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Right");
+		end
 		return "Right";
 	elseif (location == loc_B)
+		if (ap.isTracing)
+			@printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Left");
+		end
 		return "Left";
 	end
+end
+
+function rule_match(state::String, rules::Array{Rule, 1})
+	for element in rules
+		if (state == element.condition)
+			return element
+		end
+	end
+end
+
+function interpret_input{T <: AgentProgram}(ap::T, percept::Percept)		#implement this later
+	println("interpret_input() is not yet implemented for ", typeof(ap), "!");
+	nothing;
+end
+
+function update_state{T <: AgentProgram}(ap::T, percept::Percept)			#implement this later
+	println("update_state() is not yet implemented for ", typeof(ap), "!");
+	nothing;
+end
+
+function execute(ap::SimpleReflexAgentProgram, percept::Percept)
+	#the agent acts according to the given percept (Fig. 2.10)
+	local state = interpret_input(ap, percept);		#generate condition string from given percept
+	local rule = rule_match(state, ap.rules);
+	local action = rule.action;
+	if (ap.isTracing)
+		@printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), action);
+	end
+	return action;
+end
+
+function execute(ap::ModelBasedReflexAgentProgram, percept::Percept)
+	#the agent acts according to the agent state and model and given percept (Fig. 2.12)
+
+	#ap.state <- update-state(ap.state, ap.action, percept, ap.model);	#set new state
+	ap.state = update_state(ap, percept);
+	local rule = rule_match(ap.state, ap.rules);
+	ap.action = rule.action;
+	return ap.action;
 end
 
 #=
