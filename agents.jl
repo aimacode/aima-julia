@@ -377,9 +377,10 @@ type XYEnvironment <: Environment
 	agents::Array{Agent, 1}					#agents found in this field should also be found in the objects field
 	width::Float64
 	height::Float64
+	perceptible_distance::Float64
 
 	function XYEnvironment()
-		return new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10));
+		return new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10), Float64(1));
 	end
 end
 
@@ -489,4 +490,16 @@ function percept(e::VacuumEnvironment, a::Agent)
 	local status = if_(some_objects_at(a.location, Dirt), "Dirty", "Clean");
 	local bump = if_(a.bump, "Bump", "None");
 	return (status, bump)
+end
+
+function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius=C_NULL)
+	if (radius == C_NULL)
+		radius = e.perceptible_distance;
+	end
+	sq_radius = radius * radius;
+	return [obj for obj in e.objects if (distance2(loc, obj.location) <= sq_radius)];
+end
+
+function percept(e::XYEnvironment, a::Agent)
+	return [string(typeof(obj)) for obj in objects_near(a.location)]
 end
