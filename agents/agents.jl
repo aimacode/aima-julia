@@ -99,7 +99,8 @@ end
 
 abstract EnvironmentObject;			#declare EnvironmentObject as a supertype for EnvironmentObject implementations
 
-abstract EnvironmentAgent <: EnvironmentObject;			#the Agent exist in the environment like other environment objects such as gold
+#the EnvironmentAgent implementations exist in the environment like other EnvironmentObjects such as Gold or Dirt
+abstract EnvironmentAgent <: EnvironmentObject;
 
 type Agent <: EnvironmentAgent
 	alive::Bool
