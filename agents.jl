@@ -509,12 +509,12 @@ function execute_action{T1 <: Environment, T2 <: EnvironmentAgent}(e::T1, a::T2,
     nothing;
 end
 
-function delete_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T, obj::T2)
+function delete_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2)
     local i = utils.index(e.objects, obj);
     if (i > -1)
         deleteat!(e.objects, i);
     end
-    i = utils.index(e.agents), obj);
+    i = utils.index(e.agents, obj);
     if (i > -1)
         deleteat!(e.agents, i);
     end
