@@ -226,6 +226,9 @@ function execute(ap::ModelBasedReflexAgentProgram, percept::Percept)
 	ap.state = update_state(ap, percept);
 	local rule = rule_match(ap.state, ap.rules);
 	ap.action = rule.action;
+	if (ap.isTracing)
+		@printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), ap.action);
+	end
 	return ap.action;
 end
 
