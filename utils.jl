@@ -22,7 +22,16 @@ function index{T <: Any}(v::Array{T, 1}, item::T)
             return i;
         end
     end
-    return -1;          #couldn't find the item in the collection
+    return -1;          #couldn't find the item in the array
+end
+
+function turn_heading(heading::Tuple{Any, Any}, inc::Int64)
+    local o = [(1, 0), (0, 1), (-1, 0), (0, -1)];
+    return o[(index(o, heading) + inc) % length(o)];
+end
+
+function vector_add_tuples(a::Tuple, b::Tuple)
+    return map(+, a, b);
 end
 
 end

@@ -107,15 +107,21 @@ type Agent <: EnvironmentAgent
     alive::Bool
     performance::Float64
     bump::Bool
+    heading::Tuple{Any, Any}
+    holding::Array{Any, 1}
     program::AgentProgram
     location::Tuple{Any, Any}       #initialized when adding agent to environment
 
     function Agent()
-        return new(Bool(true), Float64(0), Bool(false));
+        return new(Bool(true), Float64(0), Bool(false),
+                                            rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                            Array{Any, 1}());
     end
 
     function Agent{T <: AgentProgram}(ap::T)
-        new_agent = new(Bool(true), Float64(0), Bool(false));   #program is undefined
+        new_agent = new(Bool(true), Float64(0), Bool(false),
+                                                rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                                Array{Any, 1}());   #program is undefined
         new_agent.program = ap;
         return new_agent;
     end
@@ -125,15 +131,21 @@ type Wumpus <: EnvironmentAgent
     alive::Bool
     performance::Float64
     bump::Bool
+    heading::Tuple{Any, Any}
+    holding::Array{Any, 1}
     program::AgentProgram
     location::Tuple{Any, Any}       #initialized when adding agent to environment
 
     function Wumpus()
-        return new(Bool(true), Float64(0), Bool(false));
+        return new(Bool(true), Float64(0), Bool(false),
+                                            rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                            Array{Any, 1}());
     end
 
     function Wumpus{T <: AgentProgram}(ap::T)
-        new_agent = new(Bool(true), Float64(0), Bool(false));   #program is undefined
+        new_agent = new(Bool(true), Float64(0), Bool(false),
+                                                rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                                Array{Any, 1}());   #program is undefined
         new_agent.program = ap;
         return new_agent;
     end
@@ -143,15 +155,21 @@ type Explorer <: EnvironmentAgent
     alive::Bool
     performance::Float64
     bump::Bool
+    heading::Tuple{Any, Any}
+    holding::Array{Any, 1}
     program::AgentProgram
     location::Tuple{Any, Any}       #initialized when adding agent to environment
 
     function Explorer()
-        return new(Bool(true), Float64(0), Bool(false));
+        return new(Bool(true), Float64(0), Bool(false),
+                                            rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                            Array{Any, 1}());
     end
 
     function Explorer{T <: AgentProgram}(ap::T)
-        new_agent = new(Bool(true), Float64(0), Bool(false));   #program is undefined
+        new_agent = new(Bool(true), Float64(0), Bool(false),
+                                                rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                                Array{Any, 1}());   #program is undefined
         new_agent.program = ap;
         return new_agent;
     end
@@ -490,6 +508,27 @@ function is_done{T <:Environment}(e::T)
     return true;
 end
 
+function step{T <: Environment}(e::T)
+    if (!is_done(e))
+        local actions = [execute(a, percept(e, a)) for a in e.agents];
+        for t in zip(e.agents, actions)
+            local agent = t[1];
+            local action = t[2];
+            execute_action(e, agent, action);
+        end
+        exogenous_change(e);
+    end
+end
+
+function run{T <: Environment}(e::T; steps=1000)
+    for step in range(0, step)
+        if (is_done(e))
+            break;
+        end
+        step(e);
+    end
+end
+
 function exogenous_change{T <: Environment}(e::T)   #implement this later
     #comment the following line to reduce verbosity
     #println("exogenous_change() not yet implemented for ", typeof(e), "!");
@@ -531,6 +570,62 @@ end
 function execute_action{T1 <: Environment, T2 <: EnvironmentAgent}(e::T1, a::T2, act::Action)   #implement this later
     println("execute_action() is not implemented yet for ", string(typeof(e)), "!");
     nothing;
+end
+
+function execute_action(e::XYEnvironment, a::EnvironmentAgent, act::Action)
+    a.bump = false;
+    if (act == "TurnRight")
+        a.heading = utils.turn_heading(a.heading, -1);
+    elseif (act == "TurnLeft")
+        a.heading = utils.turn_heading(a.heading, 1);
+    elseif (act == "Foward")
+        move_to(e, a, utils.vector_add_tuples(a.heading, a.location));
+    elseif (act == "Release")
+        if (length(a.holding) > 0)
+            pop!(a.holding);
+        end
+    end
+end
+
+function execute_action(e::VacuumEnvironment, a::EnvironmentAgent, act::Action)
+    if (act == "Suck")
+        local dirt_array = get_objects_at(e, a.location, Dirt);
+        if (length(dirt_array) > 0)
+            local dirt = pop!(dirt);
+            delete_object(e, dirt);
+        end
+    else
+        a.bump = false;
+        if (act == "TurnRight")
+            a.heading = utils.turn_heading(a.heading, -1);
+        elseif (act == "TurnLeft")
+            a.heading = utils.turn_heading(a.heading, 1);
+        elseif (act == "Foward")
+            move_to(e, a, utils.vector_add_tuples(a.heading, a.location));
+        elseif (act == "Release")
+            if (length(a.holding) > 0)
+                pop!(a.holding);
+            end
+        end
+    end
+    if (act != "NoOp")
+        a.performance = a.performance - 1;
+    end
+end
+
+function execute_action(e::TrivialVacuumEnvironment, a::EnvironmentAgent, act::Action)
+    if (act == "Right")
+        a.location = loc_B;
+        a.performance = a.performance - 1;
+    elseif (act == "Left")
+        a.location = loc_A;
+        a.performance = a.performance - 1;
+    elseif (act == "Suck")
+        if (e.status[a.location] == "Dirty")
+            a.performance = a.performance + 10;
+        end
+        e.status[a.location] = "Clean";
+    end
 end
 
 function add_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2; location=C_NULL)
