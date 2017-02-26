@@ -1,6 +1,6 @@
 # aima-julia
 
-Julia (v0.5+) implemention of the algorithms found "Artificial Intelligence: A Modern Approach".
+Julia (v0.5+) implementation of the algorithms found in "Artificial Intelligence: A Modern Approach".
 
 ## Acknowledgements
 
