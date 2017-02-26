@@ -421,6 +421,9 @@ abstract Environment;               #declare Environment as a supertype for Envi
 
 abstract TwoDimensionalEnvironment <: Environment;
 
+#XYEnvironment is a 2-dimensional Environment implementation with obstacles.
+#Agents perceive their location as a tuple of objects within perceptible_distance radius.
+#This environment does not update agent performance measures.
 type XYEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
@@ -435,6 +438,9 @@ type XYEnvironment <: TwoDimensionalEnvironment
     end
 end
 
+#VacuumEnvironment is a 2-dimensional Environment implementation with obstacles.
+#Agents can perceive their location as "Dirty" or "Clean".
+#Agent performance measures are updated when Dirt is removed or a non-NoOp Action is executed.
 type VacuumEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
@@ -449,6 +455,8 @@ type VacuumEnvironment <: TwoDimensionalEnvironment
     end
 end
 
+#TrivialVacuumEnvironment has 2 possible locations: loc_A and loc_B.
+#The status of those locations can be either "Dirty" or "Clean".
 type TrivialVacuumEnvironment <: Environment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}
@@ -481,6 +489,11 @@ type WumpusEnvironment <: TwoDimensionalEnvironment
     end
 end
 
+"""
+    percept(e, agent, act)
+
+Returns a Percept representing what the agent perceives in the enviroment.
+"""
 function percept{T1 <: Environment, T2 <: EnvironmentAgent, T3 <: Action}(e::T1, a::T2, act::T3)    #implement this later
     println("percept() is not implemented yet for ", typeof(e), "!");
     nothing;
@@ -492,6 +505,12 @@ function percept(e::VacuumEnvironment, a::Agent)
     return (status, bump)
 end
 
+"""
+    objects_near(e, location)
+    objects_near(e, location, radius)
+
+Return a list of EnvironmentObjects within the radius of a given location.
+"""
 function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius=C_NULL)
     if (radius == C_NULL)
         radius = e.perceptible_distance;
@@ -621,6 +640,7 @@ function execute_action(e::VacuumEnvironment, a::EnvironmentAgent, act::Action)
         if (length(dirt_array) > 0)
             local dirt = pop!(dirt);
             delete_object(e, dirt);
+            a.performance = a.performance + 100;
         end
     else
         a.bump = false;
@@ -700,6 +720,11 @@ function add_walls{T <: TwoDimensionalEnvironment}(e::T)
     nothing;
 end
 
+"""
+    move_to(e, obj, dest)
+
+Move the EnvironmentObject to the destination given.
+"""
 function move_to{T <: TwoDimensionalEnvironment}(e::T, obj::EnvironmentObject, destination::Tuple{Any, Any})
     obj.bump = some_objects_at(e, destination, Wall);   #Wall is a subtype of Obstacle, not an alias
     if (!obj.bump)
@@ -715,10 +740,21 @@ function run_once(e::Environment, AgentGen::Function, step_count::Int)
     return agent.performance;
 end
 
+"""
+    test_agent(agentgeneratorfunction, steps, envs)
+
+Calculates the average of the scores of running the given Agent in each of the environments.
+"""
 function test_agent{T <: Environment}(AgentGenerator::Function, steps::Int, envs::Array{T, 1})
     return mean([run_once(envs[i], AgentGenerator, steps) for i in 1:length(envs)]);
 end
 
+"""
+    compare_agents()
+
+Creates an array of 'n' Environments and runs each Agent in each separate copy of the Environment
+array for 'steps' times. Then, return a list of (agent, average_score) tuples.
+"""
 function compare_agents(EnvironmentGenerator::DataType, AgentGenerators::Array{Function, 1}; n=10, steps=1000)
     local envs = [EnvironmentGenerator() for i in range(0, n)];
     return [(string(typeof(A)), test_agent(A, steps, deepcopy(envs))) for A in AgentGenerators];
