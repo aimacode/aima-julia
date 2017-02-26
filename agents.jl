@@ -436,9 +436,32 @@ type WumpusEnvironment <: TwoDimensionalEnvironment
     end
 end
 
-function percept{T1 <: Environment, T2 <: EnvironmentAgent, T3 <: Action}(e::T1, a::T2, act::T3)        #implement this later
+function percept{T1 <: Environment, T2 <: EnvironmentAgent, T3 <: Action}(e::T1, a::T2, act::T3)    #implement this later
     println("percept() is not implemented yet for ", typeof(e), "!");
     nothing;
+end
+
+function percept(e::VacuumEnvironment, a::Agent)
+    local status = if_(some_objects_at(a.location, Dirt), "Dirty", "Clean");
+    local bump = if_(a.bump, "Bump", "None");
+    return (status, bump)
+end
+
+function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius=C_NULL)
+    if (radius == C_NULL)
+        radius = e.perceptible_distance;
+    end
+    sq_radius = radius * radius;
+    return [obj for obj in e.objects if (utils.distance2(loc, obj.location) <= sq_radius)];
+end
+
+function percept(e::XYEnvironment, a::Agent)
+    #this percept might not consist of exactly 2 elements
+    return Tuple(([string(typeof(obj)) for obj in objects_near(a.location)]...));
+end
+
+function percept(e::TrivialVacuumEnvironment, a::Agent)
+    return (a.location, a.status[a.location]);
 end
 
 function get_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::DataType)
@@ -503,24 +526,6 @@ end
 
 function environment_objects(e::WumpusEnvironment)
     return [Wall, Gold, Pit, Arrow, Wumpus, Explorer];
-end
-
-function percept(e::VacuumEnvironment, a::Agent)
-    local status = if_(some_objects_at(a.location, Dirt), "Dirty", "Clean");
-    local bump = if_(a.bump, "Bump", "None");
-    return (status, bump)
-end
-
-function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius=C_NULL)
-    if (radius == C_NULL)
-        radius = e.perceptible_distance;
-    end
-    sq_radius = radius * radius;
-    return [obj for obj in e.objects if (utils.distance2(loc, obj.location) <= sq_radius)];
-end
-
-function percept(e::XYEnvironment, a::Agent)
-    return [string(typeof(obj)) for obj in objects_near(a.location)];
 end
 
 function execute_action{T1 <: Environment, T2 <: EnvironmentAgent}(e::T1, a::T2, act::Action)   #implement this later
