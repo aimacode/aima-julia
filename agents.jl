@@ -271,7 +271,9 @@ function execute(ap::TableDrivenAgentProgram, percept::Percept)
             @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), action.name);
         end
     catch e
-        if (percept[1] == loc_A)    #do nothing since table does not contain percept sequence
+        #The table is not complete with all possible percept sequences.
+        #So, this program should now behave like a ReflexVacuumAgentProgram.
+        if (percept[1] == loc_A)
             action = "Right";
         elseif (percept[1] == loc_B)
             action = "Left";
@@ -610,6 +612,7 @@ function execute_action(e::XYEnvironment, a::EnvironmentAgent, act::Action)
             pop!(a.holding);
         end
     end
+    nothing;
 end
 
 function execute_action(e::VacuumEnvironment, a::EnvironmentAgent, act::Action)
@@ -636,6 +639,7 @@ function execute_action(e::VacuumEnvironment, a::EnvironmentAgent, act::Action)
     if (act != "NoOp")
         a.performance = a.performance - 1;
     end
+    nothing;
 end
 
 function execute_action(e::TrivialVacuumEnvironment, a::EnvironmentAgent, act::Action)
@@ -651,6 +655,7 @@ function execute_action(e::TrivialVacuumEnvironment, a::EnvironmentAgent, act::A
         end
         e.status[a.location] = "Clean";
     end
+    nothing;
 end
 
 function add_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2; location=C_NULL)
@@ -668,6 +673,7 @@ function add_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2; 
     else
         println("add_object(): object already exists in environment!");
     end
+    nothing;
 end
 
 function delete_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2)
@@ -679,6 +685,7 @@ function delete_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T
     if (i > -1)
         deleteat!(e.agents, i);
     end
+    nothing;
 end
 
 function add_walls{T <: TwoDimensionalEnvironment}(e::T)
@@ -690,6 +697,7 @@ function add_walls{T <: TwoDimensionalEnvironment}(e::T)
         add_object(Wall(), location=(0, y));
         add_object(Wall(), location=(e.width - 1, 0));
     end
+    nothing;
 end
 
 function move_to{T <: TwoDimensionalEnvironment}(e::T, obj::EnvironmentObject, destination::Tuple{Any, Any})
@@ -697,6 +705,7 @@ function move_to{T <: TwoDimensionalEnvironment}(e::T, obj::EnvironmentObject, d
     if (!obj.bump)
         obj.location = destination;
     end
+    nothing;
 end
 
 function run_once(e::Environment, AgentGen::Function, step_count::Int)
