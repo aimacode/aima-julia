@@ -56,6 +56,15 @@ type ModelBasedVacuumAgentProgram <: AgentProgram
     end
 end
 
+type RandomAgentProgram <: AgentProgram
+    isTracing::Bool
+    actions::Array{Action, 1}
+
+    function RandomAgentProgram(actions; trace=false)
+        return new(Bool(trace), deepcopy(actions));
+    end
+end
+
 type Rule   #condition-action rules
     condition::String
     action::Action
@@ -254,10 +263,19 @@ loc_A = (0, 0)
 loc_B = (1, 0)
 
 function execute(ap::TableDrivenAgentProgram, percept::Percept)
-    ap.percepts.push(percept);
-    action = ap.table[Tuple((ap.percepts...))]  #convert percept sequence to tuple
-    if (ap.isTracing)
-        @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), action.name);
+    push!(ap.percepts, percept);
+    local action;
+    try
+        action = ap.table[Tuple((ap.percepts...))]  #convert percept sequence to tuple
+        if (ap.isTracing)
+            @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), action.name);
+        end
+    catch e
+        if (percept[1] == loc_A)    #do nothing since table does not contain percept sequence
+            action = "Right";
+        elseif (percept[1] == loc_B)
+            action = "Left";
+        end
     end
     return action;
 end
@@ -308,6 +326,10 @@ function execute(ap::ModelBasedVacuumAgentProgram, location_status::Percept)
         end
         return "Left";
     end
+end
+
+function execute(ap::RandomAgentProgram, percept::Percept)
+    return rand(RandomDevice(), ap.actions);
 end
 
 function rule_match(state::String, rules::Array{Rule, 1})
@@ -389,6 +411,10 @@ function ModelBasedVacuumAgent()
             ])));
 end
 
+function RandomVacuumAgent()
+    return Agent(RandomAgentProgram(["Right", "Left", "Suck", "NoOp"]));
+end
+
 abstract Environment;               #declare Environment as a supertype for Environment implementations
 
 abstract TwoDimensionalEnvironment <: Environment;
@@ -421,7 +447,7 @@ type VacuumEnvironment <: TwoDimensionalEnvironment
     end
 end
 
-type TrivialVacuumEnvironment <: TwoDimensionalEnvironment
+type TrivialVacuumEnvironment <: Environment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}
     status::Dict{Tuple{Any, Any}, String}
@@ -435,7 +461,6 @@ type TrivialVacuumEnvironment <: TwoDimensionalEnvironment
                     Pair(loc_A, rand(RandomDevice(), ["Clean", "Dirty"])),
                     Pair(loc_B, rand(RandomDevice(), ["Clean", "Dirty"])),
                     ]), Float64(1));
-        add_walls(tve);
         return tve;
     end
 end
@@ -479,7 +504,7 @@ function percept(e::XYEnvironment, a::Agent)
 end
 
 function percept(e::TrivialVacuumEnvironment, a::Agent)
-    return (a.location, a.status[a.location]);
+    return (a.location, e.status[a.location]);
 end
 
 function get_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::DataType)
@@ -510,7 +535,7 @@ end
 
 function step{T <: Environment}(e::T)
     if (!is_done(e))
-        local actions = [execute(a, percept(e, a)) for a in e.agents];
+        local actions = [execute(agent.program, percept(e, agent)) for agent in e.agents];
         for t in zip(e.agents, actions)
             local agent = t[1];
             local action = t[2];
@@ -521,7 +546,7 @@ function step{T <: Environment}(e::T)
 end
 
 function run{T <: Environment}(e::T; steps=1000)
-    for step in range(0, step)
+    for i in range(0, steps)
         if (is_done(e))
             break;
         end
@@ -635,10 +660,10 @@ function add_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2; 
         else
             obj.location = default_location(e, obj);
         end
-        append!(e.objects, obj);
+        push!(e.objects, obj);
         if (typeof(obj) <: EnvironmentAgent)
             obj.performance = Float64(0);
-            append!(e.agents, obj);
+            push!(e.agents, obj);
         end
     else
         println("add_object(): object already exists in environment!");
@@ -672,4 +697,20 @@ function move_to{T <: TwoDimensionalEnvironment}(e::T, obj::EnvironmentObject, d
     if (!obj.bump)
         obj.location = destination;
     end
+end
+
+function run_once(e::Environment, AgentGen::Function, step_count::Int)
+    local agent = AgentGen();
+    add_object(e, agent);
+    run(e, steps=step_count);
+    return agent.performance;
+end
+
+function test_agent{T <: Environment}(AgentGenerator::Function, steps::Int, envs::Array{T, 1})
+    return mean([run_once(envs[i], AgentGenerator, steps) for i in 1:length(envs)]);
+end
+
+function compare_agents(EnvironmentGenerator::DataType, AgentGenerators::Array{Function, 1}; n=10, steps=1000)
+    local envs = [EnvironmentGenerator() for i in range(0, n)];
+    return [(string(typeof(A)), test_agent(A, steps, deepcopy(envs))) for A in AgentGenerators];
 end
