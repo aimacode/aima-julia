@@ -1,6 +1,9 @@
 module utils
 
-export if_;
+#Import existing push!() and pop!() method definitions to qualify our push!() and pop()! methods for export.
+import Base: push!, pop!;
+
+export if_, FIFOQueue, Stack, push!, pop!, extend!;
 
 function if_(boolean_expression, ans1, ans2)
     if (boolean_expression)
@@ -32,6 +35,110 @@ end
 
 function vector_add_tuples(a::Tuple, b::Tuple)
     return map(+, a, b);
+end
+
+#=
+
+    Define a Queue as an abstract DataType.
+
+    FIFOQueue, PriorityQueue, Stack are implementations of the Queue DataType.
+
+=#
+
+abstract Queue;
+
+#=
+
+    Stack is a Last In First Out (LIFO) Queue implementation.
+
+=#
+type Stack <: Queue
+    array::Array{Any, 1}
+
+    function Stack()
+        return new(Array{Any, 1}());
+    end
+end
+
+#=
+
+    FIFOQueue is a First In First Out (FIFO) Queue implementation.
+
+=#
+type FIFOQueue <: Queue
+    array::Array{Any, 1}
+
+    function FIFOQueue()
+        return new(Array{Any, 1}());
+    end
+end
+
+#=
+
+    Define method definitions of push!(), pop()!, and extend()! for Queue implementations.
+
+=#
+
+"""
+    push!(s::Stack, i::Any)
+
+Push the given item 'i' to the end of the collection.
+"""
+function push!(s::Stack, i::Any)
+    push!(s.array, i);
+    nothing;
+end
+
+"""
+    push!(s::FIFOQueue, i::Any)
+
+Push the given item 'i' to the end of the collection.
+"""
+function push!(fq::FIFOQueue, i::Any)
+    push!(fq.array, i);
+    nothing;
+end
+
+"""
+    pop!(s::Stack)
+
+Delete the last item of the collection and return the deleted item.
+"""
+function pop!(s::Stack)
+    return pop!(s.array);
+end
+"""
+    pop!(s::FIFOQueue)
+
+Delete the first item of the collection and return the deleted item.
+"""
+function pop!(fq::FIFOQueue)
+    return shift!(fq.array);
+end
+
+"""
+    extend!(s1::Stack, s2::Stack)
+
+Push item(s) of s2 to the end of s1.
+"""
+function extend!(s1::Stack, s2::Stack)
+    for e in s2.array
+        push!(s1.array, e);
+    end
+    nothing;
+end
+
+
+"""
+    extend!(fq1::FIFOQueue, fq2::FIFOQueue)
+
+Push item(s) of fq2 to the end of fq1.
+"""
+function extend!(fq1::FIFOQueue, fq2::FIFOQueue)
+    for e in fq2.array
+        push!(fq1.array, e);
+    end
+    nothing;
 end
 
 end

@@ -1,5 +1,7 @@
 include("utils.jl");
 
+using utils;
+
 typealias Percept Tuple{Any, Any}
 
 typealias Action String;
