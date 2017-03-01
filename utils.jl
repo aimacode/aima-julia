@@ -1,7 +1,8 @@
 module utils
 
 #Import existing push!() and pop!() method definitions to qualify our push!() and pop()! methods for export.
-import Base: push!, pop!;
+import Base.push!,
+        Base.pop!;
 
 export if_, FIFOQueue, Stack, push!, pop!, extend!;
 
@@ -75,6 +76,25 @@ end
 
 #=
 
+    PQueue is a Priority Queue implementation.
+
+    The array must consist of Tuple{Any, Any} such that,
+
+        -the first element is the priority of the item.
+
+        -the second element is the item.
+
+=#
+type PQueue <: Queue
+    array::Array{Tuple{Any, Any}, 1}
+
+    function PQueue()
+        return new(Array{Tuple{Any, Any}}());
+    end
+end
+
+#=
+
     Define method definitions of push!(), pop()!, and extend()! for Queue implementations.
 
 =#
@@ -140,5 +160,12 @@ function extend!(fq1::FIFOQueue, fq2::FIFOQueue)
     end
     nothing;
 end
+
+# Modified sorted binary search for array of tuples
+#   https://github.com/JuliaLang/julia/blob/master/base/sort.jl
+#       searchsortedfirst(), searchsortedlast(), and searchsorted()
+#
+# Base.Order.Forward will make the PQueue ordered by minimums.
+# Base.Order.Reverse will make the PQueue ordered by maximums.
 
 end
