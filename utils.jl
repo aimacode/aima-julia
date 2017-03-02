@@ -2,9 +2,14 @@ module utils
 
 #Import existing push!() and pop!() method definitions to qualify our push!() and pop()! methods for export.
 import Base.push!,
-        Base.pop!;
+        Base.pop!,
+        Base.start,
+        Base.next,
+        Base.done,
+        Base.length;
 
-export if_, FIFOQueue, Stack, push!, pop!, extend!;
+export if_, FIFOQueue, Stack, PQueue, push!, pop!, extend!,
+        start, next, done, length;
 
 function if_(boolean_expression, ans1, ans2)
     if (boolean_expression)
@@ -61,6 +66,15 @@ type Stack <: Queue
     end
 end
 
+# Map length function calls to underlying array in Stack
+length(s::Stack) = length(s.array);
+isempty(s::Stack) = isempty(s.array);
+
+# Map iterator function calls to underlying array in Stack
+start(s::Stack) = start(s.array);
+next(s::Stack, i) = next(s.array, i);
+done(s::Stack, i) = done(s.array, i);
+
 #=
 
     FIFOQueue is a First In First Out (FIFO) Queue implementation.
@@ -73,6 +87,15 @@ type FIFOQueue <: Queue
         return new(Array{Any, 1}());
     end
 end
+
+# Map length function calls to underlying array in FIFOQueue
+length(fq::FIFOQueue) = length(fq.array);
+isempty(fq::FIFOQueue) = isempty(fq.array);
+
+# Map iterator function calls to underlying array in FIFOQueue
+start(fq::FIFOQueue) = start(fq.array);
+next(fq::FIFOQueue, i) = next(fq.array, i);
+done(fq::FIFOQueue, i) = done(fq.array, i);
 
 #=
 
@@ -87,11 +110,22 @@ end
 =#
 type PQueue <: Queue
     array::Array{Tuple{Any, Any}, 1}
+    order::Base.Order.Ordering
 
-    function PQueue()
-        return new(Array{Tuple{Any, Any}}());
+    function PQueue(;order=Base.Order.Forward)
+        return new(Array{Tuple{Any, Any}, 1}(), order);
     end
 end
+
+# Map length function calls to underlying array in PQueue
+length(pq::PQueue) = length(pq.array);
+isempty(pq::PQueue) = isempty(pq.array);
+
+# Map iterator function calls to underlying array in PQueue
+start(pq::PQueue) = start(pq.array);
+next(pq::PQueue, i) = next(pq.array, i);
+done(pq::PQueue, i) = done(pq.array, i);
+
 
 #=
 
@@ -110,7 +144,7 @@ function push!(s::Stack, i::Any)
 end
 
 """
-    push!(s::FIFOQueue, i::Any)
+    push!(fq::FIFOQueue, i::Any)
 
 Push the given item 'i' to the end of the collection.
 """
@@ -127,8 +161,9 @@ Delete the last item of the collection and return the deleted item.
 function pop!(s::Stack)
     return pop!(s.array);
 end
+
 """
-    pop!(s::FIFOQueue)
+    pop!(fq::FIFOQueue)
 
 Delete the first item of the collection and return the deleted item.
 """
@@ -137,26 +172,53 @@ function pop!(fq::FIFOQueue)
 end
 
 """
-    extend!(s1::Stack, s2::Stack)
+    extend!(s1::Stack, s2::Queue)
+    extend!(s1::Stack, s2::AbstractVector)
 
 Push item(s) of s2 to the end of s1.
 """
-function extend!(s1::Stack, s2::Stack)
-    for e in s2.array
-        push!(s1.array, e);
+function extend!{T <: Queue}(s1::Stack, s2::T)
+    if (!(typeof(s2) <: PQueue))
+        for e in s2.array
+            push!(s1, e);
+        end
+    else
+        for e in s2.array
+            push!(s1, getindex(e, 2));
+        end
     end
     nothing;
 end
 
+function extend!(s1::Stack, s2::AbstractVector)
+    for e in s2
+        push!(s1, e);
+    end
+    nothing;
+end
 
 """
-    extend!(fq1::FIFOQueue, fq2::FIFOQueue)
+    extend!(fq1::FIFOQueue, fq2::Queue)
+    extend!(fq1::FIFOQueue, fq2::AbstractVector)
 
 Push item(s) of fq2 to the end of fq1.
 """
-function extend!(fq1::FIFOQueue, fq2::FIFOQueue)
-    for e in fq2.array
-        push!(fq1.array, e);
+function extend!{T <: Queue}(fq1::FIFOQueue, fq2::T)
+    if (!(typeof(fq2) <: PQueue))
+        for e in fq2.array
+            push!(fq1, e);
+        end
+    else
+        for e in fq2.array
+            push!(fq1, getindex(e, 2));
+        end
+    end
+    nothing;
+end
+
+function extend!(fq1::FIFOQueue, fq2::AbstractVector)
+    for e in fq2
+        push!(fq1, e);
     end
     nothing;
 end
@@ -165,7 +227,114 @@ end
 #   https://github.com/JuliaLang/julia/blob/master/base/sort.jl
 #       searchsortedfirst(), searchsortedlast(), and searchsorted()
 #
+#       These 3 functions were renamed to avoid confusion.
+#
+#
 # Base.Order.Forward will make the PQueue ordered by minimums.
 # Base.Order.Reverse will make the PQueue ordered by maximums.
+function bisearchfirst{T <: Tuple{Any, Any}}(v::Array{T, 1}, x::T, lo::Int, hi::Int, o::Base.Sort.Ordering)
+    lo = lo-1;
+    hi = hi+1;
+    @inbounds while (lo < hi-1)
+        m = (lo+hi) >>> 1
+        if (Base.Order.lt(o, getindex(v[m], 1), getindex(x, 1)))
+            lo = m;
+        else
+            hi = m;
+        end
+    end
+    return hi;
+end
+
+function bisearchlast{T <: Tuple{Any, Any}}(v::Array{T, 1}, x::T, lo::Int, hi::Int, o::Base.Sort.Ordering)
+    lo = lo-1;
+    hi = hi+1;
+    @inbounds while (lo < hi-1)
+        m = (lo+hi) >>> 1;
+        if (Base.Order.lt(o, getindex(x, 1), getindex(v[m], 1)))
+            hi = m;
+        else
+            lo = m;
+        end
+    end
+    return lo;
+end
+
+function bisearch{T <: Tuple{Any, Any}}(v::Array{T, 1}, x::T, ilo::Int, ihi::Int, o::Base.Sort.Ordering)
+    lo = ilo-1;
+    hi = ihi+1;
+    @inbounds while (lo < hi-1)
+        m = (lo+hi) >>> 1;
+        if (Base.Order.lt(o, getindex(v[m], 1), getindex(x, 1)))
+            lo = m;
+        elseif (Base.Order.lt(o, getindex(x, 1), getindex(v[m], 1)))
+            hi = m;
+        else
+            a = bisearchfirst(v, x, max(lo, ilo), m, o)
+            b = bisearchlast(v, x, m, min(hi, ihi), o)
+            return a : b;
+        end
+    end
+    return (lo + 1) : (hi - 1);
+end
+
+"""
+    push!(pq::PQueue, i::Tuple{Any, Tuple})
+
+Push the given item 'i' to the index after existing entries with the same priority i[1].
+"""
+function push!(pq::PQueue, item::Tuple{Any, Any})
+    bsi = bisearch(pq.array, item, 1, length(pq), pq.order);
+
+    if (pq.order == Base.Order.Forward)
+        insert!(pq.array, bsi.stop + 1, item);
+    else
+        if (bsi.start != 0)
+            insert!(pq.array, bsi.start, item);
+        else
+            insert!(pq.array, 1, item);
+        end
+    end
+    nothing;
+end
+
+"""
+    pop!(pq::PQueue)
+
+Delete the lowest/highest item based on ordering of the collection and return the deleted item.
+"""
+function pop!(pq::PQueue)
+    #if (pq.order == Base.Order.Forward)
+        return shift!(pq.array);   #return lowest priority tuple
+    #else
+    #    return pop!(pq.array);     #return highest priority tuple
+    #end
+end
+
+"""
+    extend!(pq1::PQueue, pq2::Queue, pv::Function)
+    extend!(pq1::PQueue, pq2::AbstractVector, pv::Function)
+
+Push item(s) of pq2 to pq1 by the priority of the item(s) returned by pv().
+"""
+function extend!{T <: Queue}(pq1::PQueue, pq2::T, pv::Function)
+    if (!(typeof(pq2) <: PQueue))
+        for e in pq2.array
+            push!(pq1, (pv(e), e));
+        end
+    else
+        for e in pq2.array
+            push!(pq1, (pv(getindex(e, 2)), getindex(e, 2)));
+        end
+    end
+    nothing;
+end
+
+function extend!(pq1::PQueue, pq2::AbstractVector, pv::Function)
+    for e in pq2
+        push!(pq1, (pv(e), e));
+    end
+    nothing;
+end
 
 end
