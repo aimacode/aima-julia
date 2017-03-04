@@ -3,6 +3,8 @@ import Base: ==;
 
 typealias Action String;
 
+typealias Percept Tuple{Any, Any};
+
 abstract AbstractProblem;
 
 type Problem <: AbstractProblem
@@ -101,3 +103,53 @@ function path(n::Node)
 end
 
 ==(n1::Node, n2::Node) = (n1.state == n2.state);
+
+type SimpleProblemSolvingAgentProgram
+    state::String
+    goal::String
+    seq::Array{Action, 1}
+    problem::Problem
+
+    function SimpleProblemSolvingAgentProgram(;initial_state=Void)
+        if (typeof(initial_state) <: String)
+            return new(initial_state, "", Array{Action, 1}());
+        else
+            return new("", "", Array{Action, 1}());
+        end
+    end
+end
+
+function execute{T <: SimpleProblemSolvingAgentProgram}(spsap::T, percept::Percept)
+    spsap.state = update_state(spsap, spsap.state, percept);
+    if (length(spsap.seq) == 0)
+        spsap.goal = formulate_problem(spsap, spsap.state);
+        spsap.problem = forumate_problem(spsap, spsap.state, spsap.goal);
+        spsap.seq = search(spsap, spsap.problem);
+        if (length(spsap.seq) == 0)
+            return Void;
+        end
+    end
+    local action = shift!(spsap.seq);
+    return action;
+end
+
+function update_state{T <: SimpleProblemSolvingAgentProgram}(spsap::T, state::String, percept::Percept)
+    println("update_state() is not implemented yet for ", typeof(spsap), "!");
+    nothing;
+end
+
+function formulate_goal{T <: SimpleProblemSolvingAgentProgram}(spsap::T, state::String)
+    println("formulate_goal() is not implemented yet for ", typeof(spsap), "!");
+    nothing;
+end
+
+function formulate_problem{T <: SimpleProblemSolvingAgentProgram}(spsap::T, state::String, goal::String)
+    println("formulate_problem() is not implemented yet for ", typeof(spsap), "!");
+    nothing;
+end
+
+function search{T <: SimpleProblemSolvingAgentProgram}(spsap::T, problem::Problem)
+    println("search() is not implemented yet for ", typeof(spsap), "!");
+    nothing;
+end
+
