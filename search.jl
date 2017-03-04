@@ -153,3 +153,24 @@ function search{T <: SimpleProblemSolvingAgentProgram}(spsap::T, problem::Proble
     nothing;
 end
 
+type GAState
+    genes::Array{Any, 1}
+
+    function GAState(genes)
+        return new(Array{Any,1}(deepcopy(genes)));
+    end
+end
+
+function mate{T <: GAState}(ga_state::T, other::T)
+    local c = rand(RandomDevice(), range(1, length(ga_state.genes)));
+    local new_ga_state = deepcopy(ga_state[1:c]);
+    for element in other.genes[(c + 1):length(other.genes)]
+        push!(new_ga_state, element);
+    end
+    return new_ga_state;
+end
+
+function mutate{T <: GAState}(ga_state::T)
+    println("mutate() is not implemented yet for ", typeof(ga_state), "!");
+    nothing;
+end
