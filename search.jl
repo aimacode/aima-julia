@@ -174,3 +174,77 @@ function mutate{T <: GAState}(ga_state::T)
     println("mutate() is not implemented yet for ", typeof(ga_state), "!");
     nothing;
 end
+
+"""
+    tree_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
+
+Search the given problem by using the general tree search algorithm (Fig. 3.7).
+"""
+function tree_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
+    push!(frontier, Node(problem.initial));
+    while (length(frontier) != 0)
+        local node = pop!(frontier);
+        if (goal_test(problem, node.state))
+            return node;
+        end
+        extend!(frontier, expand(node, problem));
+    end
+    return nothing;
+end
+
+"""
+    graph_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
+
+Search the given problem by using the general graph search algorithm (Fig. 3.7).
+
+The uniform cost algorithm (Fig. 3.14) should be used when the frontier is a priority queue.
+"""
+function graph_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
+    local explored = Set{String}();
+    push!(frontier, Node(problem.initial));
+    while (length(frontier) != 0)
+        local node = pop!(frontier);
+        if (goal_test(problem, node.state))
+            return node;
+        end
+        push!(explored, node.state);
+        extend!(frontier, [child_node for child_node in expand(node, problem) 
+                            if (!(child_node.state in explored) && !(child_node in frontier))])
+    end
+    return nothing;
+end
+
+function breadth_first_tree_search{T <: AbstractProblem}(problem::T)
+    return tree_search(problem, FIFOQueue());
+end
+
+function depth_first_tree_search{T <: AbstractProblem}(problem::T)
+    return tree_search(problem, Stack());
+end
+
+function depth_first_graph_search{T <: AbstractProblem}(problem::T)
+    return graph_search(problem, Stack());
+end
+
+function breadth_first_search{T <: AbstractProblem}(problem::T)
+    local node = Node(problem.initial);
+    if (goal_test(problem, node.state))
+        return node;
+    end
+    local frontier = FIFOQueue();
+    push!(frontier, node);
+    local explored = Set{String}();
+    while (length(frontier) != 0)
+        node = pop!(frontier);
+        push!(explored, node.state);
+        for child_node in expand(node, problem)
+            if (!(child_node.state in explored) && !(child_node in frontier))
+                if (goal_test(problem, child_node.state))
+                    return child_node;
+                end
+                push!(frontier, child_node);
+            end
+        end
+    end
+    return nothing;
+end
