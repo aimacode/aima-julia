@@ -11,11 +11,11 @@ type Problem <: AbstractProblem
     initial::String
     goal::String
 
-    function Problem(initial_state; goal_state=Void)
+    function Problem(initial_state::String; goal_state::Union{Void, String}=nothing)
         if (typeof(goal_state) <: String)
             return new(initial_state, goal_state);
         else
-            return new(initial_state, "");
+            return new(initial_state);  #goal is undefined
         end
     end
 end
@@ -50,7 +50,7 @@ type Node
     action::Action
     parent::Node
 
-    function Node(state; parent=Void, action=Void, path_cost=0)
+    function Node(state::String; parent::Union{Void, Node}=nothing, action::Union{Void, Action}=nothing, path_cost::Float64=0.0)
         if (typeof(parent) <: Node && typeof(action) <: Action)
             nn = new(state, path_cost, UInt32(0), action);
             nn.parent = parent;
@@ -110,7 +110,7 @@ type SimpleProblemSolvingAgentProgram
     seq::Array{Action, 1}
     problem::Problem
 
-    function SimpleProblemSolvingAgentProgram(;initial_state=Void)
+    function SimpleProblemSolvingAgentProgram(;initial_state::Union{Void, String}=nothing)
         if (typeof(initial_state) <: String)
             return new(initial_state, "", Array{Action, 1}());
         else
@@ -156,7 +156,7 @@ end
 type GAState
     genes::Array{Any, 1}
 
-    function GAState(genes)
+    function GAState(genes::Array{Any, 1})
         return new(Array{Any,1}(deepcopy(genes)));
     end
 end

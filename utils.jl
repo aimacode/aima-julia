@@ -11,7 +11,7 @@ import Base.push!,
 export if_, FIFOQueue, Stack, PQueue, push!, pop!, extend!,
         start, next, done, length;
 
-function if_(boolean_expression, ans1, ans2)
+function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
         return ans1;
     else
@@ -112,7 +112,7 @@ type PQueue <: Queue
     array::Array{Tuple{Any, Any}, 1}
     order::Base.Order.Ordering
 
-    function PQueue(;order=Base.Order.Forward)
+    function PQueue(;order::Base.Order.Ordering=Base.Order.Forward)
         return new(Array{Tuple{Any, Any}, 1}(), order);
     end
 end

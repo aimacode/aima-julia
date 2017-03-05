@@ -26,7 +26,7 @@ type TableDrivenAgentProgram <: AgentProgram
     percepts::Array{Percept, 1}
     table::Dict{Any, Any}
 
-    function TableDrivenAgentProgram(;table_dict=C_NULL, trace=false)
+    function TableDrivenAgentProgram(;table_dict::Union{Void, Dict{Any, Any}}=nothing, trace::Bool=false)
         if (table_dict == C_NULL)           #no table given, create empty dictionary
             return new(Bool(trace), Array{Percept, 1}(), Dict{Any, Any}());
         else
@@ -38,7 +38,7 @@ end
 type ReflexVacuumAgentProgram <: AgentProgram
     isTracing::Bool
 
-    function ReflexVacuumAgentProgram(;trace=false)
+    function ReflexVacuumAgentProgram(;trace::Bool=false)
         return new(Bool(trace));
     end
 end
@@ -47,7 +47,7 @@ type ModelBasedVacuumAgentProgram <: AgentProgram
     isTracing::Bool
     model::Dict{Any, Any}
 
-    function ModelBasedVacuumAgentProgram(;trace=false, model=Void)
+    function ModelBasedVacuumAgentProgram(;trace::Bool=false, model::Union{Void, Dict{Any, Any}}=nothing)
         if (typeof(model) <: Dict{Any, Any})
             new_ap = new(Bool(trace));
             new_ap.model = deepcopy(model);
@@ -62,7 +62,7 @@ type RandomAgentProgram <: AgentProgram
     isTracing::Bool
     actions::Array{Action, 1}
 
-    function RandomAgentProgram(actions; trace=false)
+    function RandomAgentProgram(actions::Array{Action, 1}; trace::Bool=false)
         return new(Bool(trace), deepcopy(actions));
     end
 end
@@ -80,7 +80,7 @@ type SimpleReflexAgentProgram <: AgentProgram
     isTracing::Bool
     rules::Array{Rule, 1}
 
-    function SimpleReflexAgentProgram(rules_array::Array{Rule, 1};trace=false)
+    function SimpleReflexAgentProgram(rules_array::Array{Rule, 1};trace::Bool=false)
         srap = new(Bool(trace));
         srap.rules = deepcopy(rules_array);
         return rules_array;
@@ -94,7 +94,7 @@ type ModelBasedReflexAgentProgram <: AgentProgram
     rules::Array{Rule, 1}
     action::Action          #most recent action, initialized to empty string ""
 
-    function ModelBasedReflexAgentProgram(state, model, rules;trace=false)
+    function ModelBasedReflexAgentProgram(state::Dict{Any, Any}, model::Dict{Any, Any}, rules::Array{Rule, 1}; trace::Bool=false)
         mbrap = new(Bool(trace));
         mbrap.state = deepcopy(state);
         mbrap.model = deepcopy(model);
@@ -513,8 +513,8 @@ end
 
 Return a list of EnvironmentObjects within the radius of a given location.
 """
-function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius=C_NULL)
-    if (radius == C_NULL)
+function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius::Union{Void, Float64}=nothing)
+    if (typeof(radius) <: Void)
         radius = e.perceptible_distance;
     end
     sq_radius = radius * radius;
@@ -568,7 +568,7 @@ function step{T <: Environment}(e::T)
     end
 end
 
-function run{T <: Environment}(e::T; steps=1000)
+function run{T <: Environment}(e::T; steps::Int64=1000)
     for i in range(0, steps)
         if (is_done(e))
             break;
@@ -680,9 +680,9 @@ function execute_action(e::TrivialVacuumEnvironment, a::EnvironmentAgent, act::A
     nothing;
 end
 
-function add_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2; location=C_NULL)
+function add_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2; location::Union{Void, Tuple{Any, Any}}=nothing)
     if (!(obj in e.objects))
-        if (location != C_NULL)
+        if (!(typeof(location) <: Void))
             obj.location = location;
         else
             obj.location = default_location(e, obj);
@@ -757,7 +757,7 @@ end
 Creates an array of 'n' Environments and runs each Agent in each separate copy of the Environment
 array for 'steps' times. Then, return a list of (agent, average_score) tuples.
 """
-function compare_agents(EnvironmentGenerator::DataType, AgentGenerators::Array{Function, 1}; n=10, steps=1000)
+function compare_agents(EnvironmentGenerator::DataType, AgentGenerators::Array{Function, 1}; n::Int64=10, steps::Int64=1000)
     local envs = [EnvironmentGenerator() for i in range(0, n)];
     return [(string(typeof(A)), test_agent(A, steps, deepcopy(envs))) for A in AgentGenerators];
 end
