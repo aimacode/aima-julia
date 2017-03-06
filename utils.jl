@@ -368,7 +368,7 @@ function extend!{T <: Queue}(pq1::PQueue, pq2::T, pv::Function)
     nothing;
 end
 
-#pv - priority value
+#pv - function that returns priority value
 function extend!(pq1::PQueue, pq2::AbstractVector, pv::Function)
     for e in pq2
         push!(pq1, (pv(e), e));
