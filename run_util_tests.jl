@@ -8,7 +8,7 @@ using Base.Test;
 
 na = [1, 8, 2, 7, 5, 6, -99, 99, 4, 3, 0];
 
-function qtest(qf::DataType; order=false, f=Void)
+function qtest(qf::DataType; order::Union{Bool, Base.Order.Ordering}=false, f::Union{Void, Function, MemoizedFunction}=nothing)
 	if (!(qf <: PQueue))
 		q = qf();
 		extend!(q, na);
@@ -23,7 +23,7 @@ function qtest(qf::DataType; order=false, f=Void)
 		else
 			q = qf(order=order);
 		end
-		if (f != Void)
+		if (!(typeof(f) <: Void))
 			extend!(q, na, f);
 		else
 			extend!(q, na, (function(item) return item; end));
@@ -32,7 +32,7 @@ function qtest(qf::DataType; order=false, f=Void)
 			@test num in [getindex(x, 2) for x in collect(q)];
 		end
 		@test !(42 in [getindex(x, 2) for x in collect(q)]);
-		return [getindex(pop!(q), 2) for i in range(0, length(q))];
+		return [pop!(q) for i in range(0, length(q))];
 	end
 end
 
@@ -47,3 +47,9 @@ end
 @test qtest(PQueue, f=abs) == [0, 1, 2, 3, 4, 5, 6, 7, 8, -99, 99];
 
 @test qtest(PQueue, order=Base.Order.Reverse, f=abs) == [99, -99, 8, 7, 6, 5, 4, 3, 2, 1, 0];
+
+mabs = MemoizedFunction(abs);		#memoize abs()
+
+@test qtest(PQueue, f=mabs) == [0, 1, 2, 3, 4, 5, 6, 7, 8, -99, 99];
+
+@test qtest(PQueue, order=Base.Order.Reverse, f=mabs) == [99, -99, 8, 7, 6, 5, 4, 3, 2, 1, 0];

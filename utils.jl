@@ -9,7 +9,8 @@ import Base.push!,
         Base.length;
 
 export if_, FIFOQueue, Stack, PQueue, push!, pop!, extend!,
-        start, next, done, length;
+        start, next, done, length,
+        MemoizedFunction, eval_memoized_function;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -126,6 +127,31 @@ start(pq::PQueue) = start(pq.array);
 next(pq::PQueue, i) = next(pq.array, i);
 done(pq::PQueue, i) = done(pq.array, i);
 
+#=
+
+    MemoizedFunction is a DataType that wraps the original function (.f) with a dictionary
+
+    (.values) containing the previous given arguments as keys to their computed values.
+
+=#
+
+type MemoizedFunction
+    f::Function     #original function
+    values::Dict{Tuple{Vararg}, Any}
+
+    function MemoizedFunction(f::Function)
+        return new(f, Dict{Tuple{Vararg}, Any}());
+    end
+end
+
+function eval_memoized_function(mf::MemoizedFunction, args::Vararg{Any})
+    if (haskey(mf.values, args))
+        return mf.values[args];
+    else
+        mf.values[args] = mf.f(args...);
+        return mf.values[args];
+    end
+end
 
 #=
 
@@ -281,7 +307,7 @@ end
 """
     push!(pq::PQueue, i::Tuple{Any, Tuple})
 
-Push the given item 'i' to the index after existing entries with the same priority i[1].
+Push the given item 'i' to the index after existing entries with the same priority as getitem(i, 1).
 """
 function push!(pq::PQueue, item::Tuple{Any, Any})
     bsi = bisearch(pq.array, item, 1, length(pq), pq.order);
@@ -298,17 +324,29 @@ function push!(pq::PQueue, item::Tuple{Any, Any})
     nothing;
 end
 
+function push!(pq::PQueue, item::Any, mf::MemoizedFunction)
+    local item_tuple = (eval_memoized_function(mf, item), item);
+    bsi = bisearch(pq.array, item_tuple, 1, length(pq), pq.order);
+
+    if (pq.order == Base.Order.Forward)
+        insert!(pq.array, bsi.stop + 1, item_tuple);
+    else
+        if (bsi.start != 0)
+            insert!(pq.array, bsi.start, item_tuple);
+        else
+            insert!(pq.array, 1, item_tuple);
+        end
+    end
+    nothing;
+end
+
 """
     pop!(pq::PQueue)
 
 Delete the lowest/highest item based on ordering of the collection and return the deleted item.
 """
 function pop!(pq::PQueue)
-    #if (pq.order == Base.Order.Forward)
-        return shift!(pq.array);   #return lowest priority tuple
-    #else
-    #    return pop!(pq.array);     #return highest priority tuple
-    #end
+    return getindex(shift!(pq.array), 2);   #return lowest/highest priority tuple by pq.order
 end
 
 """
@@ -330,9 +368,18 @@ function extend!{T <: Queue}(pq1::PQueue, pq2::T, pv::Function)
     nothing;
 end
 
+#pv - priority value
 function extend!(pq1::PQueue, pq2::AbstractVector, pv::Function)
     for e in pq2
         push!(pq1, (pv(e), e));
+    end
+    nothing;
+end
+
+#mpv - function that returns memoized priority value
+function extend!(pq1::PQueue, pq2::AbstractVector, mpv::MemoizedFunction)
+    for e in pq2
+        push!(pq1, (eval_memoized_function(mpv, e), e));
     end
     nothing;
 end
