@@ -9,14 +9,10 @@ abstract AbstractProblem;
 
 type Problem <: AbstractProblem
     initial::String
-    goal::String
+    goal::Nullable{String}
 
     function Problem(initial_state::String; goal_state::Union{Void, String}=nothing)
-        if (typeof(goal_state) <: String)
-            return new(initial_state, goal_state);
-        else
-            return new(initial_state);  #goal is undefined
-        end
+        return new(initial_state, Nullable{String}(goal_state));
     end
 end
 
@@ -47,29 +43,13 @@ type Node
     state::String
     path_cost::Float64
     depth::UInt32
-    action::Action
-    parent::Node
+    action::Nullable{Action}
+    parent::Nullable{Node}
 
     function Node(state::String; parent::Union{Void, Node}=nothing, action::Union{Void, Action}=nothing, path_cost::Float64=0.0)
-        if (typeof(parent) <: Node && typeof(action) <: Action)
-            nn = new(state, path_cost, UInt32(0), action);
-            nn.parent = parent;
-            nn.depth = parent.depth + 1;
-            return nn;
-        else
-            if (typeof(parent) <: Node)
-                nn = new(state, path_cost, UInt32(0), "");
-                nn.parent = parent;
-                nn.depth = parent.depth + 1;
-                return nn;
-            elseif (typeof(action) <: Action)
-                nn = new(state, path_cost, UInt32(0), action);
-                return nn;  #leave parent undefined
-            else
-                nn = new(state, path_cost, UInt32(0), "");
-                return nn;  #leave parent undefined
-            end
-        end
+        nn = new(state, path_cost, UInt32(0), Nullable{Action}(action), Nullable{Node}(parent));
+        nn.depth = parent.depth + 1;
+        return nn;
     end
 end
 
@@ -92,9 +72,9 @@ function path(n::Node)
     local path_back = [];
     while true
         push!(path_back, node);
-        try
+        if (!isnull(node.parent))
             node = node.parent;
-        catch e     #our root node's parent is undefined
+        else     #the root node does not have a parent node
             break;
         end
     end
@@ -105,17 +85,13 @@ end
 ==(n1::Node, n2::Node) = (n1.state == n2.state);
 
 type SimpleProblemSolvingAgentProgram
-    state::String
-    goal::String
+    state::Nullable{String}
+    goal::Nullable{String}
     seq::Array{Action, 1}
-    problem::Problem
+    problem::Nullable{Problem}
 
     function SimpleProblemSolvingAgentProgram(;initial_state::Union{Void, String}=nothing)
-        if (typeof(initial_state) <: String)
-            return new(initial_state, "", Array{Action, 1}());
-        else
-            return new("", "", Array{Action, 1}());
-        end
+        return new(Nullable{String}(initial_state), Nullable{String}(), Array{Action, 1}(), Nullable{Problem}());
     end
 end
 

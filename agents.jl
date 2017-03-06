@@ -267,12 +267,12 @@ loc_B = (1, 0)
 function execute(ap::TableDrivenAgentProgram, percept::Percept)
     push!(ap.percepts, percept);
     local action;
-    try
+    if (haskey(ap.table, Tuple((ap.percepts...))))
         action = ap.table[Tuple((ap.percepts...))]  #convert percept sequence to tuple
         if (ap.isTracing)
             @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), action.name);
         end
-    catch e
+    else
         #The table is not complete with all possible percept sequences.
         #So, this program should now behave like a ReflexVacuumAgentProgram.
         if (percept[1] == loc_A)
