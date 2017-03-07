@@ -229,3 +229,41 @@ function breadth_first_search{T <: AbstractProblem}(problem::T)
     end
     return nothing;
 end
+
+function best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
+    local mf = MemoizedFunction(f);
+    local node = Node(problem.initial);
+    if (goal_state(problem, node.state))
+        return node;
+    end
+    local frontier = PriorityQueue();
+    push!(frontier, node, mf);
+    local explored = Set{String}();
+    while (length(frontier) != 0)
+        node = pop!(frontier);
+        if (goal_state(problem, node.state))
+            return node;
+        end
+        push!(explored, node.state);
+        for child_node in expand(node, problem)
+            if (child_node.state not in explored &&
+                child_node not in [getindex(x, 2) for x in frontier.array])
+                push!(frontier, child_node, mf);
+            elseif (child_node in [getindex(x, 2) for x in frontier.array])
+            #Recall that Nodes can share the same state and different values for other fields.
+                local existing_node = pop!(collect(getindex(x, 2)
+                                                    for x in frontier.array
+                                                    if (getindex(x, 2) == child_node)));
+                if (eval_memoized_function(mf, child_node) < eval_memoized_function(mf, existing_node))
+                    delete!(frontier, existing_node);
+                    push!(frontier, child_node, mf);
+                end
+            end
+        end
+    end
+    return nothing;
+end
+
+function uniform_cost_search{T <: AbstractProblem}(problem::T)
+    return best_first_graph_search(problem, (function(n::Node)return n.path_cost;end));
+end
