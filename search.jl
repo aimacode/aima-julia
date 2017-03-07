@@ -246,8 +246,8 @@ function best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
         end
         push!(explored, node.state);
         for child_node in expand(node, problem)
-            if (child_node.state not in explored &&
-                child_node not in [getindex(x, 2) for x in frontier.array])
+            if (!(child_node.state in explored) &&
+                !(child_node in collect(getindex(x, 2) for x in frontier.array)))
                 push!(frontier, child_node, mf);
             elseif (child_node in [getindex(x, 2) for x in frontier.array])
             #Recall that Nodes can share the same state and different values for other fields.

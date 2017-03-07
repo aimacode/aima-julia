@@ -8,7 +8,7 @@ import Base.push!,
         Base.done,
         Base.length;
 
-export if_, FIFOQueue, Stack, PQueue, push!, pop!, extend!,
+export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!,
         start, next, done, length,
         MemoizedFunction, eval_memoized_function;
 
@@ -382,6 +382,21 @@ function extend!(pq1::PQueue, pq2::AbstractVector, mpv::MemoizedFunction)
         push!(pq1, (eval_memoized_function(mpv, e), e));
     end
     nothing;
+end
+
+"""
+    delete!(pq::PQueue, item::Any)
+
+Remove the item if it already exists in pq.array.
+"""
+function delete!(pq::PQueue, item::Any)
+    for (i, entry) in enumerate(pq.array)
+        if (item == getindex(entry, 2))
+            deleteat!(pq.array, i);
+            return nothing;
+        end
+    end
+    return nothing;
 end
 
 end
