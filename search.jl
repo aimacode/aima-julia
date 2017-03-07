@@ -48,7 +48,9 @@ type Node
 
     function Node(state::String; parent::Union{Void, Node}=nothing, action::Union{Void, Action}=nothing, path_cost::Float64=0.0)
         nn = new(state, path_cost, UInt32(0), Nullable{Action}(action), Nullable{Node}(parent));
-        nn.depth = parent.depth + 1;
+        if (typeof(parent) <: Node)
+            nn.depth = UInt32(parent.depth + 1);
+        end
         return nn;
     end
 end
