@@ -1,3 +1,6 @@
+include("utils.jl");
+
+using utils;
 
 import Base: ==;
 
@@ -186,8 +189,8 @@ function graph_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier:
             return node;
         end
         push!(explored, node.state);
-        extend!(frontier, [child_node for child_node in expand(node, problem) 
-                            if (!(child_node.state in explored) && !(child_node in frontier))])
+        extend!(frontier, collect(child_node for child_node in expand(node, problem)
+                                if (!(child_node.state in explored) && !(child_node in frontier))));
     end
     return nothing;
 end
