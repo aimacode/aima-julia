@@ -267,3 +267,36 @@ end
 function uniform_cost_search{T <: AbstractProblem}(problem::T)
     return best_first_graph_search(problem, (function(n::Node)return n.path_cost;end));
 end
+
+function recursive_dls{T <: AbstractProblem}(node::Node, problem::T, limit::Int64)
+    if (goal_test(problem, node.state))
+        return node;
+    elseif (node.depth == limit)
+        return "cutoff";
+    else
+        local cutoff_occurred = false;
+        for child_node in expand(node, problem)
+            local result = recursive_dls(child_node, problem, limit);
+            if (result == "cutoff")
+                cutoff_occurred = true;
+            elseif (!(typeof(result <: Void)))
+                return result;
+            end
+        end
+        return if_(cutoff_occurred, "cutoff", nothing);
+    end
+end;
+
+function depth_limited_search{T <: AbstractProblem}(problem::T; limit::Int64=0)
+    return recursive_dls(Node(problem.initial), problem, limit);
+end
+
+function iterative_deepening_search{T <: AbstractProblem}(problem::T)
+    for depth in 1:typemax(Int64)
+        local result = depth_limited_search(problem, depth)
+        if (result != "cutoff")
+            return result;
+        end
+    end
+    return nothing;
+end
