@@ -20,7 +20,10 @@ function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     end
 end
 
-function distance2(p1::Tuple{Any, Any}, p2::Tuple{Any, Any})
+function distance(p1::Tuple{Number, Number}, p2::Tuple{Number, Number})
+    return sqrt(((Float64(p1[1]) - Float64(p2[1]))^2) + ((Float64(p1[2]) - Float64(p2[2]))^2));
+
+function distance2(p1::Tuple{Number, Number}, p2::Tuple{Number, Number})
     return (Float64(p1[1]) - Float64(p2[1]))^2 + (Float64(p1[2]) - Float64(p2[2]))^2;
 end
 
@@ -43,6 +46,8 @@ end
 function vector_add_tuples(a::Tuple, b::Tuple)
     return map(+, a, b);
 end
+
+abstract AbstractProblem;
 
 #=
 
@@ -340,6 +345,22 @@ function push!(pq::PQueue, item::Any, mf::MemoizedFunction)
     nothing;
 end
 
+function push!{T <: AbstractProblem}(pq::PQueue, item::Any, mf::MemoizedFunction, problem::T)
+    local item_tuple = (eval_memoized_function(mf, problem, item), item);
+    bsi = bisearch(pq.array, item_tuple, 1, length(pq), pq.order);
+
+    if (pq.order == Base.Order.Forward)
+        insert!(pq.array, bsi.stop + 1, item_tuple);
+    else
+        if (bsi.start != 0)
+            insert!(pq.array, bsi.start, item_tuple);
+        else
+            insert!(pq.array, 1, item_tuple);
+        end
+    end
+    nothing;
+end
+
 """
     pop!(pq::PQueue)
 
@@ -380,6 +401,13 @@ end
 function extend!(pq1::PQueue, pq2::AbstractVector, mpv::MemoizedFunction)
     for e in pq2
         push!(pq1, (eval_memoized_function(mpv, e), e));
+    end
+    nothing;
+end
+
+function extend!{T <: AbstractProblem}(pq1::PQueue, pq2::AbstractVector, mpv::MemoizedFunction, problem::T)
+    for e in pq2
+        push!(pq1, (eval_memoized_function(mpv, problem, e), e));
     end
     nothing;
 end

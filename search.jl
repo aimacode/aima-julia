@@ -8,8 +8,6 @@ typealias Action String;
 
 typealias Percept Tuple{Any, Any};
 
-abstract AbstractProblem;
-
 type Problem <: AbstractProblem
     initial::String
     goal::Nullable{String}
@@ -299,4 +297,44 @@ function iterative_deepening_search{T <: AbstractProblem}(problem::T)
         end
     end
     return nothing;
+end
+
+const greedy_best_first_graph_search = best_first_graph_search;
+
+function astar_search{T <: AbstractProblem}(problem::T; h::Union{Void, Function}=nothing)
+    mh::MemoizedFunction; #memoized h(n) function
+    if (!(typeof(h) <: Void))
+        mh = MemoizedFunction(h);
+    else
+        mh = problem.itg;
+    end
+    return best_first_graph_search(problem,
+                                    (function{T <: AbstractProblem}(problem::T, node::Node; h::MemoizedFunction=mh)
+                                        return n.path_cost + eval_memoized_function(h, problem, node)));
+end
+
+type GraphProblem <: AbstractProblem
+    initial::String
+    goal::Nullable{String}
+    #graph::Graph           #unimplemented graph datatype
+    itg::MemoizedFunction
+
+
+    function GraphProblem(initial_state::String, goal_state::String)# graph::Graph is not implemented yet
+        return new(initial_state, Nullable{String}(goal_state), MemoizedFunction(initial_to_goal_distance));
+    end
+end
+
+"""
+    initial_to_goal_distance(gp::GraphProblem, n::Node)
+
+Compute the straight line distance between the initial state and goal state.
+"""
+function initial_to_goal_distance(gp::GraphProblem, n::Node)
+    local locations = gp.graph.locations;
+    if (isnull(locations))
+        return Inf;
+    else
+        return Int64(floor(distance(locations[node.state], locations[gp.goal])));
+    end
 end
