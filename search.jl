@@ -40,14 +40,15 @@ function value{T <: AbstractProblem}(ap::T, state::String)
     nothing;
 end
 
-type Node
-    state::String
+#A node should not exist without a state.
+type Node{T}
+    state::T
     path_cost::Float64
     depth::UInt32
     action::Nullable{Action}
     parent::Nullable{Node}
 
-    function Node(state::String; parent::Union{Void, Node}=nothing, action::Union{Void, Action}=nothing, path_cost::Float64=0.0)
+    function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, Action}=nothing, path_cost::Float64=0.0)
         nn = new(state, path_cost, UInt32(0), Nullable{Action}(action), Nullable{Node}(parent));
         if (typeof(parent) <: Node)
             nn.depth = UInt32(parent.depth + 1);
@@ -160,7 +161,7 @@ end
 Search the given problem by using the general tree search algorithm (Fig. 3.7).
 """
 function tree_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
-    push!(frontier, Node(problem.initial));
+    push!(frontier, Node{typeof(problem.initial)}(problem.initial));
     while (length(frontier) != 0)
         local node = pop!(frontier);
         if (goal_test(problem, node.state))
@@ -180,7 +181,7 @@ The uniform cost algorithm (Fig. 3.14) should be used when the frontier is a pri
 """
 function graph_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
     local explored = Set{String}();
-    push!(frontier, Node(problem.initial));
+    push!(frontier, Node{typeof(problem.initial)}(problem.initial));
     while (length(frontier) != 0)
         local node = pop!(frontier);
         if (goal_test(problem, node.state))
@@ -206,7 +207,7 @@ function depth_first_graph_search{T <: AbstractProblem}(problem::T)
 end
 
 function breadth_first_search{T <: AbstractProblem}(problem::T)
-    local node = Node(problem.initial);
+    local node = Node{typeof(problem.initial)}(problem.initial);
     if (goal_test(problem, node.state))
         return node;
     end
@@ -230,7 +231,7 @@ end
 
 function best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
     local mf = MemoizedFunction(f);
-    local node = Node(problem.initial);
+    local node = Node{typeof(problem.initial)}(problem.initial);
     if (goal_state(problem, node.state))
         return node;
     end
@@ -286,7 +287,7 @@ function recursive_dls{T <: AbstractProblem}(node::Node, problem::T, limit::Int6
 end;
 
 function depth_limited_search{T <: AbstractProblem}(problem::T; limit::Int64=0)
-    return recursive_dls(Node(problem.initial), problem, limit);
+    return recursive_dls(Node{typeof(problem.initial)}(problem.initial), problem, limit);
 end
 
 function iterative_deepening_search{T <: AbstractProblem}(problem::T)
@@ -439,5 +440,16 @@ romania = UndirectedGraph(Dict(
                                 "I"=>(473, 506), "L"=>(165, 379), "M"=>(168, 339), "N"=>(406, 537),
                                 "O"=>(131, 571), "P"=>(320, 368), "R"=>(233, 410), "S"=>(207, 457),
                                 "T"=>( 94, 410), "U"=>(456, 350), "V"=>(509, 444), "Z"=>(108, 531),
+                                )
+                            );
+
+australia = UndirectedGraph(Dict(
+                                Pair("T",   Dict()),
+                                Pair("SA",  Dict("WA"=>1, "NT"=>1, "Q"=>1, "NSW"=>1, "V"=>1)),
+                                Pair("NT",  Dict("WA"=>1, "Q"=>1)),
+                                Pair("NSW", Dict("Q"=>1, "V"=>1)),
+                            ),
+                            Dict{String, Tuple{Any, Any}}("WA"=>(120, 24), "NT"=>(135, 20), "SA"=>(135, 30),
+                                "Q"=>(145, 20), "NSW"=>(145, 32), "T"=>(145, 42), "V"=>(145, 37),
                                 )
                             );
