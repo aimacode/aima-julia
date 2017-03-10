@@ -364,7 +364,7 @@ end
 type GraphProblem <: AbstractProblem
     initial::String
     goal::Nullable{String}
-    graph::Graph           #unimplemented graph datatype
+    graph::Graph
     itg::MemoizedFunction
 
 
