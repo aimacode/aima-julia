@@ -10,7 +10,8 @@ import Base.push!,
 
 export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!,
         start, next, done, length,
-        MemoizedFunction, eval_memoized_function;
+        MemoizedFunction, eval_memoized_function,
+        AbstractProblem;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -22,6 +23,7 @@ end
 
 function distance(p1::Tuple{Number, Number}, p2::Tuple{Number, Number})
     return sqrt(((Float64(p1[1]) - Float64(p2[1]))^2) + ((Float64(p1[2]) - Float64(p2[2]))^2));
+end
 
 function distance2(p1::Tuple{Number, Number}, p2::Tuple{Number, Number})
     return (Float64(p1[1]) - Float64(p2[1]))^2 + (Float64(p1[2]) - Float64(p2[2]))^2;

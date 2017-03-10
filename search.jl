@@ -301,28 +301,94 @@ end
 
 const greedy_best_first_graph_search = best_first_graph_search;
 
-function astar_search{T <: AbstractProblem}(problem::T; h::Union{Void, Function}=nothing)
-    mh::MemoizedFunction; #memoized h(n) function
-    if (!(typeof(h) <: Void))
-        mh = MemoizedFunction(h);
-    else
-        mh = problem.itg;
+type Graph
+    dict::Dict{Any, Any}
+    locations::Dict{String, Tuple{Any, Any}}
+    directed::Bool
+
+    function Graph{T <: Dict}(;dict::Union{Void, T}=nothing, locations::Union{Void, Dict{String, Tuple{Any, Any}}}=nothing, directed::Bool=true)
+        local ng::Graph;
+        if ((typeof(dict) <: Void) && (typeof(locations) <: Void))
+            ng = new(Dict{Any, Any}(), Dict{String, Tuple{Any, Any}}(), Bool(directed));
+        else
+            ng = new(Dict{Any, Any}(dict), Dict{String, Tuple{Any, Any}}(locations), Bool(directed));
+        end
+        if (!ng.directed)
+            make_undirected(ng);
+        end
+        return ng;
     end
-    return best_first_graph_search(problem,
-                                    (function{T <: AbstractProblem}(problem::T, node::Node; h::MemoizedFunction=mh)
-                                        return n.path_cost + eval_memoized_function(h, problem, node)));
+
+    function Graph(graph::Graph)
+        return new(Dict{Any, Any}(graph.dict), Dict{String, Tuple{Any, Any}}(graph.locations), Bool(graph.directed));
+    end
+end
+
+function make_undirected(graph::Graph)
+    for location_A in keys(graph.dict)
+        for (location_B, d) in graph.dict[location_A]
+            connect_nodes(graph, location_B, location_A, distance=d);
+        end
+    end
+end
+
+function connect_nodes(graph::Graph, A::String, B::String; distance::Int64=Int64(1))
+    get!(graph.dict, A, Dict{String, Int64}())[B]=distance;
+    if (!graph.directed)
+        get!(graph.dict, B, Dict{String, Int64}())[A]=distance;
+    end
+    nothing;
+end
+
+function get_linked_nodes(graph::Graph, a::String; b::Union{Void, String}=nothing)
+    local linked = get!(graph.dict, A, Dict{Any, Any}());
+    if (typeof(b) <: Void)
+        return linked;
+    else
+        return linked[b];
+    end
+end
+
+function get_nodes(graph::Graph)
+    return collect(keys(graph.dict));
+end
+
+function UndirectedGraph{T <: Dict}(dict::T, locations::Dict{String, Tuple{Any, Any}})
+    return Graph(dict=dict, locations=locations, directed=false);
+end
+
+function UndirectedGraph()
+    return Graph(directed=false);
 end
 
 type GraphProblem <: AbstractProblem
     initial::String
     goal::Nullable{String}
-    #graph::Graph           #unimplemented graph datatype
+    graph::Graph           #unimplemented graph datatype
     itg::MemoizedFunction
 
 
-    function GraphProblem(initial_state::String, goal_state::String)# graph::Graph is not implemented yet
-        return new(initial_state, Nullable{String}(goal_state), MemoizedFunction(initial_to_goal_distance));
+    function GraphProblem(initial_state::String, goal_state::String, graph::Graph)
+        return new(initial_state, Nullable{String}(goal_state), Graph(graph), MemoizedFunction(initial_to_goal_distance));
     end
+end
+
+function get_actions(gp::GraphProblem, loc::String)
+    return collect(keys(gp.graph[loc]));
+end
+
+function get_result(gp::GraphProblem, state::String, action::Action)
+    return action;
+end
+
+function path_cost(gp::GraphProblem, current_cost::Float64, location_A::String, action::Action, location_B::String)
+    local AB_distance::Float64;
+    if (haskey(gp.dict, A) && haskey(gp.dict[A], B))
+        AB_distance= Float64(gp.graph.get_linked_nodes(A,B));
+    else
+        AB_distance = Float64(Inf);
+    end
+    return current_cost + AB_distance;
 end
 
 """
@@ -338,3 +404,40 @@ function initial_to_goal_distance(gp::GraphProblem, n::Node)
         return Int64(floor(distance(locations[node.state], locations[gp.goal])));
     end
 end
+
+function astar_search(problem::GraphProblem; h::Union{Void, Function}=nothing)
+    local mh::MemoizedFunction; #memoized h(n) function
+    local problem_type = typeof(problem);
+    if (!(typeof(h) <: Void))
+        mh = MemoizedFunction(h);
+    else
+        mh = problem.itg;
+    end
+    return best_first_graph_search(problem,
+                                    (function(prob::GraphProblem, node::Node; h::MemoizedFunction=mh)
+                                        return n.path_cost + eval_memoized_function(h, prob, node);end));
+end
+
+romania = UndirectedGraph(Dict(
+                            Pair("A", Dict("Z"=>75, "S"=>140, "T"=>118)),
+                            Pair("B", Dict("U"=>85, "P"=>101, "G"=>90, "F"=>211)),
+                            Pair("C", Dict("D"=>120, "R"=>146, "P"=>138)),
+                            Pair("D", Dict("M"=>75)),
+                            Pair("E", Dict("H"=>86)),
+                            Pair("F", Dict("S"=>99)),
+                            Pair("H", Dict("U"=>98)),
+                            Pair("I", Dict("V"=>92, "N"=>87)),
+                            Pair("L", Dict("T"=>111, "M"=>70)),
+                            Pair("O", Dict("Z"=>71, "S"=>151)),
+                            Pair("P", Dict("R"=>97)),
+                            Pair("R", Dict("S"=>80)),
+                            Pair("U", Dict("V"=>142)),
+                                ),
+                            Dict{String, Tuple{Any, Any}}(
+                                "A"=>( 91, 492), "B"=>(400, 327), "C"=>(253, 288), "D"=>(165, 299),
+                                "E"=>(562, 293), "F"=>(305, 449), "G"=>(375, 270), "H"=>(534, 350),
+                                "I"=>(473, 506), "L"=>(165, 379), "M"=>(168, 339), "N"=>(406, 537),
+                                "O"=>(131, 571), "P"=>(320, 368), "R"=>(233, 410), "S"=>(207, 457),
+                                "T"=>( 94, 410), "U"=>(456, 350), "V"=>(509, 444), "Z"=>(108, 531),
+                                )
+                            );
