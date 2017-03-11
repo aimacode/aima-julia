@@ -442,7 +442,7 @@ function RBFS{T <: Node}(problem::GraphProblem, node::T, flmt::Float64, h::Memoi
         else
             alternative = Inf;
         end
-        result, best.f = RBFS(problem, best, min(flmt, alternative));
+        result, best.f = RBFS(problem, best, min(flmt, alternative), h);
         if (!isnull(result))
             return result, best.f;
         end
