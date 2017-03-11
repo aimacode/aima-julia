@@ -22,8 +22,8 @@ function actions{T <: AbstractProblem}(ap::T, state::String)
     nothing;
 end
 
-function result{T <: AbstractProblem}(ap::T, state::String, action::Action)
-    println("result() is not implemented yet for ", typeof(ap), "!");
+function get_result{T <: AbstractProblem}(ap::T, state::String, action::Action)
+    println("get_result() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
 
@@ -47,9 +47,10 @@ type Node{T}
     depth::UInt32
     action::Nullable{Action}
     parent::Nullable{Node}
+    f::Nullable{Float64}
 
-    function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, Action}=nothing, path_cost::Float64=0.0)
-        nn = new(state, path_cost, UInt32(0), Nullable{Action}(action), Nullable{Node}(parent));
+    function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, Action}=nothing, path_cost::Float64=0.0, f::Union{Void, Float64}=nothing)
+        nn = new(state, path_cost, UInt32(0), Nullable{Action}(action), Nullable{Node}(parent), Nullable{Float64}(f));
         if (typeof(parent) <: Node)
             nn.depth = UInt32(parent.depth + 1);
         end
@@ -62,8 +63,8 @@ function expand{T <: AbstractProblem}(n::Node, ap::T)
 end
 
 function child_node{T <: AbstractProblem}(n::Node, ap::T, action::Action)
-    local next_node = result(ap, n.state, action);
-    return Node(next_node, n, action, ap.path_cost(n.path_cost, n.state, action, next_node));
+    local next_node = get_result(ap, n.state, action);
+    return Node{typeof(next_node)}(next_node, n, action, ap.path_cost(n.path_cost, n.state, action, next_node));
 end
 
 function solution(n::Node)
@@ -366,7 +367,7 @@ type GraphProblem <: AbstractProblem
     initial::String
     goal::Nullable{String}
     graph::Graph
-    itg::MemoizedFunction
+    h::MemoizedFunction
 
 
     function GraphProblem(initial_state::String, goal_state::String, graph::Graph)
@@ -402,22 +403,67 @@ function initial_to_goal_distance(gp::GraphProblem, n::Node)
     if (isnull(locations))
         return Inf;
     else
-        return Int64(floor(distance(locations[node.state], locations[gp.goal])));
+        return Float64(floor(distance(locations[node.state], locations[gp.goal])));
     end
 end
 
 function astar_search(problem::GraphProblem; h::Union{Void, Function}=nothing)
     local mh::MemoizedFunction; #memoized h(n) function
-    local problem_type = typeof(problem);
     if (!(typeof(h) <: Void))
         mh = MemoizedFunction(h);
     else
-        mh = problem.itg;
+        mh = problem.h;
     end
     return best_first_graph_search(problem,
                                     (function(prob::GraphProblem, node::Node; h::MemoizedFunction=mh)
                                         return n.path_cost + eval_memoized_function(h, prob, node);end));
 end
+
+function RBFS{T <: Node}(problem::GraphProblem, node::T, flmt::Float64, h::MemoizedFunction)
+    if (goal_test(node.state))
+        return Nullable{Node}(node), 0.0;
+    end
+    local successors = expand(node, problem);
+    if (length(successors) == 0);
+        return Nullable{Node}(node), Inf;
+    end
+    for successor in successors
+        successor.f = max(successor.f + eval_memoized_function(h, successor), node.f);
+    end
+    while (true)
+        sort!(successors, lt=(function(n1::Node, n2::Node)return isless(n1.f, n2.f);end));
+        local best::Node = successors[1];
+        if (best.f > flmt)
+            return Nullable{Node}(), best.f;
+        end
+        local alternative::Float64;
+        if (length(successors) > 1)
+            alternative = successors[1].f;
+        else
+            alternative = Inf;
+        end
+        result, best.f = RBFS(problem, best, min(flmt, alternative));
+        if (!isnull(result))
+            return result, best.f;
+        end
+    end
+end
+
+function recursive_best_first_search(problem::GraphProblem; h::Union{Void, MemoizedFunction}=nothing)
+    local mh::MemoizedFunction; #memoized h(n) function
+    if (!(typeof(h) <: Void))
+        mh = MemoizedFunction(h);
+    else
+        mh = problem.h;
+    end
+
+    local node = Node{typeof(problem.initial)}(problem.initial);
+    node.f = Nullable{Float64}(eval_memoized_function(mh, node));
+    result, bestf = RBFS(problem, node, Inf, mh);
+    return get(result);
+end
+
+
 
 romania = UndirectedGraph(Dict(
                             Pair("A", Dict("Z"=>75, "S"=>140, "T"=>118)),
