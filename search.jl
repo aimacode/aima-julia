@@ -2,7 +2,7 @@ include("utils.jl");
 
 using utils;
 
-import Base: ==;
+import Base: ==, expand;
 
 typealias Action String;
 
@@ -463,7 +463,50 @@ function recursive_best_first_search(problem::GraphProblem; h::Union{Void, Memoi
     return get(result);
 end
 
+function hill_climbing{T <: AbstractProblem}(problem::T)
+    local current_node = Node{typeof(problem.initial)}(problem.initial);
+    while (true)
+        local neighbors = expand(current_node, problem);
+        if (length(neighbors) == 0)
+            break;
+        end
+        local neighbor = argmax_random_tie(neighbors,
+                                            (function(n::Node,; p::AbstractProblem=problem)
+                                                return value(p, n.state);
+                                            end));
+        if (value(problem, neighbor.state) <= value(problem, current_node.state))
+            break;
+        end
+        current_node = neighbor;
+    end
+    return current_node.state;
+end
 
+function exp_schedule(;kvar::Int64=20, delta::Float64=0.005, lmt::Int64=100)
+    return (function(t::Real; k=kvar, d=delta, limit=lmt)
+                return if_((t < limit), (k * exp(-d * t)), 0);
+            end);
+end
+
+function simulated_annealing{T <: AbstractProblem}(problem::T; schedule=exp_schedule)
+    local current_node = Node{typeof(problem.initial)}(problem.initial);
+    for t in 0:(typemax(Int64) - 1)
+        local temperature = schedule(t);
+        if (temperature == 0)
+            return current_node;
+        end
+        local neighbors = expand(current_node, problem);
+        if (length(neighbors) == 0)
+            return current_node;
+        end
+        local next_node = rand(RandomDevice(), neighbors);
+        delta_e = value(problem, next_node.state) - value(problem, current_node.state);
+        if ((delta_e > 0) || (exp(delta_e/temperature) > rand(RandomDevice())))
+            current_node = next_node;
+        end
+    end
+    return nothing;
+end
 
 romania = UndirectedGraph(Dict(
                             Pair("A", Dict("Z"=>75, "S"=>140, "T"=>118)),

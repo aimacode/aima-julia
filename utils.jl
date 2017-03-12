@@ -11,7 +11,8 @@ import Base.push!,
 export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!,
         start, next, done, length,
         MemoizedFunction, eval_memoized_function,
-        AbstractProblem;
+        AbstractProblem,
+        argmin_random_tie, argmax_random_tie;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -427,6 +428,42 @@ function delete!(pq::PQueue, item::Any)
         end
     end
     return nothing;
+end
+
+function argmin_random_tie{T <: AbstractVector}(seq::T, fn::Function)
+    local best_score = fn(seq[1]);
+    local n::Int64 = 0;
+    local best_element;
+    for element in seq
+        element_score = fn(element);
+        if (element_score < best_score)
+            best_element = element;
+        elseif (element_score == best_score)
+            n = n + 1;
+            if (rand(RandomDevice(), 1:n) == 1)
+                best_element = element;
+            end
+        end
+    end
+    return best_element;
+end
+
+function argmax_random_tie{T <: AbstractVector}(seq::T, fn::Function)
+    local best_score = fn(seq[1]);
+    local n::Int64 = 1;
+    local best_element;
+    for element in seq
+        element_score = fn(element);
+        if (element_score > best_score)
+            best_element = element;
+        elseif (element_score == best_score)
+            n = n + 1;
+            if (rand(RandomDevice(), 1:n) == 1)
+                best_element = element;
+            end
+        end
+    end
+    return best_element;
 end
 
 end
