@@ -508,6 +508,34 @@ function simulated_annealing{T <: AbstractProblem}(problem::T; schedule=exp_sche
     return nothing;
 end
 
+function genetic_search{T <: AbstractProblem}(problem::T; ngen::Int64=1000, pmut::Float64=0.1, n::Int64=20)
+    local s = problem.initial;
+    local states = [result(s, action) for action in actions(problem, s)];
+    shuffle!(RandomDevice(), states);
+    if (length(states) < n)
+        n = length(states);
+    end
+    return genetic_algorithm(states[1:n], value, ngen=ngen, pmut=pmut);
+end
+
+function genetic_algorithm{T <: AbstractVector}(population::T, fitness::Function; ngen::Int64=1000, pmut::Float64=0.1)
+    for i in 1:ngen
+        local new_population = Array{Any, 1}();
+        for j in 1:length(population)
+            local fitnesses = map(fitness, population);
+            p1, p2 = weighted_sample_with_replacement(population, fitnesses, 2);
+            local child = mate(p1, p2);
+            if (rand(RandomDevice()) < pmut)
+                mutate(child);
+            end
+            push!(new_population, child);
+        end
+        population = new_population;
+    end
+    return argmax(population, fitness);
+end
+
+
 romania = UndirectedGraph(Dict(
                             Pair("A", Dict("Z"=>75, "S"=>140, "T"=>118)),
                             Pair("B", Dict("U"=>85, "P"=>101, "G"=>90, "F"=>211)),

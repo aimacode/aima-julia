@@ -53,3 +53,9 @@ mabs = MemoizedFunction(abs);		#memoize abs()
 @test qtest(PQueue, f=mabs) == [0, 1, 2, 3, 4, 5, 6, 7, 8, -99, 99];
 
 @test qtest(PQueue, order=Base.Order.Reverse, f=mabs) == [99, -99, 8, 7, 6, 5, 4, 3, 2, 1, 0];
+
+@test weighted_sample_with_replacement([], [], 0) == [];
+
+@test weighted_sample_with_replacement("a", [3], 2) == ['a', 'a'];
+
+@test weighted_sample_with_replacement("ab", [0, 3], 3) == ['b', 'b', 'b'];

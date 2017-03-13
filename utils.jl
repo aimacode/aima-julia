@@ -12,7 +12,8 @@ export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!,
         start, next, done, length,
         MemoizedFunction, eval_memoized_function,
         AbstractProblem,
-        argmin_random_tie, argmax_random_tie;
+        argmin, argmax, argmin_random_tie, argmax_random_tie,
+        weighted_sampler, weighted_sample_with_replacement;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -430,6 +431,67 @@ function delete!(pq::PQueue, item::Any)
     return nothing;
 end
 
+function weighted_sample_with_replacement{T1 <: AbstractVector, T2 <: AbstractVector}(seq::T1, weights::T2, n::Int64)
+    local sample = weighted_sampler(seq, weights);
+    return collect(sample() for i in 1:n);
+end
+
+function weighted_sample_with_replacement{T <: AbstractVector}(seq::String, weights::T, n::Int64)
+    local sample = weighted_sampler(seq, weights);
+    return collect(sample() for i in 1:n);
+end
+
+function weighted_sampler{T1 <: AbstractVector, T2 <: AbstractVector}(seq::T1, weights::T2)
+    local totals = Array{Any, 1}();
+    for w in weights
+        if (length(totals) != 0)
+            push!(totals, (w + totals[length(totals)]));
+        else
+            push!(totals, w);
+        end
+    end
+    return (function(;sequence=seq, totals_array=totals)
+                bsi = bisearch(totals_array,
+                                (rand(RandomDevice())*totals_array[length(totals_array)]),
+                                1,
+                                length(totals_array),
+                                Base.Order.Forward);
+                return seq[bsi.stop + 1];
+            end);
+end
+
+function weighted_sampler{T <: AbstractVector}(seq::String, weights::T)
+    local totals = Array{Any, 1}();
+    for w in weights
+        if (length(totals) != 0)
+            push!(totals, (w + totals[length(totals)]));
+        else
+            push!(totals, w);
+        end
+    end
+    return (function(;sequence=seq, totals_array=totals)
+                bsi = searchsorted(totals_array,
+                                (rand(RandomDevice())*totals_array[length(totals_array)]),
+                                1,
+                                length(totals_array),
+                                Base.Order.Forward);
+                return seq[bsi.stop + 1];
+            end);
+end
+
+function argmin{T <: AbstractVector}(seq::T, fn::Function)
+    local best_element = seq[1];
+    local best_score = fn(best_element);
+    for element in seq
+        element_score = fn(element);
+        if (element_score < best_score)
+            best_element = element;
+            best_score = element_score;
+        end
+    end
+    return best_element;
+end
+
 function argmin_random_tie{T <: AbstractVector}(seq::T, fn::Function)
     local best_score = fn(seq[1]);
     local n::Int64 = 0;
@@ -443,6 +505,19 @@ function argmin_random_tie{T <: AbstractVector}(seq::T, fn::Function)
             if (rand(RandomDevice(), 1:n) == 1)
                 best_element = element;
             end
+        end
+    end
+    return best_element;
+end
+
+function argmax{T <: AbstractVector}(seq::T, fn::Function)
+    local best_element = seq[1];
+    local best_score = fn(best_element);
+    for element in seq
+        element_score = fn(element);
+        if (element_score > best_score)
+            best_element = element;
+            best_score = element_score;
         end
     end
     return best_element;
