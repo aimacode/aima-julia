@@ -712,4 +712,5 @@ function lookup(wl::WordList, prefix::String; lo::Int64=1, hi::Union{Void, Int64
     end
 end
 
-function length
+length(wl::WordList) = length(wl.words);
+
