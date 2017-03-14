@@ -303,17 +303,17 @@ end
 
 const greedy_best_first_graph_search = best_first_graph_search;
 
-type Graph
-    dict::Dict{Any, Any}
-    locations::Dict{String, Tuple{Any, Any}}
+type Graph{N}
+    dict::Dict{N, Any}
+    locations::Dict{N, Tuple{Any, Any}}
     directed::Bool
 
-    function Graph{T <: Dict}(;dict::Union{Void, T}=nothing, locations::Union{Void, Dict{String, Tuple{Any, Any}}}=nothing, directed::Bool=true)
+    function Graph{N}(;dict::Union{Void, Dict{N, }}=nothing, locations::Union{Void, Dict{N, Tuple{Any, Any}}}=nothing, directed::Bool=true)
         local ng::Graph;
         if ((typeof(dict) <: Void) && (typeof(locations) <: Void))
-            ng = new(Dict{Any, Any}(), Dict{String, Tuple{Any, Any}}(), Bool(directed));
+            ng = new(Dict{Any, Any}(), Dict{Any, Tuple{Any, Any}}(), Bool(directed));
         else
-            ng = new(Dict{Any, Any}(dict), Dict{String, Tuple{Any, Any}}(locations), Bool(directed));
+            ng = new(Dict{eltype(dict.keys), Any}(dict), Dict{eltype(locations.keys), Tuple{Any, Any}}(locations), Bool(directed));
         end
         if (!ng.directed)
             make_undirected(ng);
@@ -321,7 +321,7 @@ type Graph
         return ng;
     end
 
-    function Graph(graph::Graph)
+    function Graph{N}(graph::Graph{N})
         return new(Dict{Any, Any}(graph.dict), Dict{String, Tuple{Any, Any}}(graph.locations), Bool(graph.directed));
     end
 end
@@ -334,7 +334,7 @@ function make_undirected(graph::Graph)
     end
 end
 
-function connect_nodes(graph::Graph, A::String, B::String; distance::Int64=Int64(1))
+function connect_nodes{N}(graph::Graph{N}, A::N, B::N; distance::Int64=Int64(1))
     get!(graph.dict, A, Dict{String, Int64}())[B]=distance;
     if (!graph.directed)
         get!(graph.dict, B, Dict{String, Int64}())[A]=distance;
@@ -342,12 +342,12 @@ function connect_nodes(graph::Graph, A::String, B::String; distance::Int64=Int64
     nothing;
 end
 
-function get_linked_nodes(graph::Graph, a::String; b::Union{Void, String}=nothing)
-    local linked = get!(graph.dict, A, Dict{Any, Any}());
+function get_linked_nodes{N}(graph::Graph{N}, a::N; b::Union{Void, N}=nothing)
+    local linked = get!(graph.dict, a, Dict{Any, Any}());
     if (typeof(b) <: Void)
         return linked;
     else
-        return linked[b];
+        return get(linked, b, nothing);
     end
 end
 
@@ -355,13 +355,43 @@ function get_nodes(graph::Graph)
     return collect(keys(graph.dict));
 end
 
-function UndirectedGraph{T <: Dict}(dict::T, locations::Dict{String, Tuple{Any, Any}})
-    return Graph(dict=dict, locations=locations, directed=false);
+function UndirectedGraph{T <: Any}(dict::Dict{T, }, locations::Dict{T, Tuple{Any, Any}})
+    return Graph{eltype(dict.keys)}(dict=dict, locations=locations, directed=false);
 end
 
 function UndirectedGraph()
-    return Graph(directed=false);
+    return Graph{Any}(directed=false);
 end
+
+function RandomGraph(;nodes::Range=1:10,
+                    min_links::Int64=2,
+                    width::Int64=400,
+                    height::Int64=300,
+                    curvature::Function=(function()
+                                            return (0.4*rand(RandomDevice())) + 1.1;
+                                        end))
+    local g = UndirectedGraph();
+    for node in nodes
+        g.locations[node] = Tuple((rand(RandomDevice(), 1:width), rand(RandomDevice(), 1:height)));
+    end
+    for i in 1:min_link
+        for node in nodes
+            if (get_linked_nodes(g, node) < min_links)
+                local here = g.locations[node];
+                local neighbor = argmin(nodes, (function(n, ; graph::Graph=g, current_node::Node=node, current_location::Tuple=here)
+                                                    if (n == current_node || get_linked_nodes(graph, current_node, n) != nothing)
+                                                        return Inf;
+                                                    end
+                                                    return distance(g.locations[n], current_location);
+                                                end));
+                local d = distance(g.locations[neighbor], here) * curvature();
+                connect(g, node, neighbor, Int64(floor(d)));
+            end
+        end
+    end
+    return g;
+end
+
 
 type GraphProblem <: AbstractProblem
     initial::String
@@ -570,3 +600,5 @@ australia = UndirectedGraph(Dict(
                                 "Q"=>(145, 20), "NSW"=>(145, 32), "T"=>(145, 42), "V"=>(145, 37),
                                 )
                             );
+
+boyan_best = collect("RSTCSDEIAEGNLRPEATESMSSID");
