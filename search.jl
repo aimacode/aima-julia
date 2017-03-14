@@ -565,7 +565,6 @@ function genetic_algorithm{T <: AbstractVector}(population::T, fitness::Function
     return argmax(population, fitness);
 end
 
-
 romania = UndirectedGraph(Dict(
                             Pair("A", Dict("Z"=>75, "S"=>140, "T"=>118)),
                             Pair("B", Dict("U"=>85, "P"=>101, "G"=>90, "F"=>211)),
@@ -601,4 +600,82 @@ australia = UndirectedGraph(Dict(
                                 )
                             );
 
+capital_case_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+
+cubes16 = Array{String, 1}(["FORIXB", "MOQABJ", "GURILW", "SETUPL",
+                            "CMPDAE", "ACITAO", "SLCRAE", "ROMASH",
+                            "NODESW", "HEFIYE", "ONUDTK", "TEVIGN",
+                            "ANEDVZ", "PINESH", "ABILYT", "GKYLEU"]);
+
+function random_boggle(;n::Int64=4)
+    local cubes = collect(cubes16[(i % 16) + 1] for i in 0:((n * n) - 1));
+    shuffle!(RandomDevice(), cubes);
+    return map((function(array::String)
+                    return rand(RandomDevice(), collect(array));
+                end), cubes);
+end
+
 boyan_best = collect("RSTCSDEIAEGNLRPEATESMSSID");
+
+function print_boggle(board::Array{Char, 1})
+    local nn = length(board);
+    local n = int_sqrt(nn);
+    local board_str = "";
+    for i in 0:(nn - 1)
+        if ((i % n == 0) && (i > 0))
+            board_str = board_str * "\n";
+        end
+        if (board[i + 1] == 'Q')
+            board_str = board_str * "Qu ";
+        else
+            board_str = board_str * String([board[i + 1]]) * "  ";
+        end
+    end
+    print(board_str);
+    nothing;
+end
+
+function boggle_neighbors(nn::Int64; cache::Dict=Dict{Any, Any}())
+    if haskey(cache, nn)
+        return cache[nn];
+    end
+    local n = int_sqrt(nn)
+    local neighbors = Array(Any, nn);
+    for i in 0:(nn - 1)
+        neighbors[i + 1] = Array{Int64, 1}([]);
+        on_top::Bool = (i < n);
+        on_bottom::Bool = (i >= (nn - n));
+        on_left::Bool = (i % n == 0);
+        on_right::Bool = ((i + 1) % n == 0);
+        if (!on_top)
+            push!(neighbors[i + 1], (i + 1) - n);
+            if (!on_left)
+                push!(neighbors[i + 1], (i + 1) - n - 1);
+            end
+            if (!on_right)
+                push!(neighbors[i + 1], (i + 1) - n + 1);
+            end
+        end
+        if (!on_bottom)
+            push!(neighbors[i + 1], (i + 1) + n);
+            if (!on_left)
+                push!(neighbors[i + 1], (i + 1) + n - 1);
+            end
+            if (!on_right)
+                push!(neighbors[i + 1], (i + 1) + n + 1);
+            end
+        end
+        if (!on_left)
+            push!(neighbors[i + 1], (i + 1) - 1);
+        end
+        if (!on_right)
+            push!(neighbors[i + 1], (i + 1) + 1);
+        end
+    end
+    cache[nn] = neighbors;
+    return neighbors;
+end
+
+function int_sqrt(n::Number)
+    return Int64(sqrt(n));
+end
