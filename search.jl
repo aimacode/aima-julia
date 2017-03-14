@@ -2,7 +2,7 @@ include("utils.jl");
 
 using utils;
 
-import Base: ==, expand;
+import Base: ==, expand, length;
 
 typealias Action String;
 
@@ -679,3 +679,37 @@ end
 function int_sqrt(n::Number)
     return Int64(sqrt(n));
 end
+
+type WordList
+    words::Array{String, 1}
+    bounds::Dict{Char, Tuple{Any, Any}}
+
+    function WordList(filename::String; min_len::Int64=3)
+        local wlba = read(filename);
+        local wls = uppercase(String(wlba));
+        local wlsa = sort(split(wls, '\n'));
+        local wlsa_filtered = collect(s for s in wlsa if (length(s) >= min_len));
+        nwl::WordList = new(wlsa_filtered, Dict{Char, Tuple{Any, Any}}());
+        for c in capital_case_alphabet
+            fc::Char = c + 1;   #following character
+            nwl[c] = (searchsorted(nwl.words, c, 1, length(nwl.words), Base.Order.Forward).stop + 1,
+                        searchsorted(nwl.words, fc, 1, length(nwl.words), Base.Order.Forward).stop + 1);
+        end
+        return nwl;
+    end
+end
+
+function lookup(wl::WordList, prefix::String; lo::Int64=1, hi::Union{Void, Int64}=nothing)
+    local words = wl.words;
+    if (typeof(hi) <: Void)
+        hi = length(words);
+    end
+    local i::Int64 = searchsorted(words, prefix, lo, hi, Base.Order.Forward).start;
+    if (i < length(words) && startswith(words[i], prefix))
+        return i, (words[i] == prefix);
+    else
+        return nothing, false;
+    end
+end
+
+function length
