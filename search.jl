@@ -2,7 +2,7 @@ include("utils.jl");
 
 using utils;
 
-import Base: ==, expand, length;
+import Base: ==, expand, length, in;
 
 typealias Action String;
 
@@ -705,7 +705,9 @@ function lookup(wl::WordList, prefix::String; lo::Int64=1, hi::Union{Void, Int64
         hi = length(words);
     end
     local i::Int64 = searchsorted(words, prefix, lo, hi, Base.Order.Forward).start;
-    if (i < length(words) && startswith(words[i], prefix))
+
+    #'i' is only larger than length of words when the returned index is not in WordList.
+    if (i <= length(words) && startswith(words[i], prefix))
         return i, (words[i] == prefix);
     else
         return nothing, false;
@@ -713,4 +715,6 @@ function lookup(wl::WordList, prefix::String; lo::Int64=1, hi::Union{Void, Int64
 end
 
 length(wl::WordList) = length(wl.words);
+
+in(prefix::String, wl::WordList) = getindex(lookup(wl, prefix), 2);
 
