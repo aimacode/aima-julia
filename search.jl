@@ -770,13 +770,13 @@ type WordList
     function WordList(filename::String; min_len::Int64=3)
         local wlba = read(filename);
         local wls = uppercase(String(wlba));
-        local wlsa = sort(split(wls, '\n'));
+        local wlsa = sort(map(strip, split(wls, '\n')));
         local wlsa_filtered = collect(s for s in wlsa if (length(s) >= min_len));
         nwl::WordList = new(wlsa_filtered, Dict{Char, Tuple{Any, Any}}());
         for c in capital_case_alphabet
             fc::Char = c + 1;   #following character
-            nwl[c] = (searchsorted(nwl.words, c, 1, length(nwl.words), Base.Order.Forward).stop + 1,
-                        searchsorted(nwl.words, fc, 1, length(nwl.words), Base.Order.Forward).stop + 1);
+            nwl.bounds[c] = (searchsorted(nwl.words, String([c]), 1, length(nwl.words), Base.Order.Forward).stop + 1,
+                        searchsorted(nwl.words, String([fc]), 1, length(nwl.words), Base.Order.Forward).stop + 1);
         end
         return nwl;
     end
@@ -800,4 +800,78 @@ end
 length(wl::WordList) = length(wl.words);
 
 in(prefix::String, wl::WordList) = getindex(lookup(wl, prefix), 2);
+
+
+type BoggleFinder
+    wordlist::WordList
+    scores::AbstractVector
+    found::Dict
+    board::AbstractVector
+    neighbors::AbstractVector
+
+    function BoggleFinder(;board::Union{Void, AbstractVector}=nothing)
+        local wlfn::String;
+        if (is_windows())
+            wlfn = "..\\aima-data\\EN-text\\wordlist.txt";
+        elseif (is_apple() || is_unix())
+            wlfn = "../aima-data/EN-text/wordlist.txt";
+        end
+        nbf = new(WordList(wlfn),
+                vcat([0, 0, 0, 0, 1, 2, 3, 5], fill(11, 100)),
+                Dict{Any, Any}())
+        if (!(typeof(board) <: Void))
+            set_board(nbf, board=board);
+        end
+        return nbf;
+    end
+end
+
+function set_board(bf::BoggleFinder; board::Union{Void, AbstractVector}=nothing)
+    if (typeof(board) <: Void)
+        board = random_boggle();
+    end
+    bf.board = board;
+    bf.neighbors = boggle_neighbors(length(board));
+    bf.found = Dict{Any, Any}();
+    for i in 1:length(board)
+        lo::Int64, hi::Int64 = bf.wordlist.bounds[board[i]];
+        find(bf, lo, hi, i, [], "");
+    end
+    return bf;
+end
+
+function find(bf::BoggleFinder, lo::Int64, hi::Int64, i::Int64, visited::AbstractVector, prefix::String)
+    if i in visited
+        return nothing;
+    end
+    wordpos, is_word::Bool = lookup(bf.wordlist, prefix, lo=lo, hi=hi);
+    if (!(typeof(wordpos) <: Void))
+        if (is_word)
+            bf.found[prefix] = true;
+        end
+        push!(visited, i);
+        local c = bf.board[i];
+        if (c == 'Q')
+            c = "QU";
+        else
+            c = String([c]);
+        end
+        prefix = prefix * c;
+        for j in bf.neighbors[i]
+            find(bf, wordpos, hi, j, visited, prefix);
+        end
+        pop!(visited);
+    end
+    return nothing;
+end
+
+function words(bf::BoggleFinder)
+    return collect(keys(bf.found));
+end
+
+function score(bf::BoggleFinder)
+    return sum(collect(scores[len(w)] for w in words(bf)));
+end
+
+length(bf::BoggleFinder) = length(bf.found);
 
