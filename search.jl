@@ -600,6 +600,49 @@ australia = UndirectedGraph(Dict(
                                 )
                             );
 
+type NQueensProblem <: AbstractProblem
+    N::Int64
+    initial::Array{Int64, 1}
+
+    function NQueensProblem(n::Int64)
+        return new(n, fill(Nullable{Int64}(), n));
+    end
+end
+
+function actions(problem::NQueensProblem, state::AbstractVector)
+    if (!isnull(state[length(state)]))
+        return Array{Any, 1}([]);
+    else
+        local col = utils.null_index(state);
+        return collect(row for row in 1:problem.N if (!conflicted(problem, state, row, col)));
+    end
+end
+
+function conflict(problem::NQueensProblem, row1::Int64, col1::Int64, row2::Int64, col2::Int64)
+    return ((row1 == row2) ||
+            (col1 == col2) ||
+            (row1 - col1 == row2 - col2) ||
+            (row1 + col1 == row2 + col2));
+end
+
+function conflicted(problem::NQueensProblem, state::AbstractVector, row::Int64, col::Int64)
+    return any(conflict(problem, row, col, state[i], i) for i in 1:col);
+end
+
+function result(problem::NQueensProblem, state::AbstractVector, row::Int64)
+    local col = utils.null_index(state);
+    local new_result = deepcopy(state);
+    new_result[col] = row;
+    return new_result;
+end
+
+function goal_test(problem::NQueensProblem, state::AbstractVector)
+    if (isnull(state[length(state)]))
+        return false;
+    end
+    return !any(conflicted(problem, state, state[col], col) for col in 1:length(state));
+end
+
 capital_case_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 cubes16 = Array{String, 1}(["FORIXB", "MOQABJ", "GURILW", "SETUPL",

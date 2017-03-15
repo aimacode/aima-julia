@@ -31,8 +31,19 @@ function distance2(p1::Tuple{Number, Number}, p2::Tuple{Number, Number})
     return (Float64(p1[1]) - Float64(p2[1]))^2 + (Float64(p1[2]) - Float64(p2[2]))^2;
 end
 
+function null_index(v::AbstractVector)
+    local i::Int64 = 0;
+    for element in v
+        i = i + 1;
+        if (isnull(element))
+            return i;
+        end
+    end
+    return -1;          #couldn't find the item in the array
+end
+
 function index{T <: Any}(v::Array{T, 1}, item::T)
-    local i = 0;
+    local i::Int64 = 0;
     for element in v
         i = i + 1;
         if (element == item)
