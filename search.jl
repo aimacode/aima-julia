@@ -875,3 +875,35 @@ end
 
 length(bf::BoggleFinder) = length(bf.found);
 
+function boggle_hill_climbing(;board::Union{Void, AbstractVector}=nothing, ntimes::Int64=100, verbose::Bool=true)
+    finder = BoggleFinder();
+    if (typeof(board) <: Void)
+        board = random_boggle();
+    end
+    local best_length::Int64 = length(set_board(finder, board=board));
+    for t in 1:ntimes
+        i, old_char = mutate_boggle(board);
+        local new_length::Int64 = length(set_board(finder, board=board));
+        if (new_length > best_length)
+            best_length = new_length;
+            if (verbose)
+                println(best_length, " ", t, " ", board);
+            end
+        else
+            board[i] = old_char;
+        end
+    end
+    if (verbose)
+        print_boggle(board);
+    end
+    return board, best_length;
+end
+
+
+function mutate_boggle(board::AbstractArray)
+    local i::Int64 = rand(RandomDevice(), 1:length(board));
+    local old_char::Char = board[i];
+    board[i] = rand(RandomDevice(), collect(rand(RandomDevice(), cubes16)));
+    return i, old_char;
+end
+
