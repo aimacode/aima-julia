@@ -35,6 +35,10 @@ function path_cost{T <: AbstractProblem}(ap::T, cost::Float64, state1::String, a
     return cost + 1;
 end
 
+function path_cost{T <: AbstractProblem}(ap::T, cost::Float64, state1::AbstractVector, action::Int64, state2::AbstractVector)
+    return cost + 1;
+end
+
 function value{T <: AbstractProblem}(ap::T, state::String)
     println("value() is not implemented yet for ", typeof(ap), "!");
     nothing;
@@ -45,12 +49,12 @@ type Node{T}
     state::T
     path_cost::Float64
     depth::UInt32
-    action::Nullable{Action}
+    action::Nullable
     parent::Nullable{Node}
     f::Nullable{Float64}
 
-    function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, Action}=nothing, path_cost::Float64=0.0, f::Union{Void, Float64}=nothing)
-        nn = new(state, path_cost, UInt32(0), Nullable{Action}(action), Nullable{Node}(parent), Nullable{Float64}(f));
+    function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, Action, Int64}=nothing, path_cost::Float64=0.0, f::Union{Void, Float64}=nothing)
+        nn = new(state, path_cost, UInt32(0), Nullable(action), Nullable{Node}(parent), Nullable{Float64}(f));
         if (typeof(parent) <: Node)
             nn.depth = UInt32(parent.depth + 1);
         end
@@ -64,7 +68,12 @@ end
 
 function child_node{T <: AbstractProblem}(n::Node, ap::T, action::Action)
     local next_node = get_result(ap, n.state, action);
-    return Node{typeof(next_node)}(next_node, n, action, ap.path_cost(n.path_cost, n.state, action, next_node));
+    return Node{typeof(next_node)}(next_node, parent=n, action=action, path_cost=path_cost(ap, n.path_cost, n.state, action, next_node));
+end
+
+function child_node{T <: AbstractProblem}(n::Node, ap::T, action::Int64)
+    local next_node = get_result(ap, n.state, action);
+    return Node{typeof(next_node)}(next_node, parent=n, action=action, path_cost=path_cost(ap, n.path_cost, n.state, action, next_node));
 end
 
 function solution(n::Node)
@@ -87,7 +96,26 @@ function path(n::Node)
     return path_back;
 end
 
-==(n1::Node, n2::Node) = (n1.state == n2.state);
+function ==(n1::Node, n2::Node)
+    if (typeof(n1.state) == typeof(n2.state))
+        return (n1.state == n2.state);
+    else
+        local n1a::AbstractArray;
+        local n2a::AbstractArray;
+        if (eltype(typeof(n1.state)) <: Nullable)
+            n1a = map(get, n1.state);
+        else
+            n1a = n1.state;
+        end
+        if (eltype(typeof(n2.state)) <: Nullable)
+            n2a = map(get, n2.state);
+        else
+            n2a = n2.state;
+        end
+        return (n1a == n2a);
+    end
+end
+
 
 type SimpleProblemSolvingAgentProgram
     state::Nullable{String}
@@ -602,10 +630,10 @@ australia = UndirectedGraph(Dict(
 
 type NQueensProblem <: AbstractProblem
     N::Int64
-    initial::Array{Int64, 1}
+    initial::Array{Nullable{Int64}, 1}
 
     function NQueensProblem(n::Int64)
-        return new(n, fill(Nullable{Int64}(), n));
+        return new(n, fill(Nullable{Int64}(nothing), n));
     end
 end
 
@@ -625,11 +653,23 @@ function conflict(problem::NQueensProblem, row1::Int64, col1::Int64, row2::Int64
             (row1 + col1 == row2 + col2));
 end
 
-function conflicted(problem::NQueensProblem, state::AbstractVector, row::Int64, col::Int64)
-    return any(conflict(problem, row, col, state[i], i) for i in 1:col);
+function conflict(problem::NQueensProblem, row1::Int64, col1::Int64, row2::Nullable{Int64}, col2::Int64)
+    if (isnull(row2))
+        row2 = typemin(Int64);
+    else
+        row2 = get(row2);
+    end
+    return ((row1 == row2) ||
+            (col1 == col2) ||
+            (row1 - col1 == row2 - col2) ||
+            (row1 + col1 == row2 + col2));
 end
 
-function result(problem::NQueensProblem, state::AbstractVector, row::Int64)
+function conflicted(problem::NQueensProblem, state::AbstractVector, row::Int64, col::Int64)
+    return any(conflict(problem, row, col, state[i], i) for i in 1:(col-1));
+end
+
+function get_result(problem::NQueensProblem, state::AbstractVector, row::Int64)
     local col = utils.null_index(state);
     local new_result = deepcopy(state);
     new_result[col] = row;
@@ -640,7 +680,7 @@ function goal_test(problem::NQueensProblem, state::AbstractVector)
     if (isnull(state[length(state)]))
         return false;
     end
-    return !any(conflicted(problem, state, state[col], col) for col in 1:length(state));
+    return !any(conflicted(problem, state, get(state[col]), col) for col in 1:length(state));
 end
 
 capital_case_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
