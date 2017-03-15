@@ -44,6 +44,76 @@ function value{T <: AbstractProblem}(ap::T, state::String)
     nothing;
 end
 
+type InstrumentedProblem <: AbstractProblem
+    problem::AbstractProblem
+    actions::Int64
+    results::Int64
+    goal_tests::Int64
+    found::Nullable
+
+    function InstrumentedProblem{T <: AbstractProblem}(ap::T)
+        return new(ap, Int64(0), Int64(0), Int64(0), Nullable(nothing));
+    end
+end
+
+function actions(ap::InstrumentedProblem, state::AbstractVector)
+    ap.actions = ap.actions + 1;
+    return actions(ap.problem, state);
+end
+
+function actions(ap::InstrumentedProblem, state::String)
+    ap.actions = ap.actions + 1;
+    return actions(ap.problem, state);
+end
+
+function get_result(ap::InstrumentedProblem, state::String, action::Action)
+    ap.results = ap.results + 1;
+    return get_result(ap.problem, state, action);
+end
+
+function get_result(ap::InstrumentedProblem, state::AbstractVector, action::Int64)
+    ap.results = ap.results + 1;
+    return get_result(ap.problem, state, action);
+end
+
+function goal_test(ap::InstrumentedProblem, state::String)
+    ap.goal_tests = ap.goal_tests + 1;
+    local result::Bool = goal_test(ap.problem, state);
+    if (result)
+        ap.found = Nullable(state);
+    end
+    return result;
+end
+
+function goal_test(ap::InstrumentedProblem, state::AbstractVector)
+    ap.goal_tests = ap.goal_tests + 1;
+    local result::Bool = goal_test(ap.problem, state);
+    if (result)
+        ap.found = Nullable(state);
+    end
+    return result;
+end
+
+function path_cost(ap::InstrumentedProblem, cost::Float64, state1::String, action::Action, state2::String)
+    return path_cost(ap.problem, cost, state1, action, state2);
+end
+
+function path_cost(ap::InstrumentedProblem, cost::Float64, state1::AbstractVector, action::Int64, state2::AbstractVector)
+    return path_cost(ap.problem, cost, state1, action, state2);
+end
+
+function value(ap::InstrumentedProblem, state::String)
+    return value(ap.problem, state);
+end
+
+function value(ap::InstrumentedProblem, state::AbstractVector)
+    return value(ap.problem, state);
+end
+
+function format_instrumented_results(ap::InstrumentedProblem)
+    return @sprintf("<%4d,%4d,%4d,%s>", ap.actions, ap.goal_tests, ap.results, string(get(ap.found)));
+end
+
 #A node should not exist without a state.
 type Node{T}
     state::T
@@ -51,19 +121,22 @@ type Node{T}
     depth::UInt32
     action::Nullable
     parent::Nullable{Node}
-    f::Nullable{Float64}
+    f::Float64
 
     function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, Action, Int64}=nothing, path_cost::Float64=0.0, f::Union{Void, Float64}=nothing)
-        nn = new(state, path_cost, UInt32(0), Nullable(action), Nullable{Node}(parent), Nullable{Float64}(f));
+        nn = new(state, path_cost, UInt32(0), Nullable(action), Nullable{Node}(parent));
         if (typeof(parent) <: Node)
             nn.depth = UInt32(parent.depth + 1);
+        end
+        if (typeof(f) <: Float64)
+            nn.f = f;
         end
         return nn;
     end
 end
 
 function expand{T <: AbstractProblem}(n::Node, ap::T)
-    return [child_node(n, ap, act) for act in actions(ap, n.state)];
+    return collect(child_node(n, ap, act) for act in actions(ap, n.state));
 end
 
 function child_node{T <: AbstractProblem}(n::Node, ap::T, action::Action)
@@ -78,7 +151,7 @@ end
 
 function solution(n::Node)
     local path_sequence = path(n);
-    return [node.action for node in path_sequence[2:length(path_sequence)]];
+    return [get(node.action) for node in path_sequence[2:length(path_sequence)]];
 end
 
 function path(n::Node)
@@ -87,7 +160,7 @@ function path(n::Node)
     while true
         push!(path_back, node);
         if (!isnull(node.parent))
-            node = node.parent;
+            node = get(node.parent);
         else     #the root node does not have a parent node
             break;
         end
@@ -100,19 +173,23 @@ function ==(n1::Node, n2::Node)
     if (typeof(n1.state) == typeof(n2.state))
         return (n1.state == n2.state);
     else
-        local n1a::AbstractArray;
-        local n2a::AbstractArray;
-        if (eltype(typeof(n1.state)) <: Nullable)
-            n1a = map(get, n1.state);
+        if (typeof(n1.state) <: AbstractVector && typeof(n2.state) <: AbstractVector)
+            local n1a::AbstractVector;
+            local n2a::AbstractVector;
+            if (eltype(typeof(n1.state)) <: Nullable)
+                n1a = map(get, n1.state);
+            else
+                n1a = n1.state;
+            end
+            if (eltype(typeof(n2.state)) <: Nullable)
+                n2a = map(get, n2.state);
+            else
+                n2a = n2.state;
+            end
+            return (n1a == n2a);
         else
-            n1a = n1.state;
+            return (n1.state == n2.state);
         end
-        if (eltype(typeof(n2.state)) <: Nullable)
-            n2a = map(get, n2.state);
-        else
-            n2a = n2.state;
-        end
-        return (n1a == n2a);
     end
 end
 
@@ -201,6 +278,18 @@ function tree_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::
     return nothing;
 end
 
+function tree_search{T <: Queue}(problem::InstrumentedProblem, frontier::T)
+    push!(frontier, Node{typeof(problem.problem.initial)}(problem.problem.initial));
+    while (length(frontier) != 0)
+        local node = pop!(frontier);
+        if (goal_test(problem, node.state))
+            return node;
+        end
+        extend!(frontier, expand(node, problem.problem));
+    end
+    return nothing;
+end
+
 """
     graph_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
 
@@ -261,15 +350,15 @@ end
 function best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
     local mf = MemoizedFunction(f);
     local node = Node{typeof(problem.initial)}(problem.initial);
-    if (goal_state(problem, node.state))
+    if (goal_test(problem, node.state))
         return node;
     end
-    local frontier = PriorityQueue();
+    local frontier = PQueue();
     push!(frontier, node, mf);
     local explored = Set{String}();
     while (length(frontier) != 0)
         node = pop!(frontier);
-        if (goal_state(problem, node.state))
+        if (goal_test(problem, node.state))
             return node;
         end
         push!(explored, node.state);
@@ -307,7 +396,7 @@ function recursive_dls{T <: AbstractProblem}(node::Node, problem::T, limit::Int6
             local result = recursive_dls(child_node, problem, limit);
             if (result == "cutoff")
                 cutoff_occurred = true;
-            elseif (!(typeof(result <: Void)))
+            elseif (!(typeof(result) <: Void))
                 return result;
             end
         end
@@ -315,13 +404,13 @@ function recursive_dls{T <: AbstractProblem}(node::Node, problem::T, limit::Int6
     end
 end;
 
-function depth_limited_search{T <: AbstractProblem}(problem::T; limit::Int64=0)
+function depth_limited_search{T <: AbstractProblem}(problem::T; limit::Int64=50)
     return recursive_dls(Node{typeof(problem.initial)}(problem.initial), problem, limit);
 end
 
 function iterative_deepening_search{T <: AbstractProblem}(problem::T)
     for depth in 1:typemax(Int64)
-        local result = depth_limited_search(problem, depth)
+        local result = depth_limited_search(problem, limit=depth)
         if (result != "cutoff")
             return result;
         end
@@ -423,18 +512,18 @@ end
 
 type GraphProblem <: AbstractProblem
     initial::String
-    goal::Nullable{String}
+    goal::String
     graph::Graph
     h::MemoizedFunction
 
 
     function GraphProblem(initial_state::String, goal_state::String, graph::Graph)
-        return new(initial_state, Nullable{String}(goal_state), Graph(graph), MemoizedFunction(initial_to_goal_distance));
+        return new(initial_state, goal_state, Graph(graph), MemoizedFunction(initial_to_goal_distance));
     end
 end
 
-function get_actions(gp::GraphProblem, loc::String)
-    return collect(keys(gp.graph[loc]));
+function actions(gp::GraphProblem, loc::String)
+    return collect(keys(get_linked_nodes(gp.graph,loc)));
 end
 
 function get_result(gp::GraphProblem, state::String, action::Action)
@@ -443,8 +532,8 @@ end
 
 function path_cost(gp::GraphProblem, current_cost::Float64, location_A::String, action::Action, location_B::String)
     local AB_distance::Float64;
-    if (haskey(gp.dict, A) && haskey(gp.dict[A], B))
-        AB_distance= Float64(gp.graph.get_linked_nodes(A,B));
+    if (haskey(gp.graph.dict, location_A) && haskey(gp.graph.dict[location_A], location_B))
+        AB_distance= Float64(get_linked_nodes(gp.graph,location_A, b=location_B));
     else
         AB_distance = Float64(Inf);
     end
@@ -458,10 +547,10 @@ Compute the straight line distance between the initial state and goal state.
 """
 function initial_to_goal_distance(gp::GraphProblem, n::Node)
     local locations = gp.graph.locations;
-    if (isnull(locations))
+    if (isempty(locations))
         return Inf;
     else
-        return Float64(floor(distance(locations[node.state], locations[gp.goal])));
+        return Float64(floor(distance(locations[n.state], locations[gp.goal])));
     end
 end
 
@@ -473,12 +562,12 @@ function astar_search(problem::GraphProblem; h::Union{Void, Function}=nothing)
         mh = problem.h;
     end
     return best_first_graph_search(problem,
-                                    (function(prob::GraphProblem, node::Node; h::MemoizedFunction=mh)
-                                        return n.path_cost + eval_memoized_function(h, prob, node);end));
+                                    (function(node::Node; h::MemoizedFunction=mh, prob::GraphProblem=problem)
+                                        return node.path_cost + eval_memoized_function(h, prob, node);end));
 end
 
 function RBFS{T <: Node}(problem::GraphProblem, node::T, flmt::Float64, h::MemoizedFunction)
-    if (goal_test(node.state))
+    if (goal_test(problem, node.state))
         return Nullable{Node}(node), 0.0;
     end
     local successors = expand(node, problem);
@@ -486,7 +575,7 @@ function RBFS{T <: Node}(problem::GraphProblem, node::T, flmt::Float64, h::Memoi
         return Nullable{Node}(node), Inf;
     end
     for successor in successors
-        successor.f = max(successor.f + eval_memoized_function(h, successor), node.f);
+        successor.f = max(successor.path_cost + eval_memoized_function(h, problem, successor), node.f);
     end
     while (true)
         sort!(successors, lt=(function(n1::Node, n2::Node)return isless(n1.f, n2.f);end));
@@ -516,7 +605,7 @@ function recursive_best_first_search(problem::GraphProblem; h::Union{Void, Memoi
     end
 
     local node = Node{typeof(problem.initial)}(problem.initial);
-    node.f = Nullable{Float64}(eval_memoized_function(mh, node));
+    node.f = eval_memoized_function(mh, problem, node);
     result, bestf = RBFS(problem, node, Inf, mh);
     return get(result);
 end
@@ -907,3 +996,36 @@ function mutate_boggle(board::AbstractArray)
     return i, old_char;
 end
 
+function execute_searcher{T <: AbstractProblem}(searcher::Function, problem::T)
+    local p = InstrumentedProblem(problem);
+    searcher(p);
+    return p;
+end
+
+function compare_searchers{T <: AbstractProblem}(problems::Array{T, 1},
+                                                header::Array{String, 1};
+                                                searchers::Array{Function, 1}=[breadth_first_tree_search,
+                                                                            breadth_first_search,
+                                                                            depth_first_graph_search,
+                                                                            iterative_deepening_search,
+                                                                            depth_limited_search,
+                                                                            recursive_best_first_search])
+    for item in header
+        print(item, "\t");
+    end
+    println();
+    local table = collect(collect(format_instrumented_results(execute_searcher(s, p)) for p in problems)
+                        for s in searchers);
+    return table;
+end
+
+#=
+test_searchers = compare_searchers([GraphProblem("A", "B", romania),
+                                GraphProblem("O", "N", romania),
+                                GraphProblem("Q", "WA", australia)],
+                                ["Searcher", "Romania(A, B)", "Romania(O, N)", "Australia"])
+=#
+
+function beautify_node(n::Node)
+    return @sprintf("%s%s%s", "<Node ", string(n.state), ">");
+end

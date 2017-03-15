@@ -6,14 +6,16 @@ import Base.push!,
         Base.start,
         Base.next,
         Base.done,
-        Base.length;
+        Base.length,
+        Base.delete!;
 
-export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!,
+export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         start, next, done, length,
         MemoizedFunction, eval_memoized_function,
         AbstractProblem,
         argmin, argmax, argmin_random_tie, argmax_random_tie,
-        weighted_sampler, weighted_sample_with_replacement;
+        weighted_sampler, weighted_sample_with_replacement,
+        distance, distance2;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
