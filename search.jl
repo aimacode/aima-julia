@@ -8,6 +8,11 @@ typealias Action String;
 
 typealias Percept Tuple{Any, Any};
 
+#=
+
+    Problem is a abstract problem that contains a initial state and goal state.
+
+=#
 type Problem <: AbstractProblem
     initial::String
     goal::Nullable{String}
@@ -44,6 +49,15 @@ function value{T <: AbstractProblem}(ap::T, state::String)
     nothing;
 end
 
+#=
+
+    InstrumentedProblem is a AbstractProblem implementation that wraps another AbstractProblem
+
+    implementation and tracks the number of function calls made. This problem is used in
+
+    compare_searchers() and execute_searcher().
+
+=#
 type InstrumentedProblem <: AbstractProblem
     problem::AbstractProblem
     actions::Int64
@@ -193,7 +207,11 @@ function ==(n1::Node, n2::Node)
     end
 end
 
+#=
 
+    SimpleProblemSolvingAgentProgram is a abstract problem solving agent (Fig. 3.1).
+
+=#
 type SimpleProblemSolvingAgentProgram
     state::Nullable{String}
     goal::Nullable{String}
@@ -264,7 +282,7 @@ end
 """
     tree_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
 
-Search the given problem by using the general tree search algorithm (Fig. 3.7).
+Search the given problem by using the general tree search algorithm (Fig. 3.7) and return the node solution.
 """
 function tree_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
     push!(frontier, Node{typeof(problem.initial)}(problem.initial));
@@ -293,7 +311,7 @@ end
 """
     graph_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
 
-Search the given problem by using the general graph search algorithm (Fig. 3.7).
+Search the given problem by using the general graph search algorithm (Fig. 3.7) and return the node solution.
 
 The uniform cost algorithm (Fig. 3.14) should be used when the frontier is a priority queue.
 """
@@ -419,6 +437,13 @@ function best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
     return nothing;
 end
 
+"""
+    uniform_cost_search{T <: AbstractProblem}(problem::T)
+
+Search the given problem by using the uniform cost algorithm (Fig. 3.14) and return the node solution.
+
+solution() can be used on the node solution to reconstruct the path taken to the solution.
+"""
 function uniform_cost_search{T <: AbstractProblem}(problem::T)
     return best_first_graph_search(problem, (function(n::Node)return n.path_cost;end));
 end
@@ -442,6 +467,14 @@ function recursive_dls{T <: AbstractProblem}(node::Node, problem::T, limit::Int6
     end
 end;
 
+"""
+    depth_limited_search{T <: AbstractProblem}(problem::T; limit::Int64)
+
+Search the given problem by using the depth limited tree search algorithm (Fig. 3.17)
+and return the node solution if a solution was found. Otherwise, this function returns 'nothing'.
+
+solution() can be used on the node solution to reconstruct the path taken to the solution.
+"""
 function depth_limited_search{T <: AbstractProblem}(problem::T; limit::Int64=50)
     return recursive_dls(Node{typeof(problem.initial)}(problem.initial), problem, limit);
 end
@@ -450,6 +483,14 @@ function depth_limited_search(problem::InstrumentedProblem; limit::Int64=50)
     return recursive_dls(Node{typeof(problem.problem.initial)}(problem.problem.initial), problem, limit);
 end
 
+"""
+    iterative_deepening_search{T <: AbstractProblem}(problem::T)
+
+Search the given problem by using the iterative deepening search algorithm (Fig. 3.18)
+and return the node solution if a solution was found. Otherwise, this function returns 'nothing'.
+
+solution() can be used on the node solution to reconstruct the path taken to the solution.
+"""
 function iterative_deepening_search{T <: AbstractProblem}(problem::T)
     for depth in 1:typemax(Int64)
         local result = depth_limited_search(problem, limit=depth)
@@ -617,6 +658,11 @@ function astar_search(problem::GraphProblem; h::Union{Void, Function}=nothing)
                                         return node.path_cost + eval_memoized_function(h, prob, node);end));
 end
 
+"""
+    RBFS{T1 <: AbstractProblem, T2 <: Node}(problem::T1, node::T2, flmt::Float64, h::MemoizedFunction)
+
+Recursively calls RBFS() with a new 'flmt' value and returns its solution to recursive_best_first_search().
+"""
 function RBFS{T1 <: AbstractProblem, T2 <: Node}(problem::T1, node::T2, flmt::Float64, h::MemoizedFunction)
     if (goal_test(problem, node.state))
         return Nullable{Node}(node), 0.0;
@@ -647,6 +693,14 @@ function RBFS{T1 <: AbstractProblem, T2 <: Node}(problem::T1, node::T2, flmt::Fl
     end
 end
 
+"""
+    recursive_best_first_search{T <: AbstractProblem}(problem::T; h::Union{Void, MemoizedFunction})
+
+Search the given problem by using the recursive best first search algorithm (Fig. 3.26)
+and return the node solution.
+
+solution() can be used on the node solution to reconstruct the path taken to the solution.
+"""
 function recursive_best_first_search{T <: AbstractProblem}(problem::T; h::Union{Void, MemoizedFunction}=nothing)
     local mh::MemoizedFunction; #memoized h(n) function
     if (!(typeof(h) <: Void))
@@ -718,6 +772,59 @@ function simulated_annealing{T <: AbstractProblem}(problem::T; schedule=exp_sche
         end
     end
     return nothing;
+end
+
+#=
+
+    and_search() and or_search() are used by and_or_graph_search().
+
+=#
+
+function or_search{T <: AbstractProblem}(problem::T, state::AbstractVector, path::AbstractVector)
+    if (goal_test(problem, state))
+        return [];
+    end
+    if (state in path)
+        return nothing;
+    end
+    for action in actions(problem, state)
+        local plan = and_search(get_result(problem, state, action), vcat(path, [state,]));
+        if (plan != nothing)
+            return [action, plan];
+        end
+    end
+    return nothing;
+end
+
+function or_search{T <: AbstractProblem}(problem::T, state::String, path::AbstractVector)
+    if (goal_test(problem, state))
+        return [];
+    end
+    if (state in path)
+        return nothing;
+    end
+    for action in actions(problem, state)
+        local plan = and_search(problem, get_result(problem, state, action), vcat(path, [state,]));
+        if (plan != nothing)
+            return [action, plan];
+        end
+    end
+    return nothing;
+end
+
+function and_search{T <: AbstractVector}(problem::T, states::AbstractVector, path::AbstractVector)
+    local plan = Dict{Any, Any}();
+    for state in states
+        plan[state] = or_search(problem, state, path);
+        if (plan[state] == nothing)
+            return nothing;
+        end
+    end
+    return plan;
+end
+
+function and_or_graph_search{T <: AbstractProblem}(problem::T)
+    return or_search(problem, problem.initial, []);
 end
 
 function genetic_search{T <: AbstractProblem}(problem::T; ngen::Int64=1000, pmut::Float64=0.1, n::Int64=20)

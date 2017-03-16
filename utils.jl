@@ -444,6 +444,12 @@ function delete!(pq::PQueue, item::Any)
     return nothing;
 end
 
+"""
+    weighted_sample_with_replacement(seq, weights, n)
+
+Return an array of 'n' elements that are chosen from 'seq' at random with replacement, with
+the probability of picking each element based on its corresponding weight in 'weights'.
+"""
 function weighted_sample_with_replacement{T1 <: AbstractVector, T2 <: AbstractVector}(seq::T1, weights::T2, n::Int64)
     local sample = weighted_sampler(seq, weights);
     return collect(sample() for i in 1:n);
@@ -454,6 +460,12 @@ function weighted_sample_with_replacement{T <: AbstractVector}(seq::String, weig
     return collect(sample() for i in 1:n);
 end
 
+"""
+    weighted_sampler(seq, weights)
+
+Return a random sample function that chooses an element from 'seq' based on its corresponding
+weight in 'weight'.
+"""
 function weighted_sampler{T1 <: AbstractVector, T2 <: AbstractVector}(seq::T1, weights::T2)
     local totals = Array{Any, 1}();
     for w in weights
@@ -492,6 +504,12 @@ function weighted_sampler{T <: AbstractVector}(seq::String, weights::T)
             end);
 end
 
+"""
+    argmin(seq, fn)
+
+Applies fn() to each element in seq and returns the element that has the lowest fn() value. argmin()
+is similar to mapreduce(fn, min, seq) in computing the best score, but returns the corresponding element.
+"""
 function argmin{T <: AbstractVector}(seq::T, fn::Function)
     local best_element = seq[1];
     local best_score = fn(best_element);
@@ -523,6 +541,12 @@ function argmin_random_tie{T <: AbstractVector}(seq::T, fn::Function)
     return best_element;
 end
 
+"""
+    argmax(seq, fn)
+
+Applies fn() to each element in seq and returns the element that has the highest fn() value. argmax()
+is similar to mapreduce(fn, max, seq) in computing the best score, but returns the corresponding element.
+"""
 function argmax{T <: AbstractVector}(seq::T, fn::Function)
     local best_element = seq[1];
     local best_score = fn(best_element);
