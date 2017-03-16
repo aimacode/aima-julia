@@ -26,3 +26,15 @@ ab = GraphProblem("A", "B", romania);
 
 @test solution(recursive_best_first_search(ab)) == ["S", "R", "P", "B"];
 
+@test compare_searchers([GraphProblem("A", "B", romania),
+                        GraphProblem("O", "N", romania),
+                        GraphProblem("Q", "WA", australia)],
+                        ["Searcher", "Romania(A, B)", "Romania(O, N)", "Australia"]) == 
+    ["Searcher"                     "Romania(A, B)"         "Romania(O, N)"         "Australia";
+    "breadth_first_tree_search"     "<  23/  24/  63/B>"    "<1191/1192/3378/N>"    "<   9/  10/  32/WA>";
+    "breadth_first_search"          "<   7/  11/  18/B>"    "<  18/  20/  44/N>"    "<   3/   6/   9/WA>";
+    "depth_first_graph_search"      "<   8/   9/  20/B>"    "<  16/  17/  37/N>"    "<   2/   3/   8/WA>";
+    "iterative_deepening_search"    "<  13/  36/  36/B>"    "< 683/1874/1875/N>"    "<   4/  13/  12/WA>";
+    "depth_limited_search"          "<  64/  94/ 167/B>"    "< 948/2629/2701/N>"    "<  51/  57/ 153/WA>";
+    "recursive_best_first_search"   "<  11/  12/  35/B>"    "<8481/8482/23788/N>"   "<  10/  11/  38/WA>"];
+

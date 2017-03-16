@@ -111,7 +111,7 @@ function value(ap::InstrumentedProblem, state::AbstractVector)
 end
 
 function format_instrumented_results(ap::InstrumentedProblem)
-    return @sprintf("<%4d,%4d,%4d,%s>", ap.actions, ap.goal_tests, ap.results, string(get(ap.found)));
+    return @sprintf("<%4d/%4d/%4d/%s>", ap.actions, ap.goal_tests, ap.results, string(get(ap.found)));
 end
 
 #A node should not exist without a state.
@@ -285,7 +285,7 @@ function tree_search{T <: Queue}(problem::InstrumentedProblem, frontier::T)
         if (goal_test(problem, node.state))
             return node;
         end
-        extend!(frontier, expand(node, problem.problem));
+        extend!(frontier, expand(node, problem));
     end
     return nothing;
 end
@@ -312,6 +312,21 @@ function graph_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier:
     return nothing;
 end
 
+function graph_search{T <: Queue}(problem::InstrumentedProblem, frontier::T)
+    local explored = Set{String}();
+    push!(frontier, Node{typeof(problem.problem.initial)}(problem.problem.initial));
+    while (length(frontier) != 0)
+        local node = pop!(frontier);
+        if (goal_test(problem, node.state))
+            return node;
+        end
+        push!(explored, node.state);
+        extend!(frontier, collect(child_node for child_node in expand(node, problem)
+                                if (!(child_node.state in explored) && !(child_node in frontier))));
+    end
+    return nothing;
+end
+
 function breadth_first_tree_search{T <: AbstractProblem}(problem::T)
     return tree_search(problem, FIFOQueue());
 end
@@ -326,6 +341,29 @@ end
 
 function breadth_first_search{T <: AbstractProblem}(problem::T)
     local node = Node{typeof(problem.initial)}(problem.initial);
+    if (goal_test(problem, node.state))
+        return node;
+    end
+    local frontier = FIFOQueue();
+    push!(frontier, node);
+    local explored = Set{String}();
+    while (length(frontier) != 0)
+        node = pop!(frontier);
+        push!(explored, node.state);
+        for child_node in expand(node, problem)
+            if (!(child_node.state in explored) && !(child_node in frontier))
+                if (goal_test(problem, child_node.state))
+                    return child_node;
+                end
+                push!(frontier, child_node);
+            end
+        end
+    end
+    return nothing;
+end
+
+function breadth_first_search(problem::InstrumentedProblem)
+    local node = Node{typeof(problem.problem.initial)}(problem.problem.initial);
     if (goal_test(problem, node.state))
         return node;
     end
@@ -406,6 +444,10 @@ end;
 
 function depth_limited_search{T <: AbstractProblem}(problem::T; limit::Int64=50)
     return recursive_dls(Node{typeof(problem.initial)}(problem.initial), problem, limit);
+end
+
+function depth_limited_search(problem::InstrumentedProblem; limit::Int64=50)
+    return recursive_dls(Node{typeof(problem.problem.initial)}(problem.problem.initial), problem, limit);
 end
 
 function iterative_deepening_search{T <: AbstractProblem}(problem::T)
@@ -554,6 +596,15 @@ function initial_to_goal_distance(gp::GraphProblem, n::Node)
     end
 end
 
+function initial_to_goal_distance(gp::InstrumentedProblem, n::Node)
+    local locations = gp.problem.graph.locations;
+    if (isempty(locations))
+        return Inf;
+    else
+        return Float64(floor(distance(locations[n.state], locations[gp.problem.goal])));
+    end
+end
+
 function astar_search(problem::GraphProblem; h::Union{Void, Function}=nothing)
     local mh::MemoizedFunction; #memoized h(n) function
     if (!(typeof(h) <: Void))
@@ -566,7 +617,7 @@ function astar_search(problem::GraphProblem; h::Union{Void, Function}=nothing)
                                         return node.path_cost + eval_memoized_function(h, prob, node);end));
 end
 
-function RBFS{T <: Node}(problem::GraphProblem, node::T, flmt::Float64, h::MemoizedFunction)
+function RBFS{T1 <: AbstractProblem, T2 <: Node}(problem::T1, node::T2, flmt::Float64, h::MemoizedFunction)
     if (goal_test(problem, node.state))
         return Nullable{Node}(node), 0.0;
     end
@@ -596,7 +647,7 @@ function RBFS{T <: Node}(problem::GraphProblem, node::T, flmt::Float64, h::Memoi
     end
 end
 
-function recursive_best_first_search(problem::GraphProblem; h::Union{Void, MemoizedFunction}=nothing)
+function recursive_best_first_search{T <: AbstractProblem}(problem::T; h::Union{Void, MemoizedFunction}=nothing)
     local mh::MemoizedFunction; #memoized h(n) function
     if (!(typeof(h) <: Void))
         mh = MemoizedFunction(h);
@@ -605,6 +656,20 @@ function recursive_best_first_search(problem::GraphProblem; h::Union{Void, Memoi
     end
 
     local node = Node{typeof(problem.initial)}(problem.initial);
+    node.f = eval_memoized_function(mh, problem, node);
+    result, bestf = RBFS(problem, node, Inf, mh);
+    return get(result);
+end
+
+function recursive_best_first_search(problem::InstrumentedProblem; h::Union{Void, MemoizedFunction}=nothing)
+    local mh::MemoizedFunction; #memoized h(n) function
+    if (!(typeof(h) <: Void))
+        mh = MemoizedFunction(h);
+    else
+        mh = problem.problem.h;
+    end
+
+    local node = Node{typeof(problem.problem.initial)}(problem.problem.initial);
     node.f = eval_memoized_function(mh, problem, node);
     result, bestf = RBFS(problem, node, Inf, mh);
     return get(result);
@@ -1010,22 +1075,17 @@ function compare_searchers{T <: AbstractProblem}(problems::Array{T, 1},
                                                                             iterative_deepening_search,
                                                                             depth_limited_search,
                                                                             recursive_best_first_search])
-    for item in header
-        print(item, "\t");
-    end
-    println();
-    local table = collect(collect(format_instrumented_results(execute_searcher(s, p)) for p in problems)
-                        for s in searchers);
+    local table = vcat(permutedims(hcat(header), [2, 1]), 
+                        hcat(map(string, searchers), 
+                            permutedims(reduce(hcat,
+                                collect(
+                                    collect(format_instrumented_results(execute_searcher(s, p)) for p in problems)
+                                for s in searchers)),
+                            [2,1])));
     return table;
 end
-
-#=
-test_searchers = compare_searchers([GraphProblem("A", "B", romania),
-                                GraphProblem("O", "N", romania),
-                                GraphProblem("Q", "WA", australia)],
-                                ["Searcher", "Romania(A, B)", "Romania(O, N)", "Australia"])
-=#
 
 function beautify_node(n::Node)
     return @sprintf("%s%s%s", "<Node ", string(n.state), ">");
 end
+
