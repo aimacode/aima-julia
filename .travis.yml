@@ -2,11 +2,11 @@ language: julia
 sudo: false
 
 os:
-	- linux
-	- osx
+    - linux
+    - osx
 
 julia:
-	- 0.5
+    - 0.5
 
 script:
-	- sh tests\run_travis_tests.sh
+    - sh tests\run_travis_tests.sh
