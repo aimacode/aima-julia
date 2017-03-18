@@ -420,13 +420,14 @@ function breadth_first_search(problem::InstrumentedProblem)
 end
 
 function best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
-    local mf = MemoizedFunction(f);
+    #local mf = MemoizedFunction(f);
     local node = Node{typeof(problem.initial)}(problem.initial);
     if (goal_test(problem, node.state))
         return node;
     end
     local frontier = PQueue();
-    push!(frontier, node, mf);
+    #push!(frontier, node, mf);
+    push!(frontier, node, f);
     local explored = Set{String}();
     while (length(frontier) != 0)
         node = pop!(frontier);
@@ -437,21 +438,25 @@ function best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
         for child_node in expand(node, problem)
             if (!(child_node.state in explored) &&
                 !(child_node in collect(getindex(x, 2) for x in frontier.array)))
-                push!(frontier, child_node, mf);
+                #push!(frontier, child_node, mf);
+                push!(frontier, child_node, f);
             elseif (child_node in [getindex(x, 2) for x in frontier.array])
             #Recall that Nodes can share the same state and different values for other fields.
                 local existing_node = pop!(collect(getindex(x, 2)
                                                     for x in frontier.array
                                                     if (getindex(x, 2) == child_node)));
-                if (eval_memoized_function(mf, child_node) < eval_memoized_function(mf, existing_node))
+                #if (eval_memoized_function(mf, child_node) < eval_memoized_function(mf, existing_node))
+                if (f(child_node) < f(existing_node))
                     delete!(frontier, existing_node);
-                    push!(frontier, child_node, mf);
+                    #push!(frontier, child_node, mf);
+                    push!(frontier, child_node, f);
                 end
             end
         end
     end
     return nothing;
 end
+
 
 """
     uniform_cost_search{T <: AbstractProblem}(problem::T)
@@ -663,15 +668,17 @@ function initial_to_goal_distance(gp::InstrumentedProblem, n::Node)
 end
 
 function astar_search(problem::GraphProblem; h::Union{Void, Function}=nothing)
-    local mh::MemoizedFunction; #memoized h(n) function
+    #local mh::MemoizedFunction; #memoized h(n) function
+    local mh::Function;
     if (!(typeof(h) <: Void))
-        mh = MemoizedFunction(h);
+        mh = h;
     else
-        mh = problem.h;
+        mh = problem.h.f;
     end
     return best_first_graph_search(problem,
-                                    (function(node::Node; h::MemoizedFunction=mh, prob::GraphProblem=problem)
-                                        return node.path_cost + eval_memoized_function(h, prob, node);end));
+                                    (function(node::Node; h::Function=mh, prob::GraphProblem=problem)
+                                        #return node.path_cost + eval_memoized_function(h, prob, node);end));
+                                        return node.path_cost + h(prob, node);end));
 end
 
 """

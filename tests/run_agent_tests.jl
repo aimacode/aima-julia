@@ -32,10 +32,18 @@ TVE = TrivialVacuumEnvironment();
 
 envs = [TrivialVacuumEnvironment() for i in range(0, 100)];
 
-@test 7 < test_agent(ModelBasedVacuumAgent, 4, deepcopy(envs)) < 11;
+println("Expression: 7 < test_agent(ModelBasedVacuumAgent, 4, deepcopy(envs)) < 11");
+mbva_result = test_agent(ModelBasedVacuumAgent, 4, deepcopy(envs))
+println("Evaluated: 7 < ", mbva_result, " < 11");
 
-@test 5 < test_agent(ReflexVacuumAgent, 4, deepcopy(envs)) < 9;
+println("Expression: 5 < test_agent(ReflexVacuumAgent, 4, deepcopy(envs)) < 9");
+refva_result = test_agent(ReflexVacuumAgent, 4, deepcopy(envs));
+println("Evaluated: 5 < ", refva_result, " < 9");
 
-@test 2 < test_agent(TableDrivenVacuumAgent, 4, deepcopy(envs)) < 6;
+println("Expression: 2 < test_agent(TableDrivenVacuumAgent, 4, deepcopy(envs)) < 6");
+tdva_result = test_agent(TableDrivenVacuumAgent, 4, deepcopy(envs));
+println("Evaluated: 2 < ", tdva_result, " < 6");
 
-@test 0.5 < test_agent(RandomVacuumAgent, 4, deepcopy(envs)) < 3;
+println("Expression: 0.5 < test_agent(RandomVacuumAgent, 4, deepcopy(envs)) < 3");
+randva_result = test_agent(RandomVacuumAgent, 4, deepcopy(envs));
+println("Evaluated: 0.5 < ", randva_result, " < 3");

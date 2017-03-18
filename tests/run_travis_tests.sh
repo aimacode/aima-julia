@@ -5,20 +5,16 @@ set -e
 echo "TRAVIS_PULL_REQUEST: $TRAVIS_PULL_REQUEST"
 echo "TRAVIS_PULL_REQUEST_SHA: $TRAVIS_PULL_REQUEST_SHA"
 
-julia -e "versioninfo();"
-
 git clone https://github.com/aimacode/aima-data
 
-julia --color=yes -e "include(\"run_search_tests.jl\");"
+julia -e "versioninfo();"
 
-rm -rf aima-data
+#Some of the testv() doctests in agents.py can sometimes fail when the 
+#scores are out of expected bounds.
 
-julia --color=yes -e "include(\"run_util_tests.jl\");"
+julia --color=yes run_agent_tests.jl
 
+julia --color=yes run_search_tests.jl
 
-#Some of the testv() doctests can sometimes fail when the scores are
-#out of expected bounds.
-
-julia --color=yes -e "include(\"run_agent_tests.jl\");" 
-
+julia --color=yes run_util_tests.jl
 
