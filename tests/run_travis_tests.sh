@@ -2,6 +2,10 @@
 
 set -e
 
+echo "Changing directory to: $(dirname $0)"
+
+cd $(dirname $0)
+
 echo "TRAVIS_PULL_REQUEST: $TRAVIS_PULL_REQUEST"
 echo "TRAVIS_PULL_REQUEST_SHA: $TRAVIS_PULL_REQUEST_SHA"
 
