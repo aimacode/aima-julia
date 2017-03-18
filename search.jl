@@ -1,12 +1,28 @@
-include("utils.jl");
-
-using utils;
-
 import Base: ==, expand, length, in;
 
-typealias Action String;
-
-typealias Percept Tuple{Any, Any};
+export Problem, InstrumentedProblem,
+        actions, get_result, goal_test, path_cost, value,
+        format_instrumented_results,
+        Node, expand, child_node, solution, path, ==,
+        GAState, mate, mutate,
+        tree_search, graph_search,
+        breadth_first_tree_search, depth_first_tree_search, depth_first_graph_search,
+        breadth_first_search, best_first_graph_search, uniform_cost_search,
+        recursive_dls, depth_limited_search, iterative_deepening_search,
+        greedy_best_first_graph_search,
+        Graph, make_undirected, connect_nodes, get_linked_nodes, get_nodes,
+        UndirectedGraph, RandomGraph,
+        GraphProblem,
+        astar_search, recursive_best_first_search,
+        hill_climbing, exp_schedule, simulated_annealing,
+        or_search, and_search, and_or_graph_search,
+        genetic_search, genetic_algorithm,
+        NQueensProblem, conflict, conflicted,
+        random_boggle, print_boggle, boggle_neighbors, int_sqrt,
+        WordList, lookup, length, in,
+        BoggleFinder, set_board, find, words, score,
+        boggle_hill_climbing, mutate_boggle,
+        execute_searcher, compare_searchers, beautify_node;
 
 #=
 
@@ -1070,12 +1086,16 @@ type BoggleFinder
     board::AbstractVector
     neighbors::AbstractVector
 
-    function BoggleFinder(;board::Union{Void, AbstractVector}=nothing)
+    function BoggleFinder(;board::Union{Void, AbstractVector}=nothing, fn::Union{Void, String}=nothing)
         local wlfn::String;
-        if (is_windows())
-            wlfn = "..\\aima-data\\EN-text\\wordlist.txt";
-        elseif (is_apple() || is_unix())
-            wlfn = "../aima-data/EN-text/wordlist.txt";
+        if (typeof(fn) <: Void)
+            if (is_windows())
+                wlfn = "..\\aima-data\\EN-text\\wordlist.txt";
+            elseif (is_apple() || is_unix())
+                wlfn = "../aima-data/EN-text/wordlist.txt";
+            end
+        else
+            wlfn = fn;
         end
         nbf = new(WordList(wlfn),
                 vcat([0, 0, 0, 0, 1, 2, 3, 5], fill(11, 100)),

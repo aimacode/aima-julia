@@ -1,18 +1,20 @@
-include("agents.jl");
+include("../aimajulia.jl");
 
 using Base.Test;
+
+using aimajulia;
 
 #The following Agent tests are from the aima-python doctest
 
 RVA = ReflexVacuumAgent();
 
-@test execute(RVA.program, (loc_A, "Clean")) == "Right";
+@test execute(RVA.program, (aimajulia.loc_A, "Clean")) == "Right";
 
-@test execute(RVA.program, (loc_B, "Clean")) == "Left";
+@test execute(RVA.program, (aimajulia.loc_B, "Clean")) == "Left";
 
-@test execute(RVA.program, (loc_A, "Dirty")) == "Suck";
+@test execute(RVA.program, (aimajulia.loc_A, "Dirty")) == "Suck";
 
-@test execute(RVA.program, (loc_B, "Dirty")) == "Suck";
+@test execute(RVA.program, (aimajulia.loc_B, "Dirty")) == "Suck";
 
 TVE = TrivialVacuumEnvironment();
 

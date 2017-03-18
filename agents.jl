@@ -1,10 +1,30 @@
-include("utils.jl");
+import Base: run;
 
-using utils;
+export AgentProgram,
+        TableDrivenAgentProgram,
+        ReflexVacuumAgentProgram,
+        ModelBasedVacuumAgentProgram,
+        RandomAgentProgram,
+        Rule, SimpleReflexAgentProgram,
+        ModelBasedReflexAgentProgram,
+        EnvironmentObject, EnvironmentAgent,
+        Agent, Wumpus, Explorer,
+        isAlive, setAlive,
+        Obstacle, Wall,
+        Dirt, Gold, Pit, Arrow,
+        execute, rule_match, interpret_input, update_state,
+        TableDrivenVacuumAgent,
+        ReflexVacuumAgent,
+        ModelBasedVacuumAgent,
+        RandomVacuumAgent,
+        Environment, TwoDimensionalEnvironment, XYEnvironment,
+        VacuumEnvironment, TrivialVacuumEnvironment, WumpusEnvironment,
+        percept, objects_near, get_objects_at, some_objects_at, is_done, step,
+        run, exogenous_change, default_location, environment_objects, execute_action,
+        add_object, delete_object, add_walls, move_to,
+        run_once,
+        test_agent, compare_agents;
 
-typealias Percept Tuple{Any, Any}
-
-typealias Action String;
 
 abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
 

@@ -1,8 +1,10 @@
-include("utils.jl");
-
-using utils;
+include("../aimajulia.jl");
 
 using Base.Test;
+
+using aimajulia;
+
+using aimajulia.utils;
 
 # The following queue tests are from the aima-python utils.py doctest
 
