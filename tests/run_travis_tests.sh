@@ -9,9 +9,19 @@ cd $(dirname $0)
 echo "TRAVIS_PULL_REQUEST: $TRAVIS_PULL_REQUEST"
 echo "TRAVIS_PULL_REQUEST_SHA: $TRAVIS_PULL_REQUEST_SHA"
 
+echo "$" "ulimit -a"
+
+ulimit -a
+
+echo
+
 git clone https://github.com/aimacode/aima-data
 
+echo
+
 julia -e "versioninfo();"
+
+echo
 
 #Some of the testv() doctests in agents.py can sometimes fail when the 
 #scores are out of expected bounds.
