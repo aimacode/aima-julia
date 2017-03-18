@@ -1,12 +1,28 @@
-include("utils.jl");
-
-using utils;
-
 import Base: ==, expand, length, in;
 
-typealias Action String;
-
-typealias Percept Tuple{Any, Any};
+export Problem, InstrumentedProblem,
+        actions, get_result, goal_test, path_cost, value,
+        format_instrumented_results,
+        Node, expand, child_node, solution, path, ==,
+        GAState, mate, mutate,
+        tree_search, graph_search,
+        breadth_first_tree_search, depth_first_tree_search, depth_first_graph_search,
+        breadth_first_search, best_first_graph_search, uniform_cost_search,
+        recursive_dls, depth_limited_search, iterative_deepening_search,
+        greedy_best_first_graph_search,
+        Graph, make_undirected, connect_nodes, get_linked_nodes, get_nodes,
+        UndirectedGraph, RandomGraph,
+        GraphProblem,
+        astar_search, recursive_best_first_search,
+        hill_climbing, exp_schedule, simulated_annealing,
+        or_search, and_search, and_or_graph_search,
+        genetic_search, genetic_algorithm,
+        NQueensProblem, conflict, conflicted,
+        random_boggle, print_boggle, boggle_neighbors, int_sqrt,
+        WordList, lookup, length, in,
+        BoggleFinder, set_board, find, words, score,
+        boggle_hill_climbing, mutate_boggle,
+        execute_searcher, compare_searchers, beautify_node;
 
 #=
 
@@ -404,13 +420,14 @@ function breadth_first_search(problem::InstrumentedProblem)
 end
 
 function best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
-    local mf = MemoizedFunction(f);
+    #local mf = MemoizedFunction(f);
     local node = Node{typeof(problem.initial)}(problem.initial);
     if (goal_test(problem, node.state))
         return node;
     end
     local frontier = PQueue();
-    push!(frontier, node, mf);
+    #push!(frontier, node, mf);
+    push!(frontier, node, f);
     local explored = Set{String}();
     while (length(frontier) != 0)
         node = pop!(frontier);
@@ -421,21 +438,25 @@ function best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
         for child_node in expand(node, problem)
             if (!(child_node.state in explored) &&
                 !(child_node in collect(getindex(x, 2) for x in frontier.array)))
-                push!(frontier, child_node, mf);
+                #push!(frontier, child_node, mf);
+                push!(frontier, child_node, f);
             elseif (child_node in [getindex(x, 2) for x in frontier.array])
             #Recall that Nodes can share the same state and different values for other fields.
                 local existing_node = pop!(collect(getindex(x, 2)
                                                     for x in frontier.array
                                                     if (getindex(x, 2) == child_node)));
-                if (eval_memoized_function(mf, child_node) < eval_memoized_function(mf, existing_node))
+                #if (eval_memoized_function(mf, child_node) < eval_memoized_function(mf, existing_node))
+                if (f(child_node) < f(existing_node))
                     delete!(frontier, existing_node);
-                    push!(frontier, child_node, mf);
+                    #push!(frontier, child_node, mf);
+                    push!(frontier, child_node, f);
                 end
             end
         end
     end
     return nothing;
 end
+
 
 """
     uniform_cost_search{T <: AbstractProblem}(problem::T)
@@ -647,15 +668,17 @@ function initial_to_goal_distance(gp::InstrumentedProblem, n::Node)
 end
 
 function astar_search(problem::GraphProblem; h::Union{Void, Function}=nothing)
-    local mh::MemoizedFunction; #memoized h(n) function
+    #local mh::MemoizedFunction; #memoized h(n) function
+    local mh::Function;
     if (!(typeof(h) <: Void))
-        mh = MemoizedFunction(h);
+        mh = h;
     else
-        mh = problem.h;
+        mh = problem.h.f;
     end
     return best_first_graph_search(problem,
-                                    (function(node::Node; h::MemoizedFunction=mh, prob::GraphProblem=problem)
-                                        return node.path_cost + eval_memoized_function(h, prob, node);end));
+                                    (function(node::Node; h::Function=mh, prob::GraphProblem=problem)
+                                        #return node.path_cost + eval_memoized_function(h, prob, node);end));
+                                        return node.path_cost + h(prob, node);end));
 end
 
 """
@@ -1070,12 +1093,16 @@ type BoggleFinder
     board::AbstractVector
     neighbors::AbstractVector
 
-    function BoggleFinder(;board::Union{Void, AbstractVector}=nothing)
+    function BoggleFinder(;board::Union{Void, AbstractVector}=nothing, fn::Union{Void, String}=nothing)
         local wlfn::String;
-        if (is_windows())
-            wlfn = "..\\aima-data\\EN-text\\wordlist.txt";
-        elseif (is_apple() || is_unix())
-            wlfn = "../aima-data/EN-text/wordlist.txt";
+        if (typeof(fn) <: Void)
+            if (is_windows())
+                wlfn = "..\\aima-data\\EN-text\\wordlist.txt";
+            elseif (is_apple() || is_unix())
+                wlfn = "../aima-data/EN-text/wordlist.txt";
+            end
+        else
+            wlfn = fn;
         end
         nbf = new(WordList(wlfn),
                 vcat([0, 0, 0, 0, 1, 2, 3, 5], fill(11, 100)),

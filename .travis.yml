@@ -1,0 +1,12 @@
+language: julia
+sudo: false
+
+os:
+    - linux
+    - osx
+
+julia:
+    - 0.5
+
+script:
+    - sh tests/run_travis_tests.sh

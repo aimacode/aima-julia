@@ -337,11 +337,7 @@ function push!(pq::PQueue, item::Tuple{Any, Any})
     if (pq.order == Base.Order.Forward)
         insert!(pq.array, bsi.stop + 1, item);
     else
-        if (bsi.start != 0)
-            insert!(pq.array, bsi.start, item);
-        else
-            insert!(pq.array, 1, item);
-        end
+        insert!(pq.array, bsi.start, item);
     end
     nothing;
 end
@@ -353,11 +349,19 @@ function push!(pq::PQueue, item::Any, mf::MemoizedFunction)
     if (pq.order == Base.Order.Forward)
         insert!(pq.array, bsi.stop + 1, item_tuple);
     else
-        if (bsi.start != 0)
-            insert!(pq.array, bsi.start, item_tuple);
-        else
-            insert!(pq.array, 1, item_tuple);
-        end
+        insert!(pq.array, bsi.start, item_tuple);
+    end
+    nothing;
+end
+
+function push!(pq::PQueue, item::Any, mf::Function)
+    local item_tuple = (mf(item), item);
+    bsi = bisearch(pq.array, item_tuple, 1, length(pq), pq.order);
+
+    if (pq.order == Base.Order.Forward)
+        insert!(pq.array, bsi.stop + 1, item_tuple);
+    else
+        insert!(pq.array, bsi.start, item_tuple);
     end
     nothing;
 end
