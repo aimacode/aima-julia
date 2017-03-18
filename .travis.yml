@@ -9,4 +9,4 @@ julia:
     - 0.5
 
 script:
-    - sh tests\run_travis_tests.sh
+    - sh tests/run_travis_tests.sh
