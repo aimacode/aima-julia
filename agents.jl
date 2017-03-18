@@ -145,13 +145,13 @@ type Agent <: EnvironmentAgent
 
     function Agent()
         return new(Bool(true), Float64(0), Bool(false),
-                                            rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                            rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
                                             Array{Any, 1}());
     end
 
     function Agent{T <: AgentProgram}(ap::T)
         new_agent = new(Bool(true), Float64(0), Bool(false),
-                                                rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                                rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
                                                 Array{Any, 1}());   #program is undefined
         new_agent.program = ap;
         return new_agent;
@@ -169,13 +169,13 @@ type Wumpus <: EnvironmentAgent
 
     function Wumpus()
         return new(Bool(true), Float64(0), Bool(false),
-                                            rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                            rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
                                             Array{Any, 1}());
     end
 
     function Wumpus{T <: AgentProgram}(ap::T)
         new_agent = new(Bool(true), Float64(0), Bool(false),
-                                                rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                                rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
                                                 Array{Any, 1}());   #program is undefined
         new_agent.program = ap;
         return new_agent;
@@ -193,13 +193,13 @@ type Explorer <: EnvironmentAgent
 
     function Explorer()
         return new(Bool(true), Float64(0), Bool(false),
-                                            rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                            rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
                                             Array{Any, 1}());
     end
 
     function Explorer{T <: AgentProgram}(ap::T)
         new_agent = new(Bool(true), Float64(0), Bool(false),
-                                                rand(RandomDevice(), [(1, 0), (0, 1), (-1, 0), (0, -1)]),
+                                                rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
                                                 Array{Any, 1}());   #program is undefined
         new_agent.program = ap;
         return new_agent;
@@ -353,7 +353,7 @@ function execute(ap::ModelBasedVacuumAgentProgram, location_status::Percept)
 end
 
 function execute(ap::RandomAgentProgram, percept::Percept)
-    return rand(RandomDevice(), ap.actions);
+    return rand(RandomDeviceInstance, ap.actions);
 end
 
 function rule_match(state::String, rules::Array{Rule, 1})
@@ -490,8 +490,8 @@ type TrivialVacuumEnvironment <: Environment
                 Array{EnvironmentObject, 1}(),
                 Array{Agent, 1}(),
                 Dict{Tuple{Any, Any}, String}([
-                    Pair(loc_A, rand(RandomDevice(), ["Clean", "Dirty"])),
-                    Pair(loc_B, rand(RandomDevice(), ["Clean", "Dirty"])),
+                    Pair(loc_A, rand(RandomDeviceInstance, ["Clean", "Dirty"])),
+                    Pair(loc_B, rand(RandomDeviceInstance, ["Clean", "Dirty"])),
                     ]), Float64(1));
         return tve;
     end
@@ -608,11 +608,11 @@ function default_location{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj
 end
 
 function default_location{T <: EnvironmentObject}(e::TrivialVacuumEnvironment, obj::T)
-    return rand(RandomDevice(), [loc_A, loc_B]);
+    return rand(RandomDeviceInstance, [loc_A, loc_B]);
 end
 
 function default_location{T <: EnvironmentObject}(e::XYEnvironment, obj::T)
-    return (rand(RandomDevice(), range(0, e.width)), rand(RandomDevice(), range(0, e.height)));
+    return (rand(RandomDeviceInstance, range(0, e.width)), rand(RandomDeviceInstance, range(0, e.height)));
 end
 
 function environment_objects{T <: Environment}(e::T)

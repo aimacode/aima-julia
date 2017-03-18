@@ -15,7 +15,8 @@ export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         AbstractProblem,
         argmin, argmax, argmin_random_tie, argmax_random_tie,
         weighted_sampler, weighted_sample_with_replacement,
-        distance, distance2;
+        distance, distance2,
+        RandomDeviceInstance;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -65,6 +66,8 @@ function vector_add_tuples(a::Tuple, b::Tuple)
 end
 
 abstract AbstractProblem;
+
+RandomDeviceInstance = RandomDevice();
 
 #=
 
@@ -481,7 +484,7 @@ function weighted_sampler{T1 <: AbstractVector, T2 <: AbstractVector}(seq::T1, w
     end
     return (function(;sequence=seq, totals_array=totals)
                 bsi = bisearch(totals_array,
-                                (rand(RandomDevice())*totals_array[length(totals_array)]),
+                                (rand(RandomDeviceInstance)*totals_array[length(totals_array)]),
                                 1,
                                 length(totals_array),
                                 Base.Order.Forward);
@@ -500,7 +503,7 @@ function weighted_sampler{T <: AbstractVector}(seq::String, weights::T)
     end
     return (function(;sequence=seq, totals_array=totals)
                 bsi = searchsorted(totals_array,
-                                (rand(RandomDevice())*totals_array[length(totals_array)]),
+                                (rand(RandomDeviceInstance)*totals_array[length(totals_array)]),
                                 1,
                                 length(totals_array),
                                 Base.Order.Forward);
@@ -537,7 +540,7 @@ function argmin_random_tie{T <: AbstractVector}(seq::T, fn::Function)
             best_element = element;
         elseif (element_score == best_score)
             n = n + 1;
-            if (rand(RandomDevice(), 1:n) == 1)
+            if (rand(RandomDeviceInstance, 1:n) == 1)
                 best_element = element;
             end
         end
@@ -574,7 +577,7 @@ function argmax_random_tie{T <: AbstractVector}(seq::T, fn::Function)
             best_element = element;
         elseif (element_score == best_score)
             n = n + 1;
-            if (rand(RandomDevice(), 1:n) == 1)
+            if (rand(RandomDeviceInstance, 1:n) == 1)
                 best_element = element;
             end
         end
