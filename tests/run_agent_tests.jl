@@ -34,7 +34,7 @@ function colorize_testv_doctest_results(result::Bool)
     if (result)
         print_with_color(:green, "Test Passed\n");
     else
-        print_with_color(Base.error_color(), "Test Failed\n");
+        print_with_color(:red, "Test Failed\n");
     end
 end
 
