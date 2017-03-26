@@ -7,7 +7,7 @@ abstract AbstractGame;
 
     Game is an abstract game that contains an initial state.
 
-    Games have a corresponding utility function, terminal test, and transition model.
+    Games have a corresponding utility function, terminal test, set of legal moves, and transition model.
 
 =#
 
