@@ -56,9 +56,8 @@ function minimax_max_value{T <: AbstractGame}(game::T, player::String, state::St
         return utility(game, state, player)
     end
     local v::Float64 = -Inf64;
-    for action in actions(game, state)
-        v = max(v, minimax_min_value(game, player, result(game, state, action)));
-    end
+    v = reduce(max, vcat(v, collect(minimax_min_value(game, player, result(game, state, action))
+                                    for action in actions(game, state))));
     return v;
 end
 
@@ -67,9 +66,8 @@ function minimax_min_value{T <: AbstractGame}(game::T, player::String, state::St
         return utility(game, state, player);
     end
     local v::FLoat64 = Inf64;
-    for action in actions(game, state)
-        v = min(v, minimax_max_value(game, player, result(game, state, action)));
-    end
+    v = reduce(min, vcat(v, collect(minimax_max_value(game, player, result(game, state, action))
+                                    for action in actions(game, state))));
     return v;
 end
 
@@ -82,7 +80,7 @@ function minimax_decision{T <: AbstractGame}(state::String, game::T)
     local player = to_move(game, state);
     return argmax(actions(game, state),
                     (function(actions::String)
-                        return minimax_decision_min_value(result(game, state, action));
+                        return minimax_min_value(game, player, result(game, state, action));
                     end));
 end
 
