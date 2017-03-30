@@ -1,8 +1,9 @@
 
 import Base.display;
 
-export AbstractGame, Figure52Game,
-        minimax_decision, alphabeta_full_search, alphabeta_search;
+export AbstractGame, Figure52Game, TicTacToeGame, TicTacToeState,
+        minimax_decision, alphabeta_full_search, alphabeta_search,
+        display;
 
 abstract AbstractGame;
 
@@ -107,6 +108,107 @@ end
 
 function to_move(game::Figure52Game, state::String)
     return if_((state in ["B", "C", "D"]), "MIN", "MAX");
+end
+
+type TicTacToeState
+    turn::String
+    utility::Int64
+    board::Dict
+    moves::AbstractVector
+
+    function TicTacToeState(turn::String, utility::Int64, board::Dict, moves::AbstractVector)
+        return new(turn, utility, board, moves);
+    end
+end
+
+#=
+
+    TicTacToeGame is a AbstractGame implementation of the Tic-tac-toe game.
+
+=#
+type TicTacToeGame <: AbstractGame
+    initial::TicTacToeState
+    h::Int64
+    v::Int64
+    k::Int64
+
+    function TicTacToeGame(initial::TicTacToeState)
+        return new(initial, 3, 3, 3);
+    end
+
+    function TicTacToeGame()
+        return new(TicTacToeState("X", 0, Dict(), collect((x, y) for x in 1:3 for y in 1:3)), 3, 3, 3);
+    end
+end
+
+function actions(game::TicTacToeGame, state::TicTacToeState)
+    return state.moves;
+end
+
+function result(game::TicTacToeGame, state::TicTacToeState, move::Tuple{Signed, Signed})
+    if (!(move in state.moves))
+        return state;
+    end
+    local board::Dict = copy(state.board);
+    board[move] = state.turn;
+    local moves::Array{eltype(state.moves), 1} = collect(state.moves);
+    for (i, element) in enumerate(moves)
+        if (element == move)
+            deleteat!(moves, i);
+            break;
+        end
+    end
+    return TicTacToeState(if_("X", "O", "X"), compute_utility(board, move, state.turn), board, moves);
+end
+
+function utility(game::TicTacToeGame, state::TicTacToeState, player::String)
+    return if_((player == "X"), state.utility, -state.utility);
+end
+
+function terminal_test(game::TicTacToeGame, state::TicTacToeState)
+    return ((state.utility != 0) || (length(state.moves) == 0));
+end
+
+function display(game::TicTacToeGame, state::TicTacToeState)
+    for x in 1:game.h
+        for y in 1:game.v
+            print(get(state.board, (x, y), "."));
+        end
+        println();
+    end
+end
+
+function compute_utility{T <: Dict}(game::TicTacToeGame, board::T, move::Tuple{Signed, Signed}, player::String)
+    if (k_in_row(game, board, move, player, (0, 1)) ||
+        k_in_row(game, board, move, player, (1, 0)) ||
+        k_in_row(game, board, move, player, (1, -1)) ||
+        k_in_row(game, board, move, player, (1, 1)))
+        return if_((player == "X"), 1, -1);
+    else
+        return 0;
+    end
+end
+
+function k_in_row(game::TicTacToeGame, board::Dict, move::Tuple{Signed, Signed}, player::String, delta::Tuple{Signed, Signed})
+    local delta_x::Int64 = Int64(getindex(delta, 1));
+    local delta_y::Int64 = Int64(getindex(delta, 2));
+    local x::Int64 = Int64(getindex(move, 1));
+    local y::Int64 = Int64(getindex(move, 2));
+    local n::Int64 = Int64(0);
+    while (get(board, (x,y), nothing) == player)
+        n = n + 1;
+        x = x + delta_x;
+        y = y + delta_y;
+    end
+    x = Int64(getindex(move, 1));
+    y = Int64(getindex(move, 2));
+    while (get(board, (x,y), nothing) == player)
+        n = n + 1;
+        x = x - delta_x;
+        y = y - delta_y;
+    end
+    n = n - 1;  #remove the duplicate check on get(board, move, nothing)
+    return n >= game.k;
 end
 
 function minimax_max_value{T <: AbstractGame}(game::T, player::String, state::String)
@@ -239,4 +341,7 @@ function alphabeta_search{T <: AbstractGame}(state::String, game::T; d::Int64=4,
                         return alphabeta_search_min_value(relevant_game, relevant_player, cutoff_test, eval_fn, result(relevant_game, relevant_state, action), -Inf64, Inf64, 0);
                     end));
 end
+
+
+
 
