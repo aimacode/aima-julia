@@ -395,7 +395,37 @@ function alphabeta_search_max_value{T <: AbstractGame}(game::T, player::String, 
     return v;
 end
 
+function alphabeta_search_max_value{T <: AbstractGame}(game::T, player::String, cutoff_test_fn::Function, evaluation_fn::Function, state::TicTacToeState, alpha::Number, beta::Number, depth::Int64)
+    if (cutoff_test_fn(state, depth))
+        return evaluation_fn(state);
+    end
+    local v::Float64 = -Inf64;
+    for action in actions(game, state)
+        v = max(v, alphabeta_search_min_value(game, player, cutoff_test_fn, evaluation_fn, result(game, state, action), alpha, beta, depth + 1));
+        if (v >= beta)
+            return v;
+        end
+        alpha = max(alpha, v);
+    end
+    return v;
+end
+
 function alphabeta_search_min_value{T <: AbstractGame}(game::T, player::String, cutoff_test_fn::Function, evaluation_fn::Function, state::String, alpha::Number, beta::Number, depth::Int64)
+    if (cutoff_test_fn(state, depth))
+        return evaluation_fn(state);
+    end
+    local v::Float64 = Inf64;
+    for action in actions(game, state)
+        v = min(v, alphabeta_search_max_value(game, player, cutoff_test_fn, evaluation_fn, result(game, state, action), alpha, beta, depth + 1));
+        if (v >= alpha)
+            return v;
+        end
+        beta = min(alpha, v);
+    end
+    return v;
+end
+
+function alphabeta_search_min_value{T <: AbstractGame}(game::T, player::String, cutoff_test_fn::Function, evaluation_fn::Function, state::TicTacToeState, alpha::Number, beta::Number, depth::Int64)
     if (cutoff_test_fn(state, depth))
         return evaluation_fn(state);
     end
@@ -435,6 +465,50 @@ function alphabeta_search{T <: AbstractGame}(state::String, game::T; d::Int64=4,
                     end));
 end
 
+function alphabeta_search{T <: AbstractGame}(state::TicTacToeState, game::T; d::Int64=4, cutoff_test_fn::Union{Void, Function}=nothing, evaluation_fn::Union{Void, Function}=nothing)
+    local player::String = to_move(game, state);
+    if (typeof(cutoff_test_fn) <: Void)
+        cutoff_test_fn = (function(state::TicTacToeState, depth::Int64; dvar::Int64=d, relevant_game::AbstractGame=game)
+                            return ((depth > dvar) || terminal_test(relevant_game, state));
+                        end);
+    end
+    if (typeof(evaluation_fn) <: Void)
+        evaluation_fn = (function(state::TicTacToeState, ; relevant_game::AbstractGame=game, relevant_player::String=player)
+                            return utility(relevant_game, state, relevant_player);
+                        end);
+    end
+    return argmax(actions(game, state),
+                    (function(action::Tuple{Signed, Signed},; relevant_game::AbstractGame=game, relevant_state::TicTacToeState=state, relevant_player::String=player, cutoff_test::Function=cutoff_test_fn, eval_fn::Function=evaluation_fn)
+                        return alphabeta_search_min_value(relevant_game, relevant_player, cutoff_test, eval_fn, result(relevant_game, relevant_state, action), -Inf64, Inf64, 0);
+                    end));
+end
 
+function random_player{T <: AbstractGame}(game::T, state::String)
+    return rand(RandomDeviceInstance, actions(game, state));
+end
 
+function random_player{T <: AbstractGame}(game::T, state::TicTacToeState)
+    return rand(RandomDeviceInstance, actions(game, state));
+end
+
+function alphabeta_player{T <: AbstractGame}(game::T, state::String)
+    return alphabeta_search(state, game);
+end
+
+function alphabeta_player{T <: AbstractGame}(game::T, state::TicTacToeState)
+    return alphabeta_search(state, game);
+end
+
+function play_game{T <: AbstractGame}(game::T, players::Vararg{Function})
+    state = game.initial;
+    while (true)
+        for player in players
+            move = player(game, state);
+            state = result(game, state, move);
+            if (terminal_test(game, state))
+                return utility(game, state, to_move(game, game.initial));
+            end
+        end
+    end
+end
 
