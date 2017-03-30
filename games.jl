@@ -160,7 +160,7 @@ function result(game::TicTacToeGame, state::TicTacToeState, move::Tuple{Signed, 
             break;
         end
     end
-    return TicTacToeState(if_((state.turn == "X"), "O", "X"), compute_utility(board, move, state.turn), board, moves);
+    return TicTacToeState(if_((state.turn == "X"), "O", "X"), compute_utility(game, board, move, state.turn), board, moves);
 end
 
 function utility(game::TicTacToeGame, state::TicTacToeState, player::String)
@@ -252,7 +252,7 @@ function result(game::ConnectFourGame, state::ConnectFourState, move::Tuple{Sign
             break;
         end
     end
-    return ConnectFourState(if_((state.turn == "X"), "O", "X"), compute_utility(board, move, state.turn), board, moves);
+    return ConnectFourState(if_((state.turn == "X"), "O", "X"), compute_utility(game, board, move, state.turn), board, moves);
 end
 
 function utility(game::ConnectFourGame, state::ConnectFourState, player::String)
