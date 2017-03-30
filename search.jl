@@ -282,7 +282,7 @@ type GAState
 end
 
 function mate{T <: GAState}(ga_state::T, other::T)
-    local c = rand(RandomDevice(), range(1, length(ga_state.genes)));
+    local c = rand(RandomDeviceInstance, range(1, length(ga_state.genes)));
     local new_ga_state = deepcopy(ga_state[1:c]);
     for element in other.genes[(c + 1):length(other.genes)]
         push!(new_ga_state, element);
@@ -589,11 +589,11 @@ function RandomGraph(;nodes::Range=1:10,
                     width::Int64=400,
                     height::Int64=300,
                     curvature::Function=(function()
-                                            return (0.4*rand(RandomDevice())) + 1.1;
+                                            return (0.4*rand(RandomDeviceInstance)) + 1.1;
                                         end))
     local g = UndirectedGraph();
     for node in nodes
-        g.locations[node] = Tuple((rand(RandomDevice(), 1:width), rand(RandomDevice(), 1:height)));
+        g.locations[node] = Tuple((rand(RandomDeviceInstance, 1:width), rand(RandomDeviceInstance, 1:height)));
     end
     for i in 1:min_link
         for node in nodes
@@ -788,9 +788,9 @@ function simulated_annealing{T <: AbstractProblem}(problem::T; schedule=exp_sche
         if (length(neighbors) == 0)
             return current_node;
         end
-        local next_node = rand(RandomDevice(), neighbors);
+        local next_node = rand(RandomDeviceInstance, neighbors);
         delta_e = value(problem, next_node.state) - value(problem, current_node.state);
-        if ((delta_e > 0) || (exp(delta_e/temperature) > rand(RandomDevice())))
+        if ((delta_e > 0) || (exp(delta_e/temperature) > rand(RandomDeviceInstance)))
             current_node = next_node;
         end
     end
@@ -853,7 +853,7 @@ end
 function genetic_search{T <: AbstractProblem}(problem::T; ngen::Int64=1000, pmut::Float64=0.1, n::Int64=20)
     local s = problem.initial;
     local states = [result(s, action) for action in actions(problem, s)];
-    shuffle!(RandomDevice(), states);
+    shuffle!(RandomDeviceInstance, states);
     if (length(states) < n)
         n = length(states);
     end
@@ -867,7 +867,7 @@ function genetic_algorithm{T <: AbstractVector}(population::T, fitness::Function
             local fitnesses = map(fitness, population);
             p1, p2 = weighted_sample_with_replacement(population, fitnesses, 2);
             local child = mate(p1, p2);
-            if (rand(RandomDevice()) < pmut)
+            if (rand(RandomDeviceInstance) < pmut)
                 mutate(child);
             end
             push!(new_population, child);
@@ -976,9 +976,9 @@ cubes16 = Array{String, 1}(["FORIXB", "MOQABJ", "GURILW", "SETUPL",
 
 function random_boggle(;n::Int64=4)
     local cubes = collect(cubes16[(i % 16) + 1] for i in 0:((n * n) - 1));
-    shuffle!(RandomDevice(), cubes);
+    shuffle!(RandomDeviceInstance, cubes);
     return map((function(array::String)
-                    return rand(RandomDevice(), collect(array));
+                    return rand(RandomDeviceInstance, collect(array));
                 end), cubes);
 end
 
@@ -1189,9 +1189,9 @@ end
 
 
 function mutate_boggle(board::AbstractArray)
-    local i::Int64 = rand(RandomDevice(), 1:length(board));
+    local i::Int64 = rand(RandomDeviceInstance, 1:length(board));
     local old_char::Char = board[i];
-    board[i] = rand(RandomDevice(), collect(rand(RandomDevice(), cubes16)));
+    board[i] = rand(RandomDeviceInstance, collect(rand(RandomDeviceInstance, cubes16)));
     return i, old_char;
 end
 

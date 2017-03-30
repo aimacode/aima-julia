@@ -1,5 +1,7 @@
 # aima-julia
 
+[![Build Status](https://travis-ci.org/aimacode/aima-julia.svg?branch=master)](https://travis-ci.org/aimacode/aima-julia)
+
 Julia (v0.5+) implementation of the algorithms found in "Artificial Intelligence: A Modern Approach".
 
 ## Acknowledgements

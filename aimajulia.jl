@@ -14,4 +14,6 @@ include("agents.jl");
 
 include("search.jl");
 
+include("games.jl");
+
 end;
