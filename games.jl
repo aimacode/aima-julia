@@ -171,6 +171,10 @@ function terminal_test(game::TicTacToeGame, state::TicTacToeState)
     return ((state.utility != 0) || (length(state.moves) == 0));
 end
 
+function to_move(game::TicTacToeGame, state::TicTacToeState)
+    return state.turn;
+end
+
 function display(game::TicTacToeGame, state::TicTacToeState)
     for x in 1:game.h
         for y in 1:game.v
@@ -261,6 +265,10 @@ end
 
 function terminal_test(game::ConnectFourGame, state::ConnectFourState)
     return ((state.utility != 0) || (length(state.moves) == 0));
+end
+
+function to_move(game::ConnectFourGame, state::ConnectFourState)
+    return state.turn;
 end
 
 function display(game::ConnectFourGame, state::ConnectFourState)
