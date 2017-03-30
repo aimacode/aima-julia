@@ -1,7 +1,8 @@
 
 import Base.display;
 
-export AbstractGame, Figure52Game, TicTacToeGame, TicTacToeState,
+export AbstractGame, Figure52Game, TicTacToeGame, ConnectFourGame,
+        TicTacToeState, ConnectFourState,
         minimax_decision, alphabeta_full_search, alphabeta_search,
         display;
 
@@ -190,6 +191,98 @@ function compute_utility{T <: Dict}(game::TicTacToeGame, board::T, move::Tuple{S
 end
 
 function k_in_row(game::TicTacToeGame, board::Dict, move::Tuple{Signed, Signed}, player::String, delta::Tuple{Signed, Signed})
+    local delta_x::Int64 = Int64(getindex(delta, 1));
+    local delta_y::Int64 = Int64(getindex(delta, 2));
+    local x::Int64 = Int64(getindex(move, 1));
+    local y::Int64 = Int64(getindex(move, 2));
+    local n::Int64 = Int64(0);
+    while (get(board, (x,y), nothing) == player)
+        n = n + 1;
+        x = x + delta_x;
+        y = y + delta_y;
+    end
+    x = Int64(getindex(move, 1));
+    y = Int64(getindex(move, 2));
+    while (get(board, (x,y), nothing) == player)
+        n = n + 1;
+        x = x - delta_x;
+        y = y - delta_y;
+    end
+    n = n - 1;  #remove the duplicate check on get(board, move, nothing)
+    return n >= game.k;
+end
+
+typealias ConnectFourState TicTacToeState;
+
+#=
+
+    ConnectFourGame is a AbstractGame implementation of the Connect Four game.
+
+=#
+type ConnectFourGame <: AbstractGame
+    initial::ConnectFourState
+    h::Int64
+    v::Int64
+    k::Int64
+
+    function ConnectFourGame(initial::ConnectFourState)
+        return new(initial, 3, 3, 3);
+    end
+
+    function ConnectFourGame()
+        return new(ConnectFourState("X", 0, Dict(), collect((x, y) for x in 1:7 for y in 1:6)), 7, 6, 4);
+    end
+end
+
+function actions(game::ConnectFourGame, state::ConnectFourState)
+    return collect((x,y) for (x, y) in state.moves if ((y == 0) || ((x, y - 1) in state.board)));
+end
+
+function result(game::ConnectFourGame, state::ConnectFourState, move::Tuple{Signed, Signed})
+    if (!(move in state.moves))
+        return state;
+    end
+    local board::Dict = copy(state.board);
+    board[move] = state.turn;
+    local moves::Array{eltype(state.moves), 1} = collect(state.moves);
+    for (i, element) in enumerate(moves)
+        if (element == move)
+            deleteat!(moves, i);
+            break;
+        end
+    end
+    return ConnectFourState(if_("X", "O", "X"), compute_utility(board, move, state.turn), board, moves);
+end
+
+function utility(game::ConnectFourGame, state::ConnectFourState, player::String)
+    return if_((player == "X"), state.utility, -state.utility);
+end
+
+function terminal_test(game::ConnectFourGame, state::ConnectFourState)
+    return ((state.utility != 0) || (length(state.moves) == 0));
+end
+
+function display(game::ConnectFourGame, state::ConnectFourState)
+    for x in 1:game.h
+        for y in 1:game.v
+            print(get(state.board, (x, y), "."));
+        end
+        println();
+    end
+end
+
+function compute_utility{T <: Dict}(game::ConnectFourGame, board::T, move::Tuple{Signed, Signed}, player::String)
+    if (k_in_row(game, board, move, player, (0, 1)) ||
+        k_in_row(game, board, move, player, (1, 0)) ||
+        k_in_row(game, board, move, player, (1, -1)) ||
+        k_in_row(game, board, move, player, (1, 1)))
+        return if_((player == "X"), 1, -1);
+    else
+        return 0;
+    end
+end
+
+function k_in_row(game::ConnectFourGame, board::Dict, move::Tuple{Signed, Signed}, player::String, delta::Tuple{Signed, Signed})
     local delta_x::Int64 = Int64(getindex(delta, 1));
     local delta_y::Int64 = Int64(getindex(delta, 2));
     local x::Int64 = Int64(getindex(move, 1));
