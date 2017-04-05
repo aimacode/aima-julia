@@ -16,4 +16,6 @@ include("search.jl");
 
 include("games.jl");
 
+include("csp.jl");
+
 end;
