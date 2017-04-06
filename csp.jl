@@ -1,10 +1,11 @@
 
 import Base: get, getindex, getkey,
-            copy, haskey, in;
+            copy, haskey, in, display;
 
 export ConstantFunctionDict, CSPDict, CSP,
     get, getkey, getindex, copy, haskey,
-    in;
+    in,
+    assign, unassign, nconflicts, display;
 
 #Constraint Satisfaction Problems (CSP)
 
@@ -15,6 +16,8 @@ type ConstantFunctionDict{V}
         return new(val);
     end
 end
+
+ConstantFunctionDict(val) = ConstantFunctionDict{typeof(val)}(val);
 
 copy(cfd::ConstantFunctionDict) = ConstantFunctionDict{typeof(cfd.value)}(cfd.value);
 
@@ -93,5 +96,34 @@ type CSP <: AbstractProblem
                 initial::Tuple=(), current_domains::Union{Void, Dict}=nothing, nassigns::Int64=0)
         return new(vars, domains, neightbors, initial, Nullable{Dict}(current_domains), nassigns)
     end
+end
+
+function assign(problem::CSP, key, val, assignment::Dict)
+    println("key: ", typeof(key), " | val: ", typeof(val));
+    assignment[key] = val;
+    problem.nassigns = problem.nassigns + 1;
+    nothing;
+end
+
+function unassign(problem::CSP, key, assignment::Dict)
+    println("key: ", typeof(key));
+    if (haskey(assignment, key))
+        delete!(assignment, key);
+    end
+    nothing;
+end
+
+function nconflicts(problem::CSP, var, val, assignment::Dict)
+    return count(
+                (function(second_var, ; relevant_problem::CSP=problem, first_var=var, relevant_val=val, dict::Dict=assignment)
+                    return (haskey(dict, second_var) &&
+                        !(relevant_problem.constraints(first_var, relevant_val, second_var, dict[second_var])));
+                end),
+                problem.neighbors[var]);
+end
+
+function display(problem::CSP, assignment::Dict)
+    println("CSP: ", problem, " with assignment: ", assignment);
+    nothing;
 end
 
