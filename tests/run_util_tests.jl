@@ -63,3 +63,9 @@ mabs = MemoizedFunction(abs);		#memoize abs()
 @test weighted_sample_with_replacement("ab", [0, 3], 3) == ['b', 'b', 'b'];
 
 @test count(isfunction, [42, nothing, max, min]) == 2;
+
+@test findfirst(isfunction, [3, min, max]) == 2;
+
+@test findfirst(isfunction, [1, 2, 3]) == 0;
+
+

@@ -127,3 +127,34 @@ function display(problem::CSP, assignment::Dict)
     nothing;
 end
 
+function actions(problem::CSP, state::Tuple)
+    if (length(state) == length(problem.vars))
+        return [];
+    else
+        let
+            local assignment = Dict(state);
+            local var = problem.vars[findfirst((function(e)
+                                        return haskey(assignment, e);
+                                    end), problem.vars)];
+            return collect((var, val) for val in problem.domains[var]
+                            if nconflicts(problem, var, val, assignment) == 0);
+        end
+    end
+end
+
+function result(problem::CSP, state::Tuple, action::Tuple)
+    return (state..., action);
+end
+
+function goal_test(problem::CSP, state::Tuple)
+    let
+        local assignment = Dict(state);
+        return (length(assignment) == length(problem.vars) &&
+                every((function(element, ; prob::CSP=problem)
+                            return nconflicts(prob, element, assignment[element], assignment) == 0;
+                        end)
+                        ,
+                        problem.vars));
+    end
+end
+
