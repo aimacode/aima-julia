@@ -208,7 +208,7 @@ function infer_assignment{T <: AbstractCSP}(problem::T)
                             if (1 == length(get(problem.current_domains)[v]))));
 end
 
-function restore{T <: AbstractCSP}(problem::T, removals)
+function restore{T <: AbstractCSP}(problem::T, removals::AbstractVector)
     for (key, val) in removals
         push!(get(problem.current_domains)[key], val);
     end
@@ -218,5 +218,46 @@ end
 function conflicted_variables{T <: AbstractCSP}(problem::T, current_assignment::Dict)
     return collect(var for var in problem.vars
                     if (nconflicts(problem, var, current_assignment[var], current_assignment) > 0));
+end
+
+"""
+    AC3(problem)
+
+Apply the arc-consitency algorithm AC-3 (Fig 6.3) to the given contraint satisfaction problem.
+Return a boolean indicating whether every arc in the problem is arc-consistent.
+"""
+function AC3{T <: AbstractCSP}(problem::T; queue::Union{Void, AbstractVector}=nothing, removals::Union{Void, AbstractVector}=nothing)
+    if (typeof(queue) <: Void)
+        queue = collect((X_i, X_k) for X_i in problem.vars for X_k in problem.neighbors[X_i]);
+    end
+    support_pruning(problem);
+    while (length(queue) != 0)
+        local X_i, X_j = shift!(queue); #Remove the first item from queue
+        if (revise(problem, X_i, X_j, removals))
+            if (!haskey(problem.current_domains, X_i))
+                return false;
+            end
+            for X_k in problem.neighbors[X_i]
+                if (X_k != X_i)
+                    push!(queue, (X_k, X_i));
+                end
+            end
+        end
+    end
+    return true;
+end
+
+function revise{T <: AbstractCSP}(problem::T, X_i, X_j, removals::Union{Void, AbstractVector})
+    local revised::Bool = false;
+    for x in deepcopy(problem.current_domains[X_i])
+        if (all((function(y)
+                    return !constraints(problem, X_i, x, X_j, y);
+                end),
+                problem.current_domains[X_j]))
+            prune(problem, X_i, x, removals);
+            revised = true;
+        end
+    end
+    return revised;
 end
 
