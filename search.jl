@@ -332,7 +332,7 @@ Search the given problem by using the general graph search algorithm (Fig. 3.7) 
 The uniform cost algorithm (Fig. 3.14) should be used when the frontier is a priority queue.
 """
 function graph_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
-    local explored = Set{String}();
+    local explored = Set{typeof(problem.initial)}();
     push!(frontier, Node{typeof(problem.initial)}(problem.initial));
     while (length(frontier) != 0)
         local node = pop!(frontier);
@@ -347,7 +347,7 @@ function graph_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier:
 end
 
 function graph_search{T <: Queue}(problem::InstrumentedProblem, frontier::T)
-    local explored = Set{String}();
+    local explored = Set{typeof(problem.problem.initial)}();
     push!(frontier, Node{typeof(problem.problem.initial)}(problem.problem.initial));
     while (length(frontier) != 0)
         local node = pop!(frontier);
