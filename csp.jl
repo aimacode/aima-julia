@@ -1,11 +1,11 @@
 
 import Base: get, getindex, getkey,
-            copy, haskey, in, display;
+            deepcopy, copy, haskey, in, display;
 
 export ConstantFunctionDict, CSPDict, CSP,
-    get, getkey, getindex, copy, haskey,
-    in,
-    assign, unassign, nconflicts, display;
+    get, getkey, getindex, deepcopy, copy, haskey, in,
+    assign, unassign, nconflicts, display,
+    MapColoringCSP;
 
 #Constraint Satisfaction Problems (CSP)
 
@@ -20,6 +20,8 @@ end
 ConstantFunctionDict(val) = ConstantFunctionDict{typeof(val)}(val);
 
 copy(cfd::ConstantFunctionDict) = ConstantFunctionDict{typeof(cfd.value)}(cfd.value);
+
+deepcopy(cfd::ConstantFunctionDict) = ConstantFunctionDict{typeof(cfd.value)}(deepcopy(cfd.value));
 
 type CSPDict
     dict::Nullable
@@ -96,7 +98,7 @@ type CSP <: AbstractCSP
 
     function CSP(vars::AbstractVector, domains::CSPDict, neighbors::CSPDict, constraints::Function;
                 initial::Tuple=(), current_domains::Union{Void, Dict}=nothing, nassigns::Int64=0)
-        return new(vars, domains, neightbors, initial, Nullable{Dict}(current_domains), nassigns)
+        return new(vars, domains, neighbors, constraints, initial, Nullable{Dict}(current_domains), nassigns)
     end
 end
 
@@ -136,7 +138,7 @@ function actions{T <: AbstractCSP}(problem::T, state::Tuple)
         let
             local assignment = Dict(state);
             local var = problem.vars[findfirst((function(e)
-                                        return haskey(assignment, e);
+                                        return !haskey(assignment, e);
                                     end), problem.vars)];
             return collect((var, val) for val in problem.domains[var]
                             if nconflicts(problem, var, val, assignment) == 0);
@@ -144,7 +146,7 @@ function actions{T <: AbstractCSP}(problem::T, state::Tuple)
     end
 end
 
-function result{T <: AbstractCSP}(problem::T, state::Tuple, action::Tuple)
+function get_result{T <: AbstractCSP}(problem::T, state::Tuple, action::Tuple)
     return (state..., action);
 end
 
@@ -152,12 +154,16 @@ function goal_test{T <: AbstractCSP}(problem::T, state::Tuple)
     let
         local assignment = Dict(state);
         return (length(assignment) == length(problem.vars) &&
-                every((function(element, ; prob::CSP=problem)
+                all((function(element, ; prob::CSP=problem)
                             return nconflicts(prob, element, assignment[element], assignment) == 0;
                         end)
                         ,
                         problem.vars));
     end
+end
+
+function path_cost{T <: AbstractCSP}(problem::T, cost::Float64, state1::Tuple, action::Tuple, state2::Tuple)
+    return cost + 1;
 end
 
 function support_pruning{T <: AbstractCSP}(problem::T)
@@ -260,4 +266,120 @@ function revise{T <: AbstractCSP}(problem::T, X_i, X_j, removals::Union{Void, Ab
     end
     return revised;
 end
+
+function first_unassigned_variable{T <: AbstractCSP}(problem::T, assignment::Dict)
+    return getindex(problem.vars, findfirst((function(var)
+                        return !haskey(assignment, var);
+                    end),
+                    problem.vars));
+end
+
+function minimum_remaining_values{T <: AbstractCSP}(problem::T, assignment::Dict)
+    return argmin_random_tie(collect(v for v in problem.vars if !haskey(assignment, v)),
+                            (function(var)
+                                return num_legal_values(problem, var, assignment);
+                            end));
+end
+
+function num_legal_values{T <: AbstractCSP}(problem::T, var, assignment::Dict)
+    if (!isnull(problem.current_domains))
+        return length(get(problem.current_domains)[var]);
+    else
+        return count((function(val)
+                        return nconflicts(problem, var, val, assignment);
+                    end),
+                    problem.domains[vars]);
+    end
+end
+
+function unordered_domain_values{T <: AbstractCSP}(problem::T, var, assignment::Dict)
+    return choices(problem, var);
+end
+
+function least_constraining_values{T <: AbstractCSP}(problem::T, var, assignment::Dict)
+    return sort!(deepcopy(choices(problem, var)),
+                lt=(function(val)
+                       return nconflicts(problem, var, val, assignment);                                 
+                    end));
+end
+
+function no_inference{T <: AbstractCSP}(problem::T, var, value, assignment::Dict, removals::Union{Void, AbstractVector})
+    return true;
+end
+
+function forward_checking{T <: AbstractCSP}(problem::T, var, value, assignment::Dict, removals::Union{Void, AbstractVector})
+    for B in problem.neighbors[var]
+        if (!haskey(assignment, B))
+            for b in deepcopy(problem.current_domains[B])
+                if (!constraints(problem, var, value, B, b))
+                    prune(problem, B, b, removals);
+                end
+            end
+            if (length(problem.current_domains[B]) == 0)
+                return false;
+            end
+        end
+    end
+    return true;
+end
+
+function maintain_arc_consistency{T <: AbstractCSP}(problem::T, var, value, assignment::Dict, removals::Union{Void, AbstractVector})
+    return AC3(problem, queue=collect((X, var) for X in problem.neighbors[var]), removals=removals);
+end
+
+function parse_neighbors(neighbors::String; vars::AbstractVector=[])
+    local new_dict = Dict();
+    for var in vars
+        new_dict[var] = [];
+    end
+    local specs::AbstractVector = collect(map(String, split(spec, [':'])) for spec in split(neighbors, [';']));
+    for (A, A_n) in specs
+        A = strip(A);
+        if (!haskey(new_dict, A))
+            new_dict[A] = [];
+        end
+        for B in map(String, split(A_n))
+            push!(new_dict[A], B);
+            if (!haskey(new_dict, B))
+                new_dict[B] = [];
+            end
+            push!(new_dict[B], A);
+        end
+    end
+    return new_dict;
+end
+
+function different_values_constraint(A::String, a::String, B::String, b::String)
+    return (a != b);
+end
+
+function MapColoringCSP(colors::AbstractVector, neighbors::String)
+    local parsed_neighbors = parse_neighbors(neighbors);
+    return CSP(collect(keys(parsed_neighbors)), CSPDict(ConstantFunctionDict(colors)), CSPDict(parsed_neighbors), different_values_constraint);
+end
+
+function MapColoringCSP(colors::AbstractVector, neighbors::Dict)
+    return CSP(collect(keys(neighbors)), CSPDict(ConstantFunctionDict(colors)), CSPDict(neighbors), different_values_constraint);
+end
+
+australia_csp = MapColoringCSP(["R", "G", "B"], "SA: WA NT Q NSW V; NT: WA Q; NSW: Q V; T: ");
+
+usa_csp = MapColoringCSP(["R", "G", "B", "Y"],
+                        "WA: OR ID; OR: ID NV CA; CA: NV AZ; NV: ID UT AZ; ID: MT WY UT;
+                        UT: WY CO AZ; MT: ND SD WY; WY: SD NE CO; CO: NE KA OK NM; NM: OK TX;
+                        ND: MN SD; SD: MN IA NE; NE: IA MO KA; KA: MO OK; OK: MO AR TX;
+                        TX: AR LA; MN: WI IA; IA: WI IL MO; MO: IL KY TN AR; AR: MS TN LA;
+                        LA: MS; WI: MI IL; IL: IN KY; IN: OH KY; MS: TN AL; AL: TN GA FL;
+                        MI: OH IN; OH: PA WV KY; KY: WV VA TN; TN: VA NC GA; GA: NC SC FL;
+                        PA: NY NJ DE MD WV; WV: MD VA; VA: MD DC NC; NC: SC; NY: VT MA CT NJ;
+                        NJ: DE; DE: MD; MD: DC; VT: NH MA; MA: NH RI CT; CT: RI; ME: NH;
+                        HI: ; AK: ");
+
+france_csp = MapColoringCSP(["R", "G", "B", "Y"],
+                            "AL: LO FC; AQ: MP LI PC; AU: LI CE BO RA LR MP; BO: CE IF CA FC RA
+                            AU; BR: NB PL; CA: IF PI LO FC BO; CE: PL NB NH IF BO AU LI PC; FC: BO
+                            CA LO AL RA; IF: NH PI CA BO CE; LI: PC CE AU MP AQ; LO: CA AL FC; LR:
+                            MP AU RA PA; MP: AQ LI AU LR; NB: NH CE PL BR; NH: PI IF CE NB; NO:
+                            PI; PA: LR RA; PC: PL CE LI AQ; PI: NH NO CA IF; PL: BR NB CE PC; RA:
+                            AU BO FC PA LR");
 
