@@ -8,7 +8,8 @@ export ConstantFunctionDict, CSPDict, CSP,
     MapColoringCSP, backtracking_search, parse_neighbors,
     AC3, first_unassigned_variable, minimum_remaining_values,
     num_legal_values, unordered_domain_values, least_constraining_values,
-    no_inference, forward_checking, maintain_arc_consistency;
+    no_inference, forward_checking, maintain_arc_consistency,
+    min_conflicts;
 
 #Constraint Satisfaction Problems (CSP)
 
@@ -409,6 +410,31 @@ end
 
 function different_values_constraint(A::String, a::String, B::String, b::String)
     return (a != b);
+end
+
+function min_conflicts_value{T <: AbstractCSP}(problem::T, var::String, current_assignment::Dict)
+    return argmin_random_tie(problem.domains[var],
+                            (function(val)
+                                return nconflicts(problem, var, val, current_assignment);
+                            end));
+end
+
+function min_conflicts{T <: AbstractCSP}(problem::T; max_steps::Int64=100000)
+    local current::Dict = Dict();
+    for var in problem.vars
+        val = min_conflicts_value(problem, var, current);
+        assign(problem, var, val, current);
+    end
+    for i in 1:max_steps
+        local conflicted::AbstractVector = conflicted_variables(problem, current);
+        if (length(conflicted) == 0)
+            return current;
+        end
+        local var = rand(RandomDeviceInstance, conflicted);
+        local val = min_conflicts_value(problem, var, current);
+        assign(problem, var, val, current);
+    end
+    return nothing;
 end
 
 function MapColoringCSP(colors::AbstractVector, neighbors::String)
