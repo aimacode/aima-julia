@@ -456,6 +456,15 @@ function tree_csp_solver{T <: AbstractCSP}(problem::T)
     return assignment;
 end
 
+"""
+    topological_sort(problem, root)
+
+Return a topological sorted AbstractVector and a dictionary of vertices and their parents as keys and values.
+The topological depth first search sort first visits the 'root' vertex, traversing the graph by recursively
+calling topological_sort_postorder_dfs on vertices returned by problem.neighbors[vertex].
+
+The dictionary returned does not have keys (vertices) that do not have a parent vertex.
+"""
 function topological_sort{T <: AbstractCSP}(problem::T, root::String)
     local sorted_nodes = [];
     local parents = Dict();
