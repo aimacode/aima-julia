@@ -4,7 +4,7 @@ import Base: get, getindex, getkey,
 
 export ConstantFunctionDict, CSPDict, CSP,
     get, getkey, getindex, deepcopy, copy, haskey, in,
-    assign, unassign, nconflicts, display,
+    assign, unassign, nconflicts, display, infer_assignment,
     MapColoringCSP, backtracking_search, parse_neighbors,
     AC3, first_unassigned_variable, minimum_remaining_values,
     num_legal_values, unordered_domain_values, least_constraining_values,
