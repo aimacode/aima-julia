@@ -9,7 +9,7 @@ export ConstantFunctionDict, CSPDict, CSP,
     AC3, first_unassigned_variable, minimum_remaining_values,
     num_legal_values, unordered_domain_values, least_constraining_values,
     no_inference, forward_checking, maintain_arc_consistency,
-    min_conflicts;
+    min_conflicts, tree_csp_solver, topological_sort;
 
 #Constraint Satisfaction Problems (CSP)
 
@@ -435,6 +435,61 @@ function min_conflicts{T <: AbstractCSP}(problem::T; max_steps::Int64=100000)
         assign(problem, var, val, current);
     end
     return nothing;
+end
+
+function tree_csp_solver{T <: AbstractCSP}(problem::T)
+    local num_of_vars = length(problem.vars);
+    local assignment = Dict();
+    local root = problem.vars[1];
+    X::AbstractVector, parent_dict::Dict = topological_sort(problem, root);
+    for X_j in reverse(X)
+        if (!make_arc_consistent(problem, parent_dict, X_j))
+            return nothing;
+        end
+    end
+    for X_i in X
+        if (length(get(problem.current_domains)[X_i]) == 0)
+            return nothing;
+        end
+        assignment[X_i] = get(problem.current_domains)[X_i][1];
+    end
+    return assignment;
+end
+
+function topological_sort{T <: AbstractCSP}(problem::T, root::String)
+    local sorted_nodes = [];
+    local parents = Dict();
+    local visited = Dict();
+    for v in problem.vars
+        visited[v] = false;
+    end
+    local neighbors = problem.neighbors;
+    topological_sort_postorder_dfs(root, visited, neighbors, parents, sorted_nodes, nothing);
+    return sorted_nodes, parents;
+end
+
+function topological_sort_postorder_dfs(vertex::String,
+                                        visited::Dict,
+                                        neighbors::CSPDict,
+                                        parents::Dict,
+                                        sorted_vertices::AbstractVector,
+                                        parent::Union{Void, String})
+    visited[vertex] = true;
+    for w in neighbors[vertex]
+        if (!visited[w])
+            topological_sort_postorder_dfs(w, visited, neighbors, parents, sorted_vertices, vertex);
+        end
+    end
+    insert!(sorted_vertices, 1, vertex);
+    if (!(typeof(parent) <: Void))
+        parents[vertex] = parent;
+    end
+    nothing;
+end
+
+function make_arc_consistent{T <: AbstractCSP}(problem::T, parent::Dict, X_j)
+    println("make_arc_consistent() is not implemented yet for ", typeof(problem), "!");
+    nothing;
 end
 
 function MapColoringCSP(colors::AbstractVector, neighbors::String)

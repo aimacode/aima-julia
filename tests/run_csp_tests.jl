@@ -32,3 +32,11 @@ d = CSPDict(ConstantFunctionDict(42));
                                     order_domain_values=least_constraining_values,
                                     inference=maintain_arc_consistency)) <: Void) == true);
 
+topological_sorted_nodes, parent_dict = topological_sort(aimajulia.australia_csp, "NT");
+
+@test topological_sorted_nodes == Any["NT","SA","Q","NSW","V","WA"];
+
+@test haskey(parent_dict, "NT") == false;
+
+@test parent_dict == Dict{Any,Any}(Pair("NSW","Q"), Pair("Q","SA"), Pair("V","NSW"), Pair("SA","NT"), Pair("WA","SA"));
+
