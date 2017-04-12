@@ -84,7 +84,7 @@ abstract AbstractCSP <: AbstractProblem;
 
 #=
 
-    CSP is a Constraint Satisfaction Problem implementation of AbstractProblem.
+    CSP is a Constraint Satisfaction Problem implementation of AbstractProblem and AbstractCSP.
 
     This problem contains an unused initial state field to accommodate the requirements 
 
@@ -533,5 +533,36 @@ france_csp = MapColoringCSP(["R", "G", "B", "Y"],
 
 function queen_constraint(A, a, B, b)
     return ((A == B) || ((a != b) && (A + a != B + b) && (A - a != B - b)));
+end
+
+#=
+
+    NQueensCSP is a N-Queens Constraint Satisfaction Problem implementation of AbstractProblem and AbstractCSP.
+
+=#
+type NQueensCSP <: AbstractCSP
+    vars::AbstractVector
+    domains::CSPDict
+    neighbors::CSPDict
+    constraints::Function
+    initial::Tuple
+    current_domains::Nullable{Dict}
+    nassigns::Int64
+    rows::AbstractVector
+    backslash_diagonals::AbstractVector
+    slash_diagonals::AbstractVector
+
+    function NQueensCSP(n::Int64; initial::Tuple=(), current_domains::Union{Void, Dict}=nothing, nassigns::Int64=0)
+        return new(collect(1:n),
+                    CSPDict(ConstantFunctionDict(collect(1:n))),
+                    CSPDict(ConstantFunctionDict(collect(1:n))),
+                    queen_constraint,
+                    initial,
+                    Nullable{Dict}(current_domains),
+                    nassigns,
+                    fill(0, n),
+                    fill(0, ((2 * n) - 1)),
+                    fill(0, ((2 * n) - 1)),);
+    end
 end
 
