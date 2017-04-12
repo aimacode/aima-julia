@@ -531,3 +531,7 @@ france_csp = MapColoringCSP(["R", "G", "B", "Y"],
                             PI; PA: LR RA; PC: PL CE LI AQ; PI: NH NO CA IF; PL: BR NB CE PC; RA:
                             AU BO FC PA LR");
 
+function queen_constraint(A, a, B, b)
+    return ((A == B) || ((a != b) && (A + a != B + b) && (A - a != B - b)));
+end
+
