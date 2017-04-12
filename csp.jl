@@ -2,7 +2,7 @@
 import Base: get, getindex, getkey,
             deepcopy, copy, haskey, in, display;
 
-export ConstantFunctionDict, CSPDict, CSP,
+export ConstantFunctionDict, CSPDict, CSP, NQueensCSP,
     get, getkey, getindex, deepcopy, copy, haskey, in,
     assign, unassign, nconflicts, display, infer_assignment,
     MapColoringCSP, backtracking_search, parse_neighbors,
@@ -168,7 +168,7 @@ function goal_test{T <: AbstractCSP}(problem::T, state::Dict)
     let
         local assignment = deepcopy(state);
         return (length(assignment) == length(problem.vars) &&
-                all((function(element, ; prob::CSP=problem)
+                all((function(element, ; prob::AbstractCSP=problem)
                             return nconflicts(prob, element, assignment[element], assignment) == 0;
                         end)
                         ,
@@ -564,5 +564,74 @@ type NQueensCSP <: AbstractCSP
                     fill(0, ((2 * n) - 1)),
                     fill(0, ((2 * n) - 1)),);
     end
+end
+
+function nconflicts(problem::NQueensCSP, key, val, assignment::Dict)
+    local num_of_vars::Int64 = length(problem.vars);
+    local c::Int64 = problem.rows[val] +
+                    problem.backslash_diagonals[key + val - 1] +
+                    problem.slash_diagonals[key - val + num_of_vars];
+    if (get(assignment, key, nothing) == val)
+        c = c - 3;
+    end
+    return c;
+end
+
+function assign(problem::NQueensCSP, key, val, assignment::Dict)
+    local old_val = get(assignment, key, nothing);
+    if (old_val != val)
+        if (!(typeof(old_val) <: Void))
+            record_conflict(problem, assignment, key, old_val, -1);
+        end
+        record_conflict(problem, assignment, key, val, 1);
+
+        assignment[key] = val;
+        problem.nassigns = problem.nassigns + 1;
+    end
+    nothing;
+end
+
+function unassign(problem::NQueensCSP, key, assignment::Dict)
+    if (haskey(assignment, key))
+        record_conflict(problem, assignment, key, assignment[key], -1);
+        delete!(assignment, key);
+    end
+    nothing;
+end
+
+function record_conflict(problem::NQueensCSP, assignment::Dict, key, val, delta::Int64)
+    local num_of_vars::Int64 = length(problem.vars);
+    problem.rows[val] = problem.rows[val] + delta;
+    problem.backslash_diagonals[key + val - 1] = problem.backslash_diagonals[key + val - 1] + delta;
+    problem.slash_diagonals[key - val + num_of_vars] = problem.slash_diagonals[key - val + num_of_vars] + delta;
+end
+
+function display(problem::NQueensCSP, assignment::Dict)
+    local num_of_vars::Int64 = length(problem.vars);
+    for val in 1:num_of_vars
+        for key in 1:num_of_vars
+            local piece::String;
+            if (get(assignment, key, "") == val)
+                piece = "Q";
+            elseif ((key + val - 1) % 2 == 0)
+                piece = ".";
+            else
+                piece = "-";
+            end
+            print(piece);
+        end
+        print("    ");
+        for key in 1:num_of_vars
+            local piece::String;
+            if (get(assignment, key, "") == val)
+                piece = "*";
+            else
+                piece = " ";
+            end
+            print(nconflicts(problem, key, val, assignment), piece);
+        end
+        println();
+    end
+    nothing;
 end
 

@@ -40,3 +40,5 @@ topological_sorted_nodes, parent_dict = topological_sort(aimajulia.australia_csp
 
 @test parent_dict == Dict{Any,Any}(Pair("NSW","Q"), Pair("Q","SA"), Pair("V","NSW"), Pair("SA","NT"), Pair("WA","SA"));
 
+@test length(backtracking_search(NQueensCSP(8))) == 8;
+
