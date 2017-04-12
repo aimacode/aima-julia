@@ -5,7 +5,10 @@ import Base: get, getindex, getkey,
 export ConstantFunctionDict, CSPDict, CSP,
     get, getkey, getindex, deepcopy, copy, haskey, in,
     assign, unassign, nconflicts, display,
-    MapColoringCSP;
+    MapColoringCSP, backtracking_search, parse_neighbors,
+    AC3, first_unassigned_variable, minimum_remaining_values,
+    num_legal_values, unordered_domain_values, least_constraining_values,
+    no_inference, forward_checking, maintain_arc_consistency;
 
 #Constraint Satisfaction Problems (CSP)
 
@@ -102,22 +105,20 @@ type CSP <: AbstractCSP
     end
 end
 
-function assign{T <: AbstractCSP}(problem::T, key, val, assignment::Dict)
-    println("key: ", typeof(key), " | val: ", typeof(val));
+function assign{T <: AbstractCSP}(problem::T, key::String, val::String, assignment::Dict)
     assignment[key] = val;
     problem.nassigns = problem.nassigns + 1;
     nothing;
 end
 
-function unassign{T <: AbstractCSP}(problem::T, key, assignment::Dict)
-    println("key: ", typeof(key));
+function unassign{T <: AbstractCSP}(problem::T, key::String, assignment::Dict)
     if (haskey(assignment, key))
         delete!(assignment, key);
     end
     nothing;
 end
 
-function nconflicts{T <: AbstractCSP}(problem::T, var, val, assignment::Dict)
+function nconflicts{T <: AbstractCSP}(problem::T, var::String, val::String, assignment::Dict)
     return count(
                 (function(second_var, ; relevant_problem::CSP=problem, first_var=var, relevant_val=val, dict::Dict=assignment)
                     return (haskey(dict, second_var) &&
@@ -162,22 +163,34 @@ function goal_test{T <: AbstractCSP}(problem::T, state::Tuple)
     end
 end
 
+function goal_test{T <: AbstractCSP}(problem::T, state::Dict)
+    let
+        local assignment = deepcopy(state);
+        return (length(assignment) == length(problem.vars) &&
+                all((function(element, ; prob::CSP=problem)
+                            return nconflicts(prob, element, assignment[element], assignment) == 0;
+                        end)
+                        ,
+                        problem.vars));
+    end
+end
+
 function path_cost{T <: AbstractCSP}(problem::T, cost::Float64, state1::Tuple, action::Tuple, state2::Tuple)
     return cost + 1;
 end
 
 function support_pruning{T <: AbstractCSP}(problem::T)
     if (isnull(problem.current_domains))
-        problem.current_domains = Dict(collect(Pair(key, collect(problem.domains[key])) for key in problem.vars))
+        problem.current_domains = Nullable(Dict(collect(Pair(key, collect(problem.domains[key])) for key in problem.vars)));
     end
     nothing;
 end
 
 function suppose{T <: AbstractCSP}(problem::T, var, val)
     support_pruning(problem);
-    local removals::AbstractVector = collect(Pair(var, a) for a in problem.current_domains[var]
+    local removals::AbstractVector = collect(Pair(var, a) for a in get(problem.current_domains)[var]
                                             if (a != val));
-    problem.current_domains[var] = [val];
+    get(problem.current_domains)[var] = [val];
     return removals;
 end
 
@@ -191,7 +204,7 @@ function prune{T <: AbstractCSP}(problem::T, var, value, removals)
         end
     end
     if (index != 0)
-        deleteat!(problem.current_domains[var], index)
+        deleteat!(get(problem.current_domains)[var], index)
     end
     if (!(typeof(removals) <: Void))
         push!(removals, Pair(var, value));
@@ -203,7 +216,7 @@ function choices{T <: AbstractCSP}(problem::T, var)
     if (!isnull(problem.current_domains))
         return get(problem.current_domains)[var];
     else
-        return problem.domains[vars];
+        return problem.domains[var];
     end
 end
 
@@ -238,7 +251,9 @@ function AC3{T <: AbstractCSP}(problem::T; queue::Union{Void, AbstractVector}=no
     end
     support_pruning(problem);
     while (length(queue) != 0)
-        local X_i, X_j = shift!(queue); #Remove the first item from queue
+        local X = shift!(queue);    #Remove the first item from queue
+        local X_i::String = getindex(X, 1);
+        local X_j::String = getindex(X, 2);
         if (revise(problem, X_i, X_j, removals))
             if (!haskey(problem.current_domains, X_i))
                 return false;
@@ -255,11 +270,11 @@ end
 
 function revise{T <: AbstractCSP}(problem::T, X_i, X_j, removals::Union{Void, AbstractVector})
     local revised::Bool = false;
-    for x in deepcopy(problem.current_domains[X_i])
+    for x in deepcopy(get(problem.current_domains)[X_i])
         if (all((function(y)
-                    return !constraints(problem, X_i, x, X_j, y);
+                    return !problem.constraints(X_i, x, X_j, y);
                 end),
-                problem.current_domains[X_j]))
+                get(problem.current_domains)[X_j]))
             prune(problem, X_i, x, removals);
             revised = true;
         end
@@ -310,12 +325,12 @@ end
 function forward_checking{T <: AbstractCSP}(problem::T, var, value, assignment::Dict, removals::Union{Void, AbstractVector})
     for B in problem.neighbors[var]
         if (!haskey(assignment, B))
-            for b in deepcopy(problem.current_domains[B])
-                if (!constraints(problem, var, value, B, b))
+            for b in deepcopy(get(problem.current_domains)[B])
+                if (!problem.constraints(var, value, B, b))
                     prune(problem, B, b, removals);
                 end
             end
-            if (length(problem.current_domains[B]) == 0)
+            if (length(get(problem.current_domains)[B]) == 0)
                 return false;
             end
         end
@@ -325,6 +340,49 @@ end
 
 function maintain_arc_consistency{T <: AbstractCSP}(problem::T, var, value, assignment::Dict, removals::Union{Void, AbstractVector})
     return AC3(problem, queue=collect((X, var) for X in problem.neighbors[var]), removals=removals);
+end
+
+function backtrack{T <: AbstractCSP}(problem::T, assignment::Dict;
+                                    select_unassigned_variable::Function=first_unassigned_variable,
+                                    order_domain_values::Function=unordered_domain_values,
+                                    inference::Function=no_inference)
+    if (length(assignment) == length(problem.vars))
+        return assignment;
+    end
+    local var = select_unassigned_variable(problem, assignment);
+    for value in order_domain_values(problem, var, assignment)
+        if (nconflicts(problem, var, value, assignment) == 0)
+            assign(problem, var, value, assignment);
+            removals = suppose(problem, var, value);
+            if (inference(problem, var, value, assignment, removals))
+                result = backtrack(problem, assignment,
+                                    select_unassigned_variable=select_unassigned_variable,
+                                    order_domain_values=order_domain_values,
+                                    inference=inference);
+                if (!(typeof(result) <: Void))
+                    return result;
+                end
+            end
+            restore(problem, removals);
+        end
+    end
+    unassign(problem, var, assignment);
+    return nothing;
+end
+
+
+function backtracking_search{T <: AbstractCSP}(problem::T;
+                                                select_unassigned_variable::Function=first_unassigned_variable,
+                                                order_domain_values::Function=unordered_domain_values,
+                                                inference::Function=no_inference)
+    local result = backtrack(problem, Dict(),
+                            select_unassigned_variable=select_unassigned_variable,
+                                    order_domain_values=order_domain_values,
+                                    inference=inference);
+    if (!(typeof(result) <: Void || goal_test(problem, result)))
+        error("BacktrackingSearchError: Unexpected result!")
+    end
+    return result;
 end
 
 function parse_neighbors(neighbors::String; vars::AbstractVector=[])
