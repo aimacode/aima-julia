@@ -701,10 +701,6 @@ type SudokuCSP <: AbstractCSP
             end
         end
 
-        for k in collect(keys(neighbors))
-            neighbors[k] = collect(neighbors[k]);
-        end
-
         local squares = map(String, matchall(r"\d|\.", grid));
         if (length(squares) != length(reduce(vcat, rows)))
             error("SudokuCSPError: Invalid Sudoku grid!")
