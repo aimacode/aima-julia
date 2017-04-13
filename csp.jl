@@ -325,7 +325,7 @@ function num_legal_values{T <: AbstractCSP}(problem::T, var, assignment::Dict)
         return length(get(problem.current_domains)[var]);
     else
         return count((function(val)
-                        return nconflicts(problem, var, val, assignment);
+                        return (nconflicts(problem, var, val, assignment) == 0);
                     end),
                     problem.domains[var]);
     end
