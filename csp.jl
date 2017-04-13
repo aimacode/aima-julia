@@ -2,7 +2,7 @@
 import Base: get, getindex, getkey,
             deepcopy, copy, haskey, in, display;
 
-export ConstantFunctionDict, CSPDict, CSP, NQueensCSP,
+export ConstantFunctionDict, CSPDict, CSP, NQueensCSP, SudokuCSP,
     get, getkey, getindex, deepcopy, copy, haskey, in,
     assign, unassign, nconflicts, display, infer_assignment,
     MapColoringCSP, backtracking_search, parse_neighbors,
@@ -112,7 +112,20 @@ function assign{T <: AbstractCSP}(problem::T, key::String, val::String, assignme
     nothing;
 end
 
+function assign{T <: AbstractCSP}(problem::T, key::Int64, val::String, assignment::Dict)
+    assignment[key] = val;
+    problem.nassigns = problem.nassigns + 1;
+    nothing;
+end
+
 function unassign{T <: AbstractCSP}(problem::T, key::String, assignment::Dict)
+    if (haskey(assignment, key))
+        delete!(assignment, key);
+    end
+    nothing;
+end
+
+function unassign{T <: AbstractCSP}(problem::T, key::Int64, assignment::Dict)
     if (haskey(assignment, key))
         delete!(assignment, key);
     end
@@ -121,7 +134,16 @@ end
 
 function nconflicts{T <: AbstractCSP}(problem::T, var::String, val::String, assignment::Dict)
     return count(
-                (function(second_var, ; relevant_problem::CSP=problem, first_var=var, relevant_val=val, dict::Dict=assignment)
+                (function(second_var, ; relevant_problem::AbstractCSP=problem, first_var=var, relevant_val=val, dict::Dict=assignment)
+                    return (haskey(dict, second_var) &&
+                        !(relevant_problem.constraints(first_var, relevant_val, second_var, dict[second_var])));
+                end),
+                problem.neighbors[var]);
+end
+
+function nconflicts{T <: AbstractCSP}(problem::T, var::Int64, val::String, assignment::Dict)
+    return count(
+                (function(second_var, ; relevant_problem::AbstractCSP=problem, first_var=var, relevant_val=val, dict::Dict=assignment)
                     return (haskey(dict, second_var) &&
                         !(relevant_problem.constraints(first_var, relevant_val, second_var, dict[second_var])));
                 end),
@@ -196,16 +218,13 @@ function suppose{T <: AbstractCSP}(problem::T, var, val)
 end
 
 function prune{T <: AbstractCSP}(problem::T, var, value, removals)
-    local list::AbstractVector = problem.current_domains[var];
-    local index::Int64 = 0;
+    local list::AbstractVector = get(problem.current_domains)[var];
     for (i, element) in enumerate(list)
         if (element == value)
             index = i;
+            deleteat!(get(problem.current_domains)[var], i)
             break;
         end
-    end
-    if (index != 0)
-        deleteat!(get(problem.current_domains)[var], index)
     end
     if (!(typeof(removals) <: Void))
         push!(removals, Pair(var, value));
@@ -253,10 +272,10 @@ function AC3{T <: AbstractCSP}(problem::T; queue::Union{Void, AbstractVector}=no
     support_pruning(problem);
     while (length(queue) != 0)
         local X = shift!(queue);    #Remove the first item from queue
-        local X_i::String = getindex(X, 1);
-        local X_j::String = getindex(X, 2);
+        local X_i = getindex(X, 1);
+        local X_j = getindex(X, 2);
         if (revise(problem, X_i, X_j, removals))
-            if (!haskey(problem.current_domains, X_i))
+            if (!haskey(get(problem.current_domains), X_i))
                 return false;
             end
             for X_k in problem.neighbors[X_i]
@@ -304,7 +323,7 @@ function num_legal_values{T <: AbstractCSP}(problem::T, var, assignment::Dict)
         return count((function(val)
                         return nconflicts(problem, var, val, assignment);
                     end),
-                    problem.domains[vars]);
+                    problem.domains[var]);
     end
 end
 
@@ -409,6 +428,10 @@ function parse_neighbors(neighbors::String; vars::AbstractVector=[])
 end
 
 function different_values_constraint(A::String, a::String, B::String, b::String)
+    return (a != b);
+end
+
+function different_values_constraint(A::Int64, a::String, B::Int64, b::String)
     return (a != b);
 end
 
@@ -566,7 +589,7 @@ type NQueensCSP <: AbstractCSP
     end
 end
 
-function nconflicts(problem::NQueensCSP, key, val, assignment::Dict)
+function nconflicts(problem::NQueensCSP, key::Int64, val::Int64, assignment::Dict)
     local num_of_vars::Int64 = length(problem.vars);
     local c::Int64 = problem.rows[val] +
                     problem.backslash_diagonals[key + val - 1] +
@@ -577,7 +600,7 @@ function nconflicts(problem::NQueensCSP, key, val, assignment::Dict)
     return c;
 end
 
-function assign(problem::NQueensCSP, key, val, assignment::Dict)
+function assign(problem::NQueensCSP, key::Int64, val::Int64, assignment::Dict)
     local old_val = get(assignment, key, nothing);
     if (old_val != val)
         if (!(typeof(old_val) <: Void))
@@ -591,7 +614,7 @@ function assign(problem::NQueensCSP, key, val, assignment::Dict)
     nothing;
 end
 
-function unassign(problem::NQueensCSP, key, assignment::Dict)
+function unassign(problem::NQueensCSP, key::Int64, assignment::Dict)
     if (haskey(assignment, key))
         record_conflict(problem, assignment, key, assignment[key], -1);
         delete!(assignment, key);
@@ -599,7 +622,7 @@ function unassign(problem::NQueensCSP, key, assignment::Dict)
     nothing;
 end
 
-function record_conflict(problem::NQueensCSP, assignment::Dict, key, val, delta::Int64)
+function record_conflict(problem::NQueensCSP, assignment::Dict, key::Int64, val::Int64, delta::Int64)
     local num_of_vars::Int64 = length(problem.vars);
     problem.rows[val] = problem.rows[val] + delta;
     problem.backslash_diagonals[key + val - 1] = problem.backslash_diagonals[key + val - 1] + delta;
@@ -634,4 +657,81 @@ function display(problem::NQueensCSP, assignment::Dict)
     end
     nothing;
 end
+
+easy_sudoku_grid = "..3.2.6..9..3.5..1..18.64....81.29..7.......8..67.82....26.95..8..2.3..9..5.1.3..";
+
+harder_sudoku_grid = "4173698.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......";
+
+type SudokuCSP <: AbstractCSP
+    vars::AbstractVector
+    domains::CSPDict
+    neighbors::CSPDict
+    constraints::Function
+    initial::Tuple
+    current_domains::Nullable{Dict}
+    nassigns::Int64
+    index_grid::AbstractVector
+    boxes::AbstractVector
+    rows::AbstractVector
+    cols::AbstractVector
+
+    function SudokuCSP(grid::String; initial::Tuple=(), current_domains::Union{Void, Dict}=nothing, nassigns::Int64=0)
+        local index_iter = countfrom();
+        local index_position::AbstractVector = [0];
+        local index_grid = collect(collect(collect(collect((function(it, ip)
+                                                                ip[1]=next(it, ip[1])[2];
+                                                                return ip[1];
+                                                            end)(index_iter, index_position) for x in 1:3)
+                                                    for y in 1:3)
+                                            for box_x in 1:3)
+                                    for box_y in 1:3);
+        local boxes = reduce(vcat, collect(collect(reduce(vcat, row) for row in box_row) for box_row in index_grid));
+        local rows = reduce(vcat, collect(collect(reduce(vcat, collect(uneval))
+                                                for uneval in zip(box_row...))
+                                        for box_row in index_grid));
+        local cols = collect(collect(eval_tuple) for eval_tuple in zip(rows...));
+        local neighbors = Dict(collect(Pair(cell, Set()) for cell in reduce(vcat, rows)));
+        for unit in map(Set, vcat(boxes, rows, cols))
+            for cell in unit
+                neighbors[cell] = union(neighbors[cell], setdiff(unit, Set(cell)));
+            end
+        end
+
+        local squares = map(String, matchall(r"\d|\.", grid));
+        if (length(squares) != length(reduce(vcat, rows)))
+            error("SudokuCSPError: Invalid Sudoku grid!")
+        end
+        local domains = Dict(collect(Pair(key,
+                                        if_((number_str in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
+                                            [number_str],
+                                            ["1", "2", "3", "4", "5", "6", "7", "8", "9"]))
+                                    for (key, number_str) in zip(reduce(vcat, rows), squares)));
+        return new(collect(keys(domains)), CSPDict(domains), CSPDict(neighbors), different_values_constraint,
+                    initial, Nullable{Dict}(current_domains), nassigns, index_grid, boxes, rows, cols);
+    end
+end
+
+function display(problem::SudokuCSP, assignment::Dict)
+    return join(collect(
+                join(reduce(
+                            (function(lines1, lines2)
+                                return map(
+                                            (function(array_str)
+                                                return join(array_str, " | ");
+                                            end),
+                                            zip(lines1, lines2));
+                            end),
+                            map((function(box)
+                                    return collect(join(map(
+                                                            (function(cell)
+                                                                return string(get(assignment, cell, "."))
+                                                            end),
+                                                            row), " ")
+                                                    for row in box);
+                                end),
+                                box_row)), "\n") 
+                    for box_row in problem.index_grid),
+            "\n------+-------+------\n");
+end
+
 
