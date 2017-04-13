@@ -9,7 +9,8 @@ export ConstantFunctionDict, CSPDict, CSP, NQueensCSP, SudokuCSP,
     AC3, first_unassigned_variable, minimum_remaining_values,
     num_legal_values, unordered_domain_values, least_constraining_values,
     no_inference, forward_checking, maintain_arc_consistency,
-    min_conflicts, tree_csp_solver, topological_sort;
+    min_conflicts, tree_csp_solver, topological_sort,
+    support_pruning;
 
 #Constraint Satisfaction Problems (CSP)
 
@@ -204,7 +205,7 @@ end
 
 function support_pruning{T <: AbstractCSP}(problem::T)
     if (isnull(problem.current_domains))
-        problem.current_domains = Nullable(Dict(collect(Pair(key, collect(problem.domains[key])) for key in problem.vars)));
+        problem.current_domains = Nullable{Dict}(Dict(collect(Pair(key, collect(problem.domains[key])) for key in problem.vars)));
     end
     nothing;
 end
@@ -218,13 +219,16 @@ function suppose{T <: AbstractCSP}(problem::T, var, val)
 end
 
 function prune{T <: AbstractCSP}(problem::T, var, value, removals)
-    local list::AbstractVector = get(problem.current_domains)[var];
-    for (i, element) in enumerate(list)
+    local not_removed::Bool = true;
+    for (i, element) in enumerate(get(problem.current_domains)[var])
         if (element == value)
-            index = i;
-            deleteat!(get(problem.current_domains)[var], i)
+            deleteat!(get(problem.current_domains)[var], i);
+            not_removed = false;
             break;
         end
+    end
+    if (not_removed)
+        error("Could not find ", value, " in ", get(problem.current_domains)[var], " for key '", var, "' to be removed!");
     end
     if (!(typeof(removals) <: Void))
         push!(removals, Pair(var, value));
@@ -690,11 +694,15 @@ type SudokuCSP <: AbstractCSP
                                                 for uneval in zip(box_row...))
                                         for box_row in index_grid));
         local cols = collect(collect(eval_tuple) for eval_tuple in zip(rows...));
-        local neighbors = Dict(collect(Pair(cell, Set()) for cell in reduce(vcat, rows)));
+        local neighbors = Dict{Int64, Any}(collect(Pair(cell, Set()) for cell in reduce(vcat, rows)));
         for unit in map(Set, vcat(boxes, rows, cols))
             for cell in unit
                 neighbors[cell] = union(neighbors[cell], setdiff(unit, Set(cell)));
             end
+        end
+
+        for k in collect(keys(neighbors))
+            neighbors[k] = collect(neighbors[k]);
         end
 
         local squares = map(String, matchall(r"\d|\.", grid));
