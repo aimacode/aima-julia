@@ -6,6 +6,8 @@ using aimajulia;
 
 #The following CSP tests are from the aima-python doctest
 
+@test (solution(depth_first_graph_search(aimajulia.australia_csp))...) == (("NSW","B"),("Q","G"),("NT","B"),("T","B"),("V","G"),("SA","R"),("WA","G"));
+
 d = CSPDict(ConstantFunctionDict(42));
 
 @test d["life"] == 42;
