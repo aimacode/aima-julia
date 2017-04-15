@@ -107,12 +107,22 @@ type CSP <: AbstractCSP
     end
 end
 
+"""
+    assign(problem, key, val, assignment)
+
+Overwrite (if an value exists already) assignment[key] with 'val'.
+"""
 function assign{T <: AbstractCSP}(problem::T, key, val, assignment::Dict)
     assignment[key] = val;
     problem.nassigns = problem.nassigns + 1;
     nothing;
 end
 
+"""
+    unassign(problem, key, val, assignment)
+
+Delete the existing (key, val) pair from 'assignment'.
+"""
 function unassign{T <: AbstractCSP}(problem::T, key, assignment::Dict)
     if (haskey(assignment, key))
         delete!(assignment, key);
@@ -243,8 +253,9 @@ end
 """
     AC3(problem)
 
-Apply the arc-consitency algorithm AC-3 (Fig 6.3) to the given contraint satisfaction problem.
-Return a boolean indicating whether every arc in the problem is arc-consistent.
+Solve the given problem by applying the arc-consitency algorithm AC-3 (Fig 6.3) to the
+given contraint satisfaction problem. Return a boolean indicating whether every arc in
+the problem is arc-consistent.
 """
 function AC3{T <: AbstractCSP}(problem::T; queue::Union{Void, AbstractVector}=nothing, removals::Union{Void, AbstractVector}=nothing)
     if (typeof(queue) <: Void)
@@ -371,7 +382,12 @@ function backtrack{T <: AbstractCSP}(problem::T, assignment::Dict;
     return nothing;
 end
 
+"""
+    backtracking_search(problem)
 
+Search the given problem by using the backtracking search algorithm (Fig 6.5) and return the solution
+if any are found.
+"""
 function backtracking_search{T <: AbstractCSP}(problem::T;
                                                 select_unassigned_variable::Function=first_unassigned_variable,
                                                 order_domain_values::Function=unordered_domain_values,
@@ -426,6 +442,12 @@ function min_conflicts_value{T <: AbstractCSP}(problem::T, var::Int64, current_a
                             end));
 end
 
+"""
+    min_conflicts(problem)
+
+Search the given problem by using the min-conflicts algorithm (Fig. 6.8) and return the solution
+if any are found.
+"""
 function min_conflicts{T <: AbstractCSP}(problem::T; max_steps::Int64=100000)
     local current::Dict = Dict();
     for var in problem.vars
@@ -444,6 +466,12 @@ function min_conflicts{T <: AbstractCSP}(problem::T; max_steps::Int64=100000)
     return nothing;
 end
 
+"""
+    tree_csp_solver(problem)
+
+Attempt to solve the given problem using the Tree CSP Solver algorithm (Fig. 6.11) and return
+the solution if any are found.
+"""
 function tree_csp_solver{T <: AbstractCSP}(problem::T)
     local num_of_vars = length(problem.vars);
     local assignment = Dict();
@@ -673,6 +701,11 @@ end
 
 sudoku_indices = SudokuInitialState();
 
+#=
+
+    SudokuCSP is a Sudoku Constraint Satisfaction Problem implementation of AbstractProblem and AbstractCSP.
+
+=#
 type SudokuCSP <: AbstractCSP
     vars::AbstractVector
     domains::CSPDict
@@ -788,6 +821,11 @@ function zebra_constraint(A::String, a, B::String, b; recursed::Bool=false)
     end
 end
 
+#=
+
+    ZebraCSP is a Zebra Constraint Satisfaction Problem implementation of AbstractProblem and AbstractCSP.
+
+=#
 type ZebraCSP <: AbstractCSP
     vars::AbstractVector
     domains::CSPDict
