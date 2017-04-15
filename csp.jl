@@ -726,7 +726,7 @@ function display(problem::SudokuCSP, assignment::Dict)
                                                     for row in box);
                                 end),
                                 box_row)), "\n") 
-                    for box_row in problem.index_grid),
+                    for box_row in sudoku_indices.index_grid),
             "\n------+-------+------\n");
 end
 
