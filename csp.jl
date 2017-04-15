@@ -2,7 +2,7 @@
 import Base: get, getindex, getkey,
             deepcopy, copy, haskey, in, display;
 
-export ConstantFunctionDict, CSPDict, CSP, NQueensCSP, SudokuCSP,
+export ConstantFunctionDict, CSPDict, CSP, NQueensCSP, SudokuCSP, ZebraCSP,
     get, getkey, getindex, deepcopy, copy, haskey, in,
     assign, unassign, nconflicts, display, infer_assignment,
     MapColoringCSP, backtracking_search, parse_neighbors,
@@ -10,7 +10,7 @@ export ConstantFunctionDict, CSPDict, CSP, NQueensCSP, SudokuCSP,
     num_legal_values, unordered_domain_values, least_constraining_values,
     no_inference, forward_checking, maintain_arc_consistency,
     min_conflicts, tree_csp_solver, topological_sort,
-    support_pruning;
+    support_pruning, solve_zebra;
 
 #Constraint Satisfaction Problems (CSP)
 
@@ -113,6 +113,12 @@ function assign{T1 <: AbstractCSP, T2}(problem::T1, key::T2, val::T2, assignment
     nothing;
 end
 
+function assign{T <: AbstractCSP}(problem::T, key::String, val::Int64, assignment::Dict)
+    assignment[key] = val;
+    problem.nassigns = problem.nassigns + 1;
+    nothing;
+end
+
 function unassign{T <: AbstractCSP}(problem::T, key, assignment::Dict)
     if (haskey(assignment, key))
         delete!(assignment, key);
@@ -121,6 +127,15 @@ function unassign{T <: AbstractCSP}(problem::T, key, assignment::Dict)
 end
 
 function nconflicts{T1 <: AbstractCSP, T2}(problem::T1, var::T2, val::T2, assignment::Dict)
+    return count(
+                (function(second_var, ; relevant_problem::AbstractCSP=problem, first_var=var, relevant_val=val, dict::Dict=assignment)
+                    return (haskey(dict, second_var) &&
+                        !(relevant_problem.constraints(first_var, relevant_val, second_var, dict[second_var])));
+                end),
+                problem.neighbors[var]);
+end
+
+function nconflicts{T <: AbstractCSP}(problem::T, var::String, val::Int64, assignment::Dict)
     return count(
                 (function(second_var, ; relevant_problem::AbstractCSP=problem, first_var=var, relevant_val=val, dict::Dict=assignment)
                     return (haskey(dict, second_var) &&
@@ -730,4 +745,124 @@ function display(problem::SudokuCSP, assignment::Dict)
             "\n------+-------+------\n");
 end
 
+type ZebraInitialState
+    colors::Array{String, 1}
+    pets::Array{String, 1}
+    drinks::Array{String, 1}
+    countries::Array{String, 1}
+    smokes::Array{String, 1}
+
+    function ZebraInitialState()
+        local colors = map(String, split("Red Yellow Blue Green Ivory"));
+        local pets = map(String, split("Dog Fox Snails Horse Zebra"));
+        local drinks = map(String, split("OJ Tea Coffee Milk Water"));
+        local countries = map(String, split("Englishman Spaniard Norwegian Ukranian Japanese"));
+        local smokes = map(String, split("Kools Chesterfields Winston LuckyStrike Parliaments"));
+        return new(colors, pets, drinks, countries, smokes);
+    end
+end
+
+zebra_constants = ZebraInitialState();
+
+function zebra_constraint(A::String, a, B::String, b; recursed::Bool=false)
+    local same::Bool = (a == b);
+    local next_to::Bool = (abs(a - b) == 1);
+    if (A == "Englishman" && B == "Red")
+        return same;
+    elseif (A == "Spaniard" && B == "Dog")
+        return same;
+    elseif (A == "Chesterfields" && B == "Fox")
+        return next_to;
+    elseif (A == "Norwegian" && B == "Blue")
+        return next_to;
+    elseif (A == "Kools" && B == "Yellow")
+        return same;
+    elseif (A == "Winston" && B == "Snails")
+        return same;
+    elseif (A == "LuckyStrike" && B == "OJ")
+        return same;
+    elseif (A == "Ukranian" && B == "Tea")
+        return same;
+    elseif (A == "Japanese" && B == "Parliaments")
+        return same;
+    elseif (A == "Kools" && B == "Horse")
+        return next_to;
+    elseif (A == "Coffee" && B == "Green")
+        return same;
+    elseif (A == "Green" && B == "Ivory")
+        return ((a - 1) == b);
+    elseif (!recursed)
+        return zebra_constraint(B, b, A, a, recursed=true);
+    elseif ((A in zebra_constants.colors && B in zebra_constants.colors) ||
+            (A in zebra_constants.pets && B in zebra_constants.pets) ||
+            (A in zebra_constants.drinks && B in zebra_constants.drinks) ||
+            (A in zebra_constants.countries && B in zebra_constants.countries) ||
+            (A in zebra_constants.smokes && B in zebra_constants.smokes))
+        return !same;
+    else
+        error("ZebraConstraintError: This constraint could not be evaluated on the given arguments!");
+    end
+end
+
+type ZebraCSP <: AbstractCSP
+    vars::AbstractVector
+    domains::CSPDict
+    neighbors::CSPDict
+    constraints::Function
+    initial::Tuple
+    current_domains::Nullable{Dict}
+    nassigns::Int64
+
+    function ZebraCSP(;initial::Tuple=(), current_domains::Union{Void, Dict}=nothing, nassigns::Int64=0)
+        local vars = vcat(zebra_constants.colors,
+                        zebra_constants.pets,
+                        zebra_constants.drinks,
+                        zebra_constants.countries,
+                        zebra_constants.smokes);
+        local domains = Dict();
+        for var in vars
+            domains[var] = collect(1:5);
+        end
+        domains["Norwegian"] = [1];
+        domains["Milk"] = [3];
+        neighbors = parse_neighbors("Englishman: Red;
+                Spaniard: Dog; Kools: Yellow; Chesterfields: Fox;
+                Norwegian: Blue; Winston: Snails; LuckyStrike: OJ;
+                Ukranian: Tea; Japanese: Parliaments; Kools: Horse;
+                Coffee: Green; Green: Ivory", vars=vars);
+        for category in [zebra_constants.colors,
+                        zebra_constants.pets,
+                        zebra_constants.drinks,
+                        zebra_constants.countries,
+                        zebra_constants.smokes]
+            for A in category
+                for B in category
+                    if (A != B)
+                        if (!(B in neighbors[A]))
+                            push!(neighbors[A], B);
+                        end
+                        if (!(A in neighbors[B]))
+                            push!(neighbors[B], A);
+                        end
+                    end
+                end
+            end
+        end
+        return new(vars, CSPDict(domains), CSPDict(neighbors), zebra_constraint, initial, Nullable{Dict}(current_domains), nassigns);
+    end
+end
+
+function solve_zebra(problem::ZebraCSP, algorithm::Function; kwargs...)
+    local answer = algorithm(problem; kwargs...);
+    for house in collect(1:5)
+        print("House ", house);
+        for (key, val) in collect(answer)
+            if (val == house)
+                print(" ", key);
+            end
+        end
+        println();
+    end
+    return answer["Zebra"], answer["Water"], problem.nassigns, answer;
+end
 
