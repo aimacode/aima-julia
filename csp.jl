@@ -107,13 +107,7 @@ type CSP <: AbstractCSP
     end
 end
 
-function assign{T1 <: AbstractCSP, T2}(problem::T1, key::T2, val::T2, assignment::Dict)
-    assignment[key] = val;
-    problem.nassigns = problem.nassigns + 1;
-    nothing;
-end
-
-function assign{T <: AbstractCSP}(problem::T, key::String, val::Int64, assignment::Dict)
+function assign{T <: AbstractCSP}(problem::T, key, val, assignment::Dict)
     assignment[key] = val;
     problem.nassigns = problem.nassigns + 1;
     nothing;
@@ -126,22 +120,13 @@ function unassign{T <: AbstractCSP}(problem::T, key, assignment::Dict)
     nothing;
 end
 
-function nconflicts{T1 <: AbstractCSP, T2}(problem::T1, var::T2, val::T2, assignment::Dict)
+function nconflicts{T <: AbstractCSP}(problem::T, key, val, assignment::Dict)
     return count(
-                (function(second_var, ; relevant_problem::AbstractCSP=problem, first_var=var, relevant_val=val, dict::Dict=assignment)
-                    return (haskey(dict, second_var) &&
-                        !(relevant_problem.constraints(first_var, relevant_val, second_var, dict[second_var])));
+                (function(second_key)
+                    return (haskey(assignment, second_key) &&
+                        !(problem.constraints(key, val, second_key, assignment[second_key])));
                 end),
-                problem.neighbors[var]);
-end
-
-function nconflicts{T <: AbstractCSP}(problem::T, var::String, val::Int64, assignment::Dict)
-    return count(
-                (function(second_var, ; relevant_problem::AbstractCSP=problem, first_var=var, relevant_val=val, dict::Dict=assignment)
-                    return (haskey(dict, second_var) &&
-                        !(relevant_problem.constraints(first_var, relevant_val, second_var, dict[second_var])));
-                end),
-                problem.neighbors[var]);
+                problem.neighbors[key]);
 end
 
 function display{T <: AbstractCSP}(problem::T, assignment::Dict)
@@ -172,8 +157,8 @@ function goal_test{T <: AbstractCSP}(problem::T, state::Tuple)
     let
         local assignment = Dict(state);
         return (length(assignment) == length(problem.vars) &&
-                all((function(element, ; prob::CSP=problem)
-                            return nconflicts(prob, element, assignment[element], assignment) == 0;
+                all((function(key)
+                            return nconflicts(problem, key, assignment[key], assignment) == 0;
                         end)
                         ,
                         problem.vars));
@@ -184,10 +169,9 @@ function goal_test{T <: AbstractCSP}(problem::T, state::Dict)
     let
         local assignment = deepcopy(state);
         return (length(assignment) == length(problem.vars) &&
-                all((function(element, ; prob::AbstractCSP=problem)
-                            return nconflicts(prob, element, assignment[element], assignment) == 0;
-                        end)
-                        ,
+                all((function(key)
+                            return nconflicts(problem, key, assignment[key], assignment) == 0;
+                        end),
                         problem.vars));
     end
 end
@@ -203,45 +187,45 @@ function support_pruning{T <: AbstractCSP}(problem::T)
     nothing;
 end
 
-function suppose{T <: AbstractCSP}(problem::T, var, val)
+function suppose{T <: AbstractCSP}(problem::T, key, val)
     support_pruning(problem);
-    local removals::AbstractVector = collect(Pair(var, a) for a in get(problem.current_domains)[var]
+    local removals::AbstractVector = collect(Pair(key, a) for a in get(problem.current_domains)[key]
                                             if (a != val));
-    get(problem.current_domains)[var] = [val];
+    get(problem.current_domains)[key] = [val];
     return removals;
 end
 
-function prune{T <: AbstractCSP}(problem::T, var, value, removals)
+function prune{T <: AbstractCSP}(problem::T, key, value, removals)
     local not_removed::Bool = true;
-    for (i, element) in enumerate(get(problem.current_domains)[var])
+    for (i, element) in enumerate(get(problem.current_domains)[key])
         if (element == value)
-            deleteat!(get(problem.current_domains)[var], i);
+            deleteat!(get(problem.current_domains)[key], i);
             not_removed = false;
             break;
         end
     end
     if (not_removed)
-        error("Could not find ", value, " in ", get(problem.current_domains)[var], " for key '", var, "' to be removed!");
+        error("Could not find ", value, " in ", get(problem.current_domains)[key], " for key '", key, "' to be removed!");
     end
     if (!(typeof(removals) <: Void))
-        push!(removals, Pair(var, value));
+        push!(removals, Pair(key, value));
     end
     nothing;
 end
 
-function choices{T <: AbstractCSP}(problem::T, var)
+function choices{T <: AbstractCSP}(problem::T, key)
     if (!isnull(problem.current_domains))
-        return get(problem.current_domains)[var];
+        return get(problem.current_domains)[key];
     else
-        return problem.domains[var];
+        return problem.domains[key];
     end
 end
 
 function infer_assignment{T <: AbstractCSP}(problem::T)
     support_pruning(problem);
-    return Dict(collect(Pair(v, get(problem.current_domains)[v][1])
-                        for v in problem.vars
-                            if (1 == length(get(problem.current_domains)[v]))));
+    return Dict(collect(Pair(key, get(problem.current_domains)[key][1])
+                        for key in problem.vars
+                            if (1 == length(get(problem.current_domains)[key]))));
 end
 
 function restore{T <: AbstractCSP}(problem::T, removals::AbstractVector)
