@@ -446,6 +446,13 @@ function min_conflicts_value{T <: AbstractCSP}(problem::T, var::String, current_
                             end));
 end
 
+function min_conflicts_value{T <: AbstractCSP}(problem::T, var::Int64, current_assignment::Dict)
+    return argmin_random_tie(problem.domains[var],
+                            (function(val)
+                                return nconflicts(problem, var, val, current_assignment);
+                            end));
+end
+
 function min_conflicts{T <: AbstractCSP}(problem::T; max_steps::Int64=100000)
     local current::Dict = Dict();
     for var in problem.vars
@@ -710,7 +717,9 @@ type SudokuCSP <: AbstractCSP
                                             [number_str],
                                             ["1", "2", "3", "4", "5", "6", "7", "8", "9"]))
                                     for (key, number_str) in zip(reduce(vcat, rows), squares)));
-        return new(collect(keys(domains)), CSPDict(domains), CSPDict(neighbors), different_values_constraint,
+        #Sort the keys of 'domains' when creating the 'vars' field of the new SudokuCSP problem.
+        #Otherwise, backtracking search on SudokuCSP will run indefinitely.
+        return new(sort(collect(keys(domains))), CSPDict(domains), CSPDict(neighbors), different_values_constraint,
                     initial, Nullable{Dict}(current_domains), nassigns, index_grid, boxes, rows, cols);
     end
 end
