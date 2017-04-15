@@ -107,42 +107,20 @@ type CSP <: AbstractCSP
     end
 end
 
-function assign{T <: AbstractCSP}(problem::T, key::String, val::String, assignment::Dict)
+function assign{T1 <: AbstractCSP, T2}(problem::T1, key::T2, val::T2, assignment::Dict)
     assignment[key] = val;
     problem.nassigns = problem.nassigns + 1;
     nothing;
 end
 
-function assign{T <: AbstractCSP}(problem::T, key::Int64, val::String, assignment::Dict)
-    assignment[key] = val;
-    problem.nassigns = problem.nassigns + 1;
-    nothing;
-end
-
-function unassign{T <: AbstractCSP}(problem::T, key::String, assignment::Dict)
+function unassign{T <: AbstractCSP}(problem::T, key, assignment::Dict)
     if (haskey(assignment, key))
         delete!(assignment, key);
     end
     nothing;
 end
 
-function unassign{T <: AbstractCSP}(problem::T, key::Int64, assignment::Dict)
-    if (haskey(assignment, key))
-        delete!(assignment, key);
-    end
-    nothing;
-end
-
-function nconflicts{T <: AbstractCSP}(problem::T, var::String, val::String, assignment::Dict)
-    return count(
-                (function(second_var, ; relevant_problem::AbstractCSP=problem, first_var=var, relevant_val=val, dict::Dict=assignment)
-                    return (haskey(dict, second_var) &&
-                        !(relevant_problem.constraints(first_var, relevant_val, second_var, dict[second_var])));
-                end),
-                problem.neighbors[var]);
-end
-
-function nconflicts{T <: AbstractCSP}(problem::T, var::Int64, val::String, assignment::Dict)
+function nconflicts{T1 <: AbstractCSP, T2}(problem::T1, var::T2, val::T2, assignment::Dict)
     return count(
                 (function(second_var, ; relevant_problem::AbstractCSP=problem, first_var=var, relevant_val=val, dict::Dict=assignment)
                     return (haskey(dict, second_var) &&
@@ -349,7 +327,7 @@ end
 function forward_checking{T <: AbstractCSP}(problem::T, var, value, assignment::Dict, removals::Union{Void, AbstractVector})
     for B in problem.neighbors[var]
         if (!haskey(assignment, B))
-            for b in deepcopy(get(problem.current_domains)[B])
+            for b in copy(get(problem.current_domains)[B])
                 if (!problem.constraints(var, value, B, b))
                     prune(problem, B, b, removals);
                 end
@@ -669,20 +647,13 @@ easy_sudoku_grid = "..3.2.6..9..3.5..1..18.64....81.29..7.......8..67.82....26.9
 
 harder_sudoku_grid = "4173698.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......";
 
-type SudokuCSP <: AbstractCSP
-    vars::AbstractVector
-    domains::CSPDict
-    neighbors::CSPDict
-    constraints::Function
-    initial::Tuple
-    current_domains::Nullable{Dict}
-    nassigns::Int64
+type SudokuInitialState
     index_grid::AbstractVector
     boxes::AbstractVector
     rows::AbstractVector
     cols::AbstractVector
 
-    function SudokuCSP(grid::String; initial::Tuple=(), current_domains::Union{Void, Dict}=nothing, nassigns::Int64=0)
+    function SudokuInitialState()
         local index_iter = countfrom();
         local index_position::AbstractVector = [0];
         local index_grid = collect(collect(collect(collect((function(it, ip)
@@ -697,26 +668,42 @@ type SudokuCSP <: AbstractCSP
                                                 for uneval in zip(box_row...))
                                         for box_row in index_grid));
         local cols = collect(collect(eval_tuple) for eval_tuple in zip(rows...));
-        local neighbors = Dict{Int64, Any}(collect(Pair(cell, Set()) for cell in reduce(vcat, rows)));
-        for unit in map(Set, vcat(boxes, rows, cols))
+        return new(index_grid, boxes, rows, cols);
+    end
+end
+
+sudoku_indices = SudokuInitialState();
+
+type SudokuCSP <: AbstractCSP
+    vars::AbstractVector
+    domains::CSPDict
+    neighbors::CSPDict
+    constraints::Function
+    initial::Tuple
+    current_domains::Nullable{Dict}
+    nassigns::Int64
+
+    function SudokuCSP(grid::String; initial::Tuple=(), current_domains::Union{Void, Dict}=nothing, nassigns::Int64=0)
+        local neighbors = Dict{Int64, Any}(collect(Pair(cell, Set()) for cell in reduce(vcat, sudoku_indices.rows)));
+        for unit in map(Set, vcat(sudoku_indices.boxes, sudoku_indices.rows, sudoku_indices.cols))
             for cell in unit
                 neighbors[cell] = union(neighbors[cell], setdiff(unit, Set(cell)));
             end
         end
 
         local squares = map(String, matchall(r"\d|\.", grid));
-        if (length(squares) != length(reduce(vcat, rows)))
+        if (length(squares) != length(reduce(vcat, sudoku_indices.rows)))
             error("SudokuCSPError: Invalid Sudoku grid!")
         end
         local domains = Dict(collect(Pair(key,
                                         if_((number_str in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
-                                            [number_str],
-                                            ["1", "2", "3", "4", "5", "6", "7", "8", "9"]))
-                                    for (key, number_str) in zip(reduce(vcat, rows), squares)));
+                                            [Int64(number_str.data[1]) - 48],
+                                            [1, 2, 3, 4, 5, 6, 7, 8, 9]))
+                                    for (key, number_str) in zip(reduce(vcat, sudoku_indices.rows), squares)));
         #Sort the keys of 'domains' when creating the 'vars' field of the new SudokuCSP problem.
         #Otherwise, backtracking search on SudokuCSP will run indefinitely.
         return new(sort(collect(keys(domains))), CSPDict(domains), CSPDict(neighbors), different_values_constraint,
-                    initial, Nullable{Dict}(current_domains), nassigns, index_grid, boxes, rows, cols);
+                    initial, Nullable{Dict}(current_domains), nassigns);
     end
 end
 
