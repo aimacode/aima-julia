@@ -431,11 +431,7 @@ function parse_neighbors(neighbors::String; vars::AbstractVector=[])
     return new_dict;
 end
 
-function different_values_constraint(A::String, a::String, B::String, b::String)
-    return (a != b);
-end
-
-function different_values_constraint(A::Int64, a::String, B::Int64, b::String)
+function different_values_constraint{T1, T2}(A::T1, a::T2, B::T1, b::T2)
     return (a != b);
 end
 
