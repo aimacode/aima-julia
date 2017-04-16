@@ -153,7 +153,7 @@ type Node{T}
     parent::Nullable{Node}
     f::Float64
 
-    function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, Action, Int64}=nothing, path_cost::Float64=0.0, f::Union{Void, Float64}=nothing)
+    function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, Action, Int64, Tuple}=nothing, path_cost::Float64=0.0, f::Union{Void, Float64}=nothing)
         nn = new(state, path_cost, UInt32(0), Nullable(action), Nullable{Node}(parent));
         if (typeof(parent) <: Node)
             nn.depth = UInt32(parent.depth + 1);
@@ -175,6 +175,11 @@ function child_node{T <: AbstractProblem}(n::Node, ap::T, action::Action)
 end
 
 function child_node{T <: AbstractProblem}(n::Node, ap::T, action::Int64)
+    local next_node = get_result(ap, n.state, action);
+    return Node{typeof(next_node)}(next_node, parent=n, action=action, path_cost=path_cost(ap, n.path_cost, n.state, action, next_node));
+end
+
+function child_node{T <: AbstractProblem}(n::Node, ap::T, action::Tuple)
     local next_node = get_result(ap, n.state, action);
     return Node{typeof(next_node)}(next_node, parent=n, action=action, path_cost=path_cost(ap, n.path_cost, n.state, action, next_node));
 end
@@ -332,7 +337,12 @@ Search the given problem by using the general graph search algorithm (Fig. 3.7) 
 The uniform cost algorithm (Fig. 3.14) should be used when the frontier is a priority queue.
 """
 function graph_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier::T2)
-    local explored = Set{String}();
+    local explored::Set;
+    if (typeof(problem.initial) <: Tuple)
+        explored = Set{NTuple}();
+    else
+        explored = Set{typeof(problem.initial)}();
+    end
     push!(frontier, Node{typeof(problem.initial)}(problem.initial));
     while (length(frontier) != 0)
         local node = pop!(frontier);
@@ -347,7 +357,12 @@ function graph_search{T1 <: AbstractProblem, T2 <: Queue}(problem::T1, frontier:
 end
 
 function graph_search{T <: Queue}(problem::InstrumentedProblem, frontier::T)
-    local explored = Set{String}();
+    local explored::Set;
+    if (typeof(problem.problem.initial) <: Tuple)
+        explored = Set{NTuple}();
+    else
+        explored = Set{typeof(problem.problem.initial)}();
+    end
     push!(frontier, Node{typeof(problem.problem.initial)}(problem.problem.initial));
     while (length(frontier) != 0)
         local node = pop!(frontier);

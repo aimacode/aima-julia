@@ -34,3 +34,5 @@ julia --color=yes run_util_tests.jl
 
 julia --color=yes run_game_tests.jl
 
+julia --color=yes run_csp_tests.jl
+

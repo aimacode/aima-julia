@@ -16,7 +16,8 @@ export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         argmin, argmax, argmin_random_tie, argmax_random_tie,
         weighted_sampler, weighted_sample_with_replacement,
         distance, distance2,
-        RandomDeviceInstance;
+        RandomDeviceInstance,
+        isfunction;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -583,6 +584,15 @@ function argmax_random_tie{T <: AbstractVector}(seq::T, fn::Function)
         end
     end
     return best_element;
+end
+
+"""
+    isfunction(var)
+
+Check if 'var' is callable as a function.
+"""
+function isfunction(var)
+    return (typeof(var) <: Function);
 end
 
 end
