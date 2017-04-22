@@ -10,6 +10,8 @@ typealias Action String;
 
 typealias Percept Tuple{Any, Any};
 
+include("logic.jl");
+
 include("agents.jl");
 
 include("search.jl");
