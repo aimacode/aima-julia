@@ -6,36 +6,23 @@ using aimajulia;
 
 #The following Logic tests are from the aima-python doctests
 
-A = Expression("A");
-
-B = Expression("B");
-
-C = Expression("C");
-
-D = Expression("D");
-
-E = Expression("E");
-
-F = Expression("F");
-
-G = Expression("G");
-
-H = Expression("H");
-
 x = Expression("x");
 
 y = Expression("y");
 
 z = Expression("z");
 
-P = Expression("P");
+@test variables(expr("F(x, x) & G(x, y) & H(y, z) & R(A, z, z)")) == Set(x, y, z);
 
-Q = Expression("Q");
+@test variables(expr("F(x, A, y)")) == Set(x, y);
 
-R = Expression("R");
-
-S = Expression("S");
-
-@test variables(expr("F(x, x) & G(x, y) & H(y, z) & R(A, z, 2)")) == Set(x, y, z);
+@test variables(expr("F(G(x), z)")) == Set(x, z);
 
 @test show(expr("P & Q ==> Q")) == "((P & Q) ==> Q)";
+
+@test show(expr("P ==> Q(1)")) == "(P ==> Q(1))";
+
+@test show(expr("P & Q | ~R(x, F(x))")) == "((P & Q) | ~(R(x, F(x))))";
+
+@test show(expr("P & Q ==> R & S")) == "(((P & Q) ==> R) & S)";
+
