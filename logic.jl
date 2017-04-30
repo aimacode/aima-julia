@@ -97,7 +97,6 @@ end
 function subexpressions(e::Expression)
     local answer::AbstractVector = [e];
     for arg in e.arguments
-        #answer = vcat(answer, subexpressions(expr(string(arg))));
         answer = vcat(answer, subexpressions(arg));
     end
     return answer;
@@ -111,6 +110,82 @@ end
 
 function variables(e::Expression)
     return Set(x for x in subexpressions(e) if is_logic_variable(x));
+end
+
+function proposition_symbols(e::Expression)
+    if (is_logic_proposition_symbol(e.operator))
+        return [e];
+    else
+        return collect(Set(collect(symbol for argument in e.arguments for symbol in proposition_symbols(argument))));
+    end
+end
+
+function pl_true(e::Expression; model::Dict=Dict())
+    if (e == Expression("TRUE"))
+        return true;
+    elseif (e == Expression("FALSE"))
+        return false;
+    elseif (is_logic_proposition_symbol(e.operator))
+        return get(model, e, nothing);
+    elseif (e.operator == "~")
+        subexpression = pl_true(e.arguments[1], model=model);
+        if (typeof(subexpression) <: Void)
+            return nothing;
+        else
+            return !subexpression;
+        end
+    elseif (e.operator == "|")
+        result = false;
+        for argument in e.arguments
+            subexpression = pl_true(argument, model=model);
+            if (subexpression == true)
+                return true;
+            end
+            if (typeof(subexpression) <: Void)
+                result = nothing;
+            end
+        end
+        return result;
+    elseif (e.operator == "&")
+        result = true;
+        for argument in e.arguments
+            subexpression = pl_true(argument, model=model);
+            if (subexpression == false)
+                return false;
+            end
+            if (typeof(subexpression) <: Void)
+                result = nothing;
+            end
+        end
+        return result;
+    end
+    local p::Expression;
+    local q::Expression;
+    if (length(e.arguments) == 2)
+        p, q = e.arguments;
+    else
+        error("PropositionalLogicError: Expected 2 arguments, got ", length(e.arguments), " arguments!");
+    end
+    if (e.operator == "==>")
+        return pl_true(Expression("|", Expression("~", p), q), model=model);
+    elseif (e.operator == "<==")
+        return pl_true(Expression("|", p, Expression("~", q)), model=model);
+    end;
+    p_t = pl_true(p, model=model);
+    if (typeof(p_t) <: Void)
+        return nothing;
+    end
+    q_t = pl_true(q, model=model);
+    if (typeof(q_t) <: Void)
+        return nothing;
+    end
+    if (e.operator == "<=>")
+        return p_t == q_t;
+    elseif (e.operator == "^")
+        return p_t != q_t;
+    else
+        error("PropositionalLogicError: Illegal operator detected in expression ", repr(e),"!")
+    end
 end
 
 type ExpressionNode

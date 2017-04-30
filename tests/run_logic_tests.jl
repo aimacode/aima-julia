@@ -26,3 +26,32 @@ z = Expression("z");
 
 @test show(expr("P & Q ==> R & S")) == "(((P & Q) ==> R) & S)";
 
+@test typeof(pl_true(Expression("P"))) <: Void;
+
+@test typeof(pl_true(expr("P | P"))) <: Void;
+
+@test pl_true(expr("P | Q"), model=Dict([Pair(Expression("P"), true)])) == true;
+
+@test pl_true(expr("(A | B) & (C | D)"),
+                model=Dict([Pair(Expression("A"), false),
+                            Pair(Expression("B"), true),
+                            Pair(Expression("C"), true)])) == true;
+
+@test pl_true(expr("(A & B) & (C | D)"),
+                model=Dict([Pair(Expression("A"), false),
+                            Pair(Expression("B"), true),
+                            Pair(Expression("C"), true)])) == false;
+
+@test pl_true(expr("(A & B) | (A & C)"),
+                model=Dict([Pair(Expression("A"), false),
+                            Pair(Expression("B"), true),
+                            Pair(Expression("C"), true)])) == false;
+
+@test typeof(pl_true(expr("(A | B) & (C | D)"),
+                model=Dict([Pair(Expression("A"), true),
+                            Pair(Expression("D"), false)]))) <: Void;
+
+@test pl_true(Expression("P"), model=Dict([Pair(Expression("P"), false)])) == false;
+
+@test typeof(pl_true(expr("P | ~P"))) <: Void;
+
