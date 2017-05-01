@@ -26,6 +26,16 @@ z = Expression("z");
 
 @test show(expr("P & Q ==> R & S")) == "(((P & Q) ==> R) & S)";
 
+@test tt_entails(expr("P & Q"), expr("Q")) == true;
+
+@test tt_entails(expr("P | Q"), expr("Q")) == false;
+
+@test tt_entails(expr("A & (B | C) & E & F & ~(P | Q)"), expr("A & E & F & ~P & ~Q")) == true;
+
+@test proposition_symbols(expr("x & y & z | A")) == [Expression("A")];
+
+@test proposition_symbols(expr("(x & B(z)) ==> Farmer(y) | A")) == [Expression("A"), expr("Farmer(y)"), expr("B(z)")];
+
 @test typeof(pl_true(Expression("P"))) <: Void;
 
 @test typeof(pl_true(expr("P | P"))) <: Void;

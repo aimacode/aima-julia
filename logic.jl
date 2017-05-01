@@ -116,7 +116,75 @@ function proposition_symbols(e::Expression)
     if (is_logic_proposition_symbol(e.operator))
         return [e];
     else
-        return collect(Set(collect(symbol for argument in e.arguments for symbol in proposition_symbols(argument))));
+        symbols::Set{Expression} = Set{Expression}();
+        for argument in e.arguments
+            argument_symbols = proposition_symbols(argument);
+            for symbol in argument_symbols
+                push!(symbols, symbol);
+            end
+        end
+        return collect(symbols);
+    end
+end
+
+function tt_entails(kb::Expression, alpha::Expression)
+    if (length(variables(alpha)) != 0)
+        error("tt_entails(): Found logic variables in 'alpha' Expression!");
+    end
+    return tt_check_all(kb, alpha, proposition_symbols(Expression("&", kb, alpha)), Dict());
+end
+
+function tt_check_all(kb::Expression, alpha::Expression, symbols::AbstractVector, model::Dict)
+    if (length(symbols) == 0)
+        eval_kb = pl_true(kb, model=model)
+        if (typeof(eval_kb) <: Void)
+            return true;
+        elseif (eval_kb == false)
+            return true;
+        else
+            result = pl_true(alpha, model=model);
+            if (typeof(result) <: Bool)
+                return result;
+            else
+                error("tt_check_all(): pl_true() returned an unexpected ", typeof(result), " type!");
+            end
+        end
+    else
+        P = symbols[1];
+        rest::AbstractVector = symbols[2:end];
+        return (tt_check_all(kb, alpha, rest, extend(model, P, true)) &&
+                tt_check_all(kb, alpha, rest, extend(model, P, false)));
+    end
+end
+
+
+"""
+    extend(dict, key, val)
+
+Make a copy of the given dict and overwrite any existing value corresponding
+to the 'key' as 'val' and return the new dictionary.
+"""
+function extend(dict::Dict, key, val)
+    local new_dict::Dict = copy(dict);
+    new_dict[key] = val;
+    return new_dict;
+end
+
+function substitute(dict::Dict, e)
+    if (typeof(e) <: AbstractVector)
+        return collect(substitute(dict, element) for element in e);
+    elseif (typeof(e) <: Tuple)
+        return (collect(substitute(dict, element) for element in e)...);
+    else
+        return e;
+    end
+end
+
+function substitute(dict::Dict, e::Expression)
+    if (is_logic_variable_symbol(e.operator))
+        return get(dict, e, e);
+    else
+        return Expression(e.op, collect(substitute(dict, argument) for argument in e.arguments)...);
     end
 end
 
@@ -164,7 +232,8 @@ function pl_true(e::Expression; model::Dict=Dict())
     if (length(e.arguments) == 2)
         p, q = e.arguments;
     else
-        error("PropositionalLogicError: Expected 2 arguments, got ", length(e.arguments), " arguments!");
+        error("PropositionalLogicError: Expected 2 arguments in expression ", repr(e),
+                " got ", length(e.arguments), " arguments!");
     end
     if (e.operator == "==>")
         return pl_true(Expression("|", Expression("~", p), q), model=model);
@@ -184,7 +253,7 @@ function pl_true(e::Expression; model::Dict=Dict())
     elseif (e.operator == "^")
         return p_t != q_t;
     else
-        error("PropositionalLogicError: Illegal operator detected in expression ", repr(e),"!")
+        error("PropositionalLogicError: Illegal operator detected in expression ", repr(e), "!")
     end
 end
 
