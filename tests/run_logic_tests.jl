@@ -12,11 +12,11 @@ y = Expression("y");
 
 z = Expression("z");
 
-@test variables(expr("F(x, x) & G(x, y) & H(y, z) & R(A, z, z)")) == Set(x, y, z);
+@test variables(expr("F(x, x) & G(x, y) & H(y, z) & R(A, z, z)")) == Set([x, y, z]);
 
-@test variables(expr("F(x, A, y)")) == Set(x, y);
+@test variables(expr("F(x, A, y)")) == Set([x, y]);
 
-@test variables(expr("F(G(x), z)")) == Set(x, z);
+@test variables(expr("F(G(x), z)")) == Set([x, z]);
 
 @test show(expr("P & Q ==> Q")) == "((P & Q) ==> Q)";
 
