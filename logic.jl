@@ -158,6 +158,13 @@ function tt_check_all(kb::Expression, alpha::Expression, symbols::AbstractVector
     end
 end
 
+function tt_true(alpha::Expression)
+    return tt_entails(Expression("TRUE"), alpha);
+end
+
+function tt_true(alpha::String)
+    return tt_entails(Expression("TRUE"), expr(alpha));
+end
 
 """
     extend(dict, key, val)

@@ -36,6 +36,8 @@ z = Expression("z");
 
 @test proposition_symbols(expr("(x & B(z)) ==> Farmer(y) | A")) == [Expression("A"), expr("Farmer(y)"), expr("B(z)")];
 
+@test tt_true("(P ==> Q) <=> (~P | Q)") == true;
+
 @test typeof(pl_true(Expression("P"))) <: Void;
 
 @test typeof(pl_true(expr("P | P"))) <: Void;
