@@ -9,7 +9,8 @@ export hash, ==, show,
         -, +, *, ^, /, \, %,
         ~, &, |, $, >>, <<,
         Expression, expr,
-        variables, subexpressions;
+        variables, subexpressions, proposition_symbols,
+        tt_entails, pl_true;
 
 immutable Expression
 	operator::String
