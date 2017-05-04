@@ -79,7 +79,7 @@ z = Expression("z");
 
 @test distribute_and_over_or(expr("(A & B) | C")) == expr("(A | C) & (B | C)");
 
-@test associate("&", (expr("A & B"), expr("B | C"), expr("B & C")));
+@test associate("&", (expr("A & B"), expr("B | C"), expr("B & C"))) == expr("&(A, B, (B | C), B, C)");
 
 @test associate("|", (expr("A | (B | (C | (A & B)))"),)) == expr("|(A, B, C, (A & B))");
 
