@@ -1,16 +1,13 @@
 
-import Base: hash, ==, show,
-            <, <=, >, >=,
-            -, +, *, ^, /, \, %,
-            ~, &, |, $, >>, <<;
+import Base: hash, ==, show;
 
 export hash, ==, show,
-        <, <=, >, >=,
-        -, +, *, ^, /, \, %,
-        ~, &, |, $, >>, <<,
         Expression, expr,
         variables, subexpressions, proposition_symbols,
-        tt_entails, pl_true;
+        tt_entails, pl_true, tt_true,
+        to_conjunctive_normal_form,
+        eliminate_implications, move_not_inwards, distribute_and_over_or,
+        associate, dissociate, conjuncts, disjuncts;
 
 immutable Expression
 	operator::String
@@ -21,7 +18,7 @@ Expression(op::String, args::Vararg{Any}) = Expression(op, map(Expression, args)
 
 function (e::Expression)(args::Vararg{Any})
     if ((length(e.arguments) == 0) && is_logic_symbol(e.operator))
-        return Expression(e.operator, map(string, args));
+        return Expression(e.operator, map(Expression, args));
     else
         error("ExpressionError: ", e, " is not a Symbol (Nullary Expression)!");
     end
@@ -32,6 +29,9 @@ end
 hash(e::Expression, h::UInt) = ((hash(e.operator) $ hash(e.arguments)) $ h);
 
 hash(t_e::Tuple{Vararg{Expression}}, h::UInt) = reduce($, vcat(map(hash, collect(t_e)), h));
+
+# Julia does not allow for custom infix operators such as '==>', '<==', '<=>', etc.
+# In addition, bitwise xor looks different between Julia ($) and Python (^).
 
 ==(e1::Expression, e2::Expression) = ((e1.operator == e2.operator) && (e1.arguments == e2.arguments));
 
@@ -76,6 +76,18 @@ Return if the given 's' is an initial uppercase String that is not 'TRUE' or 'FA
 function is_logic_proposition_symbol(s::String)
     return (is_logic_symbol(s) && isupper(s[1]) && (s != "TRUE") && (s != "FALSE"));
 end
+
+#=
+
+    The Python implementation of expr() uses of eval() and overloaded binary/unary infix
+    operators to evaluate a String as an Expression.
+
+    This Julia implementation of expr() parses the given String into an expression tree of
+    tokens, before returning the parsed Expression.
+
+    Consecutive operators should be delimited with with a space or parentheses.
+
+=#
 
 """
     expr(s::String)
@@ -164,6 +176,162 @@ end
 
 function tt_true(alpha::String)
     return tt_entails(Expression("TRUE"), expr(alpha));
+end
+
+"""
+    eliminate_implications(e)
+
+Eliminate any implications in the given Expression by using the definition of biconditional introduction,
+material implication, and converse implication with De Morgan's Laws and return the modified Expression.
+"""
+function eliminate_implications(e::Expression)
+    if ((length(e.arguments) == 0) || is_logic_symbol(e.operator))
+        return e;
+    end
+    local arguments = map(eliminate_implications, e.arguments);
+    local a::Expression = first(arguments);
+    local b::Expression = last(arguments);
+    if (e.operator == "==>")
+        return Expression("|", b, Expression("~", a));
+    elseif (e.operator == "<==")
+        return Expression("|", a, Expression("~", b));
+    elseif (e.operator == "<=>")
+        return Expression("&", Expression("|", a, Expression("~", b)), Expression("|", b, Expression("~", a)));
+    elseif (e.operator == "^")
+        if (length(arguments) != 2)
+            #If the length of 'arguments' is 1, last(arguments)
+            #gives us the same Expression for 'b' as 'a'.
+            error("EliminateImplicationsError: XOR should be applied to 2 arguments, found ",
+                length(arguments), " arguments!");
+        end
+        return Expression("|", Expression("&", a, Expression("~", b)), Expression("&", Expression("~", a), b));
+    else
+        if (!(e.operator in ("&", "|", "~")))
+            error("EliminateImplicationsError: Found an unexpected operator '", e.operator, "'!");
+        end
+        return Expression(e.operator, arguments...);
+    end
+end
+
+function move_not_inwards_negate_argument(e::Expression)
+    return move_not_inwards(Expression("~", e));
+end
+
+"""
+    move_not_inwards(e)
+
+Apply De Morgan's laws to the given Expression and return the modified Expression.
+"""
+function move_not_inwards(e::Expression)
+    if (e.operator == "~")
+        local a::Expression = e.arguments[1];
+        if (a.operator == "~")
+            return move_not_inwards(a.arguments[1]);
+        elseif (a.operator == "&")
+            return associate("|", map(move_not_inwards_negate_argument, a.arguments));
+        elseif (a.operator == "|")
+            return associate("&", map(move_not_inwards_negate_argument, a.arguments));
+        else
+            return e;
+        end
+    elseif (is_logic_symbol(e.operator) || (length(e.arguments) == 0))
+        return e;
+    else
+        return Expression(e.operator, map(move_not_inwards, e.arguments)...);
+    end
+end
+
+function distribute_and_over_or(e::Expression)
+    if (e.operator == "|")
+        local a::Expression = associate("|", e.arguments);
+        if (a.operator != "|")
+            return distribute_and_over_or(a);
+        elseif (length(a.arguments) == 0)
+            return Expression("FALSE");
+        elseif (length(a.arguments) == 1)
+            return distribute_and_over_or(a.arguments[1]);
+        end
+        conjunction = findfirst((function(arg)
+                            return (arg.operator == "&");
+                        end), a.arguments);
+        if (conjunction == 0)  #(&) operator was not found in a.arguments
+            return a;
+        else
+            conjunction = a.arguments[conjunction];
+        end
+        others = Tuple((collect(a for a in a.arguments if (!(a == conjunction)))...));
+        rest = associate("|", others);
+        return associate("&", Tuple((collect(distribute_and_over_or(Expression("|", conjunction_arg, rest))
+                                    for conjunction_arg in conjunction.arguments)...)));
+    elseif (e.operator == "&")
+        return associate("&", map(distribute_and_over_or, e.arguments));
+    else
+        return e;
+    end
+end
+
+function expand_prefix_nary_expression(operator::String, arguments::AbstractVector)
+    if (length(arguments) == 1)
+        return arguments[1];
+    else
+        current = first(arguments);
+        rest = arguments[2:end];
+        return Expression(operator, current, expand_prefix_nary_expression(operator, rest));
+    end
+end
+
+function associate(operator::String, arguments::Tuple)
+    dissociated_arguments = dissociate(operator, arguments);
+    if (length(dissociated_arguments) == 0)
+        if (operator == "&")
+            return Expression("TRUE");
+        elseif (operator == "|")
+            return Expression("FALSE");
+        elseif (operator == "+")
+            return Expression("0");
+        elseif (operator == "*")
+            return Expression("1");
+        else
+            error("AssociateError: Found unexpected operator '", operator, "'!");
+        end
+    elseif (length(dissociated_arguments) == 1)
+        return dissociated_arguments[1];
+    else
+        return Expression(operator, Tuple((dissociated_arguments...)));
+    end
+end
+
+function dissociate_collect(operator::String, arguments::Tuple{Vararg{Expression}}, result_array::AbstractVector)
+    for argument in arguments
+        if (argument.operator == operator)
+            dissociate_collect(operator, argument.arguments, result_array);
+        else
+            push!(result_array, argument);
+        end
+    end
+    nothing;
+end
+
+function dissociate(operator::String, arguments::Tuple{Vararg{Expression}})
+    local result = Array{Expression, 1}([]);
+    dissociate_collect(operator, arguments, result);
+    return result;
+end
+
+function conjuncts(e::Expression)
+    return dissociate("&", (e,));
+end
+
+function disjuncts(e::Expression)
+    return dissociate("|", (e,));
+end
+
+function to_conjunctive_normal_form(sentence::Expression)
+    return distribute_and_over_or(move_not_inwards(eliminate_implications(sentence)));
+end
+
+function to_conjunctive_normal_form(sentence::String)
+    return distribute_and_over_or(move_not_inwards(eliminate_implications(expr(sentence))));
 end
 
 """

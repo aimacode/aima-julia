@@ -67,3 +67,51 @@ z = Expression("z");
 
 @test typeof(pl_true(expr("P | ~P"))) <: Void;
 
+@test eliminate_implications(expr("A ==> (~B <== C)")) == expr("(~B | ~C) | ~A");
+
+@test eliminate_implications(expr("A ^ B")) == expr("(A & ~B) | (~A & B)");
+
+@test move_not_inwards(expr("~(A | B)")) == expr("~A & ~B");
+
+@test move_not_inwards(expr("~(A & B)")) == expr("~A | ~B");
+
+@test move_not_inwards(expr("~(~(A | ~B) | ~(~C))")) == expr("(A | ~B) & ~C");
+
+@test distribute_and_over_or(expr("(A & B) | C")) == expr("(A | C) & (B | C)");
+
+@test associate("&", (expr("A & B"), expr("B | C"), expr("B & C")));
+
+@test associate("|", (expr("A | (B | (C | (A & B)))"),)) == expr("|(A, B, C, (A & B))");
+
+@test conjuncts(expr("A & B")) == [Expression("A"), Expression("B")];
+
+@test conjuncts(expr("A | B")) == [expr("A | B")];
+
+@test disjuncts(expr("A | B")) == [Expression("A"), Expression("B")];
+
+@test disjuncts(expr("A & B")) == [expr("A & B")];
+
+@test to_conjunctive_normal_form(expr("~(B | C)")) == expr("~B & ~C");
+
+@test repr(to_conjunctive_normal_form(expr("~(B | C)"))) == "(~(B) & ~(C))";
+
+@test to_conjunctive_normal_form(expr("(P & Q) | (~P & ~Q)")) == expr("&((~P | P), (~Q | P), (~P | Q), (~Q | Q))");
+
+@test repr(to_conjunctive_normal_form(expr("(P & Q) | (~P & ~Q)"))) == "((~(P) | P) & (~(Q) | P) & (~(P) | Q) & (~(Q) | Q))";
+
+@test to_conjunctive_normal_form(expr("B <=> (P1 | P2)")) == expr("&((~P1 | B), (~P2 | B), |(P1, P2, ~B))");
+
+@test repr(to_conjunctive_normal_form(expr("B <=> (P1 | P2)"))) == "((~(P1) | B) & (~(P2) | B) & (P1 | P2 | ~(B)))";
+
+@test to_conjunctive_normal_form(expr("a | (b & c) | d")) == expr("|(b, a, d) & |(c, a, d)");
+
+@test repr(to_conjunctive_normal_form(expr("a | (b & c) | d"))) == "((b | a | d) & (c | a | d))";
+
+@test to_conjunctive_normal_form(expr("A & (B | (D & E))")) == expr("&(A, (D | B), (E | B))");
+
+@test repr(to_conjunctive_normal_form(expr("A & (B | (D & E))"))) == "(A & (D | B) & (E | B))";
+
+@test to_conjunctive_normal_form(expr("A | (B | (C | (D & E)))")) == expr("|(D, A, B, C) & |(E, A, B, C)");
+
+@test repr(to_conjunctive_normal_form(expr("A | (B | (C | (D & E)))"))) == "((D | A | B | C) & (E | A | B | C))";
+
