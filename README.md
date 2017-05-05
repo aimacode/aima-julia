@@ -16,11 +16,11 @@ The intent of this fork is to align the code with a clearer interface like struc
 
 |Fig|Page|Name (in book)|Code|
 | -------- |:--------:| :-----| :----- |
-|2|34|Environment|[Environment](/aima-core/src/main/java/aima/core/agent/Environment.java)|
-|2.1|35|Agent|[Agent](/aima-core/src/main/java/aima/core/agent/Agent.java)|
-|2.3|36|Table-Driven-Vacuum-Agent|[TableDrivenVacuumAgent](/aima-core/src/main/java/aima/core/environment/vacuum/TableDrivenVacuumAgent.java)|
-|2.7|47|Table-Driven-Agent|[TableDrivenAgentProgram](/aima-core/src/main/java/aima/core/agent/impl/aprog/TableDrivenAgentProgram.java)|
-|2.8|48|Reflex-Vacuum-Agent|[ReflexVacuumAgent](/aima-core/src/main/java/aima/core/environment/vacuum/ReflexVacuumAgent.java)|
+|2|34|Environment|[Environment]|
+|2.1|35|Agent|[Agent]|
+|2.3|36|Table-Driven-Vacuum-Agent|[TableDrivenVacuumAgent]|
+|2.7|47|Table-Driven-Agent|[TableDrivenAgentProgram]|
+|2.8|48|Reflex-Vacuum-Agent|[ReflexVacuumAgent]|
 |2.10|49|Simple-Reflex-Agent|[SimpleReflexAgentProgram](/aima-core/src/main/java/aima/core/agent/impl/aprog/SimpleReflexAgentProgram.java)|
 |2.12|51|Model-Based-Reflex-Agent|[ModelBasedReflexAgentProgram](/aima-core/src/main/java/aima/core/agent/impl/aprog/ModelBasedReflexAgentProgram.java)|
 |3|66|Problem|[Problem](/aima-core/src/main/java/aima/core/search/framework/problem/Problem.java)|
