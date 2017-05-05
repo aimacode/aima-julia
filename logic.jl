@@ -7,7 +7,13 @@ export hash, ==, show,
         tt_entails, pl_true, tt_true,
         to_conjunctive_normal_form,
         eliminate_implications, move_not_inwards, distribute_and_over_or,
-        associate, dissociate, conjuncts, disjuncts;
+        associate, dissociate, conjuncts, disjuncts,
+        AbstractKnowledgeBase, PropositionalKnowledgeBase,
+        KnowledgeBaseAgentProgram,
+        make_percept_sentence, make_action_query, make_action_sentence, execute,
+        tell, ask, retract;
+
+abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
 
 immutable Expression
 	operator::String
@@ -50,6 +56,108 @@ end
 function show(io::IO, e::Expression)
     print(io, show(e));
     nothing;
+end
+
+abstract AbstractKnowledgeBase;
+
+function tell{T <: AbstractKnowledgeBase}(kb::T, e::Expression)
+    println("tell() is not implemented yet for ", typeof(kb), "!");
+    nothing;
+end
+
+function ask{T <: AbstractKnowledgeBase}(kb::T, e::Expression)
+    println("ask() is not implemented yet for ", typeof(kb), "!");
+    nothing;
+end
+
+function retract{T <: AbstractKnowledgeBase}(kb::T, e::Expression)
+    println("retract() is not implemented yet for ", typeof(kb), "!");
+    nothing;
+end
+
+#=
+
+    PropositionalKnowledgeBase is a knowledge base of propositional logic.
+
+=#
+
+type PropositionalKnowledgeBase <: AbstractKnowledgeBase
+    clauses::Array{Expression, 1}
+
+    function PropositionalKnowledgeBase()
+        return new(Array{Expression, 1}([]));
+    end
+
+    function PropositionalKnowledgeBase(e::Expression)
+        local pkb = new(Array{Expression, 1}([]));
+        tell(pkb, e);
+        return pkb;
+    end
+end
+
+function tell(kb::PropositionalKnowledgeBase, e::Expression)
+    append!(kb.clauses, conjuncts(to_conjunctive_normal_form(e)));
+    nothing;
+end
+
+function ask(kb::PropositionalKnowledgeBase, e::Expression)
+    if (tt_entails(Expression("&", kb.clauses...), e))
+        return Dict([]);
+    else
+        return false;
+    end
+end
+
+function retract(kb::PropositionalKnowledgeBase, e::Expression)
+    for conjunct in conjuncts(to_conjunctive_normal_form(e))
+        if (conjunct in kb.clauses)
+            for (index, item) in enumerate(kb.clauses)
+                if (item == conjunct)
+                    deleteat!(kb.clauses, index);
+                    break;
+                end
+            end
+        end
+    end
+    nothing;
+end
+
+#=
+
+    KnowledgeBaseAgentProgram is a generic knowledge-based implementation of AgentProgram (Fig 7.1).
+
+=#
+type KnowledgeBaseAgentProgram <: AgentProgram
+    isTracing::Bool
+    knowledge_base::AbstractKnowledgeBase
+    t::UInt64
+
+    function KnowledgeBaseAgentProgram{T <: AbstractKnowledgeBase}(kb::T; trace::Bool=false)
+        return new(trace, kb, UInt64(0));
+    end
+end
+
+function make_percept_sentence(percept::Expression, t::UInt64)
+    return Expression("Percept")(percept, Expression(dec(t)));
+end
+
+function make_action_query(t::UInt64)
+    return Expression(@sprintf("ShouldDo(action, %s)", dec(t)));
+end
+
+function make_action_sentence(action::Dict, t::UInt64)
+    return Expression("Did")(action[Expression("action")], Expression(dec(t)));
+end
+
+function execute(ap::KnowledgeBaseAgentProgram, percept::Expression)
+    tell(ap.knowledge_base, make_percept_sentence(percept, ap.t));
+    action = ask(ap.knowledge_base, make_action_query(ap.t));
+    tell(ap.knowledge_base, make_action_sentence(action, ap.t));
+    ap.t = ap.t + 1;
+    if (ap.isTracing)
+        @printf("%s perceives %s and does %s\n", string(typeof(ap)), repr(percept), string(action));
+    end
+    return action;
 end
 
 function is_logic_symbol(s::String)

@@ -115,3 +115,29 @@ z = Expression("z");
 
 @test repr(to_conjunctive_normal_form(expr("A | (B | (C | (D & E)))"))) == "((D | A | B | C) & (E | A | B | C))";
 
+prop_kb = PropositionalKnowledgeBase();
+
+@test count((function(item)
+                if (typeof(item) <: Bool)
+                    return item;
+                else
+                    return true;
+                end
+            end), collect(ask(prop_kb, e) for e in map(expr, ["A", "C", "D", "E", "Q"]))) == 0;
+
+tell(prop_kb, expr("A & E"));
+
+@test ask(prop_kb, expr("A")) == Dict([]);
+
+@test ask(prop_kb, expr("E")) == Dict([]);
+
+tell(prop_kb, expr("E ==> C"));
+
+@test ask(prop_kb, expr("C")) == Dict([]);
+
+retract(prop_kb, expr("E"));
+
+@test ask(prop_kb, expr("E")) == false;
+
+@test ask(prop_kb, expr("C")) == false;
+
