@@ -148,3 +148,30 @@ plr_results = pl_resolve(to_conjunctive_normal_form(expr("A | B | C")),
 
 @test pretty_set(Set{Expression}(disjuncts(plr_results[2]))) == "Set(aimajulia.Expression[A,B,F,~(B)])";
 
+# Use PropositionalKnowledgeBase to represent the Wumpus World (Fig. 7.4)
+
+kb_wumpus = PropositionalKnowledgeBase();
+tell(kb_wumpus, expr("~P11"));
+tell(kb_wumpus, expr("B11 <=> (P12 | P21)"));
+tell(kb_wumpus, expr("B21 <=> (P11 | P22 | P31)"));
+tell(kb_wumpus, expr("~B11"));
+tell(kb_wumpus, expr("B21"));
+
+# Can't find a pit at location (1, 1).
+@test ask(kb_wumpus, expr("~P11")) == Dict([]);
+
+# Can't find a pit at location (1, 2).
+@test ask(kb_wumpus, expr("~P12")) == Dict([]);
+
+# Found pit at location (2, 2).
+@test ask(kb_wumpus, expr("P22")) == false;
+
+# Found pit at location (3, 1).
+@test ask(kb_wumpus, expr("P31")) == false;
+
+# Locations (1, 2) and (2, 1) do not contain pits.
+@test ask(kb_wumpus, expr("~P12 & ~P21")) == Dict([]);
+
+# Found a pit in either (3, 1) or (2,2).
+@test ask(kb_wumpus, expr("P22 | P31")) == Dict([]);
+
