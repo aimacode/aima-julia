@@ -2,7 +2,7 @@
 import Base: hash, ==, show;
 
 export hash, ==, show,
-        Expression, expr,
+        Expression, expr, pretty_set,
         variables, subexpressions, proposition_symbols,
         tt_entails, pl_true, tt_true,
         to_conjunctive_normal_form,
