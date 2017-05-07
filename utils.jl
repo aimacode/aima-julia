@@ -17,7 +17,7 @@ export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         weighted_sampler, weighted_sample_with_replacement,
         distance, distance2,
         RandomDeviceInstance,
-        isfunction;
+        isfunction, removeall;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -450,6 +450,14 @@ function delete!(pq::PQueue, item::Any)
         end
     end
     return nothing;
+end
+
+function removeall(v::String, item)
+    return replace(v, item, "");
+end
+
+function removeall(v::AbstractVector, item)
+    return collect(x for x in v if (x != item));
 end
 
 """

@@ -442,6 +442,50 @@ function to_conjunctive_normal_form(sentence::String)
     return distribute_and_over_or(move_not_inwards(eliminate_implications(expr(sentence))));
 end
 
+function pl_resolve(c_i::Expression, c_j::Expression)
+    local clauses = Array{Expression, 1}([]);
+    for d_i in disjuncts(c_i)
+        for d_j in disjuncts(c_j)
+            if ((d_i == Expression("~", d_j)) || (Expression("~", d_i) == d_j))
+                d_new = Tuple((collect(Set{Expression}(append!(removeall(disjuncts(c_i), d_i), removeall(disjuncts(c_j), c_j))))...));
+                push!(clauses, associate("|", d_new));
+            end
+        end
+    end
+    return clauses;
+end
+
+"""
+    pl_resolution(kb, alpha)
+
+Apply a simple propositional logic resolution algorithm (Fig. 7.12) on the given knowledge base
+and propositional logic sentence (query). Return a boolean indicating if the sentence follows
+the clauses that exist in the given knowledge base.
+"""
+function pl_resolution{T <: AbstractKnowledgeBase}(kb::T, alpha::Expression)
+    local clauses::AbstractVector = append!(copy(kb.clauses), conjuncts(to_conjunctive_normal_form(Expression("~", alpha))));
+    local new_set = Set{Expression}();
+    while (true)
+        n = length(clauses);
+        pairs = collect((clauses[i], clauses[j]) for i in 1:n for j in i+1:n);
+        for (c_i, c_j) in pairs
+            local resolvents = pl_resolve(c_i, c_j);
+            if (Expression("FALSE") in resolvents)
+                return true;
+            end
+            union!(new_set, Set{Expression}(resolvents));
+        end
+        if (issubset(new_set, Set{Expression}(clauses)))
+            return false;
+        end
+        for c in new_set
+            if (!(c in clauses))
+                push!(clauses, c);
+            end
+        end
+    end
+end
+
 """
     extend(dict, key, val)
 
