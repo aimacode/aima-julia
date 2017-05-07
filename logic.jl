@@ -11,7 +11,8 @@ export hash, ==, show,
         AbstractKnowledgeBase, PropositionalKnowledgeBase,
         KnowledgeBaseAgentProgram,
         make_percept_sentence, make_action_query, make_action_sentence, execute,
-        tell, ask, retract;
+        tell, ask, retract,
+        pl_resolution, pl_resolve;
 
 abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
 
@@ -447,7 +448,7 @@ function pl_resolve(c_i::Expression, c_j::Expression)
     for d_i in disjuncts(c_i)
         for d_j in disjuncts(c_j)
             if ((d_i == Expression("~", d_j)) || (Expression("~", d_i) == d_j))
-                d_new = Tuple((collect(Set{Expression}(append!(removeall(disjuncts(c_i), d_i), removeall(disjuncts(c_j), c_j))))...));
+                d_new = Tuple((collect(Set{Expression}(append!(removeall(disjuncts(c_i), d_i), removeall(disjuncts(c_j), d_j))))...));
                 push!(clauses, associate("|", d_new));
             end
         end

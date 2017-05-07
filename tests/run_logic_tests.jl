@@ -141,3 +141,10 @@ retract(prop_kb, expr("E"));
 
 @test ask(prop_kb, expr("C")) == false;
 
+plr_results = pl_resolve(to_conjunctive_normal_form(expr("A | B | C")),
+                        to_conjunctive_normal_form(expr("~B | ~C | F")));
+
+@test pretty_set(Set{Expression}(disjuncts(plr_results[1]))) == "Set(Expression[A,C,F,~(C)])";
+
+@test pretty_set(Set{Expression}(disjuncts(plr_results[2]))) == "Set(Expression[A,B,F,~(B)])";
+
