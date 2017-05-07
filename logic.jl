@@ -165,7 +165,7 @@ function is_logic_symbol(s::String)
     if (length(s) == 0)
         return false;
     else
-        return isalpha(s);
+        return isalpha(s[1]);
     end
 end
 
