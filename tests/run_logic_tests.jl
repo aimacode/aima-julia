@@ -91,6 +91,11 @@ z = Expression("z");
 
 @test disjuncts(expr("A & B")) == [expr("A & B")];
 
+@test repr(to_conjunctive_normal_form(Expression("&",
+                                                aimajulia.wumpus_world_inference,
+                                                Expression("~", expr("~P12"))))) ==
+                                                "((~(P12) | B11) & (~(P21) | B11) & (P12 | P21 | ~(B11)) & ~(B11) & P12)";
+
 @test to_conjunctive_normal_form(expr("~(B | C)")) == expr("~B & ~C");
 
 @test repr(to_conjunctive_normal_form(expr("~(B | C)"))) == "(~(B) & ~(C))";
@@ -174,4 +179,8 @@ tell(kb_wumpus, expr("B21"));
 
 # Found a pit in either (3, 1) or (2,2).
 @test ask(kb_wumpus, expr("P22 | P31")) == Dict([]);
+
+@test pl_fc_entails(aimajulia.horn_clauses_kb, Expression("Q")) == true;
+
+@test pl_fc_entails(aimajulia.horn_clauses_kb, Expression("SomethingSilly")) == false;
 

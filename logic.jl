@@ -81,7 +81,6 @@ end
     PropositionalKnowledgeBase is a knowledge base of propositional logic.
 
 =#
-
 type PropositionalKnowledgeBase <: AbstractKnowledgeBase
     clauses::Array{Expression, 1}
 
@@ -159,6 +158,75 @@ function execute(ap::KnowledgeBaseAgentProgram, percept::Expression)
         @printf("%s perceives %s and does %s\n", string(typeof(ap)), repr(percept), string(action));
     end
     return action;
+end
+
+
+#=
+
+    PropositionalDefiniteKnowledgeBase is a knowledge base of propositional definite clause logic.
+
+=#
+type PropositionalDefiniteKnowledgeBase <: AbstractKnowledgeBase
+    clauses::Array{Expression, 1}
+
+    function PropositionalDefiniteKnowledgeBase()
+        return new(Array{Expression, 1}([]));
+    end
+
+    function PropositionalDefiniteKnowledgeBase(e::Expression)
+        local pkb = new(Array{Expression, 1}([]));
+        tell(pkb, e);
+        return pkb;
+    end
+end
+
+function tell(kb::PropositionalDefiniteKnowledgeBase, e::Expression)
+    push!(kb.clauses, e);
+    nothing;
+end
+
+function ask(kb::PropositionalDefiniteKnowledgeBase, e::Expression)
+    if (pl_fc_entails(Expression("&", kb.clauses...), e))
+        return Dict([]);
+    else
+        return false;
+    end
+end
+
+function retract(kb::PropositionalDefiniteKnowledgeBase, e::Expression)
+    for (index, item) in enumerate(kb.clauses)
+        if (item == conjunct)
+            deleteat!(kb.clauses, index);
+            break;
+        end
+    end
+    nothing;
+end
+
+function clauses_with_premise(kb::PropositionalDefiniteKnowledgeBase, p::Expression)
+    return collect(c for c in kb.clauses if ((c.operator == "==>") && (p in conjuncts(c.arguments[1]))));
+end
+
+function pl_fc_entails(kb::PropositionalDefiniteKnowledgeBase, q::Expression)
+    local count::Dict = Dict(collect(Pair(c, length(conjuncts(c.arguments[1]))) for c in kb.clauses if (c.operator == "==>")));
+    local agenda::AbstractVector = collect(s for s in kb.clauses if (is_logic_proposition_symbol(s.operator)));
+    local inferred::Dict = Dict{Expression, Bool}();
+    while (length(agenda) != 0)
+        p = shift!(agenda);
+        if (p == q)
+            return true;
+        end
+        if (!(get(inferred, p, false)))
+            inferred[p] = true;
+            for c in clauses_with_premise(kb, p)
+                count[c] = count[c] - 1;
+                if (count[c] == 0)
+                    push!(agenda, c.arguments[2])
+                end
+            end
+        end
+    end
+    return false;
 end
 
 function is_logic_symbol(s::String)
@@ -246,6 +314,31 @@ function proposition_symbols(e::Expression)
             end
         end
         return collect(symbols);
+    end
+end
+
+function is_logic_definite_clause(e::Expression)
+    if (is_logic_symbol(e.operator))
+        return true;
+    elseif (e.operator == "==>")
+        antecedent, consequent = e.arguments;
+        return (is_logic_symbol(consequent.operator) &&
+                all(collect(is_logic_symbol(arg.operator) for arg in conjuncts(antecedent))));
+    else
+        return false;
+    end
+end
+
+function parse_logic_definite_clause(e::Expression)
+    if (!is_logic_definite_clause(e))
+        error("parse_logic_definite_clause: The expression given is not a definite clause!");
+    else
+        if (is_logic_symbol(e.operator))
+            return Array{Expression, 1}([]), e;
+        else
+            antecedent, consequent = e.arguments;
+            return conjuncts(antecedent), consequent;
+        end
     end
 end
 
@@ -1013,6 +1106,19 @@ function evaluate_expression_tree(node::ExpressionNode)
     else
         return Expression(get(node.value), queue...);
     end
+end
+
+# A simple inference in a wumpus world (Fig. 7.13)
+
+wumpus_world_inference = expr("(B11 <=> (P12 | P21))  &  ~B11");
+
+# A PropositionalDefiniteKnowledgeBase representation of (Fig 7.16) to be used with
+# the propositional logic forward-chaining algorithm pl_fc_entails() (Fig 7.15).
+
+horn_clauses_kb = PropositionalDefiniteKnowledgeBase();
+
+for clause in map(expr, map(String, split("P==>Q; (L&M)==>P; (B&L)==>M; (A&P)==>L; (A&B)==>L; A;B", ";")))
+    tell(horn_clauses_kb, clause);
 end
 
 function pretty_set(s::Set{Expression})
