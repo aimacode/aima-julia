@@ -8,11 +8,11 @@ export hash, ==, show,
         to_conjunctive_normal_form,
         eliminate_implications, move_not_inwards, distribute_and_over_or,
         associate, dissociate, conjuncts, disjuncts,
-        AbstractKnowledgeBase, PropositionalKnowledgeBase,
+        AbstractKnowledgeBase, PropositionalKnowledgeBase, PropositionalDefiniteKnowledgeBase,
         KnowledgeBaseAgentProgram,
         make_percept_sentence, make_action_query, make_action_sentence, execute,
-        tell, ask, retract,
-        pl_resolution, pl_resolve;
+        tell, ask, retract, clauses_with_premise,
+        pl_resolution, pl_resolve, pl_fc_entails;
 
 abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
 
