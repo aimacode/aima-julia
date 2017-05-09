@@ -12,7 +12,9 @@ export hash, ==, show,
         KnowledgeBaseAgentProgram,
         make_percept_sentence, make_action_query, make_action_sentence, execute,
         tell, ask, retract, clauses_with_premise,
-        pl_resolution, pl_resolve, pl_fc_entails;
+        pl_resolution, pl_resolve, pl_fc_entails,
+        inspect_literal, unit_clause_assign, find_unit_clause, find_pure_symbol,
+        dpll, dpll_satisfiable;
 
 abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
 
@@ -227,6 +229,103 @@ function pl_fc_entails(kb::PropositionalDefiniteKnowledgeBase, q::Expression)
         end
     end
     return false;
+end
+
+function find_pure_symbol(symbols::Array{Expression, 1}, clauses::Array{Expression, 1})
+    for symbol in symbols
+        found_positive = false;
+        found_negative = false;
+        for clause in clauses
+            disjuncts_clause = disjuncts(clause);
+            if (!found_positive && (symbol in disjuncts_clause))
+                found_positive = true;
+            end
+            if (!found_negative && (Expression("~", symbol) in disjuncts_clause))
+                found_negative = true;
+            end
+        end
+        if (found_positive != found_negative)
+            return symbol, found_positive;
+        end
+    end
+    return nothing, nothing;
+end
+
+function inspect_literal(e::Expression)
+    if (e.operator == "~")
+        return e.arguments[1], false;
+    else
+        return e, true;
+    end
+end
+
+function unit_clause_assign(clause::Expression, model::Dict)
+    P = nothing;
+    value = nothing;
+    for literal in disjuncts(clause)
+        symbol, positive = inspect_literal(literal);
+        if (haskey(model, symbol))
+            if (model[symbol] == positive)
+                return nothing, nothing;
+            end
+        elseif (!(typeof(P) <: Void))
+            return nothing, nothing;
+        else
+            P = symbol;
+            value = positive;
+        end
+    end
+    return P, value;
+end
+
+function find_unit_clause(clauses::Array{Expression, 1}, model::Dict)
+    for clause in clauses
+        P, value = unit_clause_assign(clause, model);
+        if (!(typeof(P) <: Void))
+            return P, value;
+        end
+    end
+    return nothing, nothing;
+end
+
+function dpll(clauses::Array{Expression, 1}, symbols::Array{Expression, 1}, model::Dict)
+    local unknown_clauses::Array{Expression, 1} = Array{Expression, 1}();
+    for clause in clauses
+        val = pl_true(clause, model=model);
+        if (val == false)
+            return false;
+        end
+        if (val != true)
+            push!(unknown_clauses, clause);
+        end
+    end
+    if (length(unknown_clauses) == 0)
+        return model;
+    end
+    P, value = find_pure_symbol(symbols, unknown_clauses);
+    if (!(typeof(P) <: Void))
+        return dpll(clauses, removeall(symbols, P), extend(model, P, value));
+    end
+    P, value = find_unit_clause(clauses, model);
+    if (!(typeof(P) <: Void))
+        return dpll(clauses, removeall(symbols, P), extend(model, P, value));
+    end
+    P, symbols = symbols[1], symbols[2:end];
+    return (dpll(clauses, symbols, extend(model, P, true)) ||
+            dpll(clauses, symbols, extend(model, P, false)));
+end
+
+"""
+    dpll_satisfiable(s)
+
+Use the Davis-Putname-Logemann-Loveland (DPLL) algorithm (Fig. 7.17) to check satisfiability
+of the given propositional logic sentence 's' and returns the model if the sentence is satisfiable
+and false otherwise.
+"""
+function dpll_satisfiable(s::Expression)
+    local clauses = conjuncts(to_conjunctive_normal_form(s));
+    local symbols = proposition_symbols(s);
+    return dpll(clauses, symbols, Dict());
 end
 
 function is_logic_symbol(s::String)

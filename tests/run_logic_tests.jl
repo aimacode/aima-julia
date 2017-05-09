@@ -184,3 +184,38 @@ tell(kb_wumpus, expr("B21"));
 
 @test pl_fc_entails(aimajulia.horn_clauses_kb, Expression("SomethingSilly")) == false;
 
+@test inspect_literal(Expression("P")) == (Expression("P"), true);
+
+@test inspect_literal(Expression("~", Expression("P"))) == (Expression("P"), false);
+
+@test unit_clause_assign(expr("A | B | C"), Dict([Pair(Expression("A"), true)])) == (nothing, nothing);
+
+@test unit_clause_assign(expr("B | ~C"), Dict([Pair(Expression("A"), true)])) == (nothing, nothing);
+
+@test unit_clause_assign(expr("B | C"), Dict([Pair(Expression("A"), true)])) == (nothing, nothing);
+
+@test unit_clause_assign(expr("~A | ~B"), Dict([Pair(Expression("A"), true)])) == (Expression("B"), false);
+
+@test unit_clause_assign(expr("B | ~A"), Dict([Pair(Expression("A"), true)])) == (Expression("B"), true);
+
+@test find_unit_clause(map(expr, ["A | B | C", "B | ~C", "~A | ~B"]), Dict([Pair(Expression("A"), true)])) == (Expression("B"), false);
+
+@test find_pure_symbol(map(expr, ["A", "B", "C"]), map(expr, ["A | ~B", "~B | ~C", "C | A"])) == (Expression("A"), true);
+
+@test find_pure_symbol(map(expr, ["A", "B", "C"]), map(expr, ["~A | ~B", "~B | ~C", "C | A"])) == (Expression("B"), false);
+
+@test find_pure_symbol(map(expr, ["A", "B", "C"]), map(expr, ["~A | B", "~B | ~C", "C | A"])) == (nothing, nothing);
+
+@test dpll_satisfiable(expr("A & ~B")) == Dict([Pair(Expression("A"), true),
+                                                Pair(Expression("B"), false),]);
+
+@test dpll_satisfiable(expr("P & ~P")) == false;
+
+@test (dpll_satisfiable(expr("A & ~B & C & (A | ~D) & (~E | ~D) & (C | ~D) & (~A | ~F) & (E | ~F) & (~D | ~F) & (B | ~C | D) & (A | ~E | F) & (~A | E | D)"))
+        == Dict([Pair(Expression("A"), true),
+                Pair(Expression("B"), false),
+                Pair(Expression("C"), true),
+                Pair(Expression("D"), true),
+                Pair(Expression("E"), false),
+                Pair(Expression("F"), false),]));
+
