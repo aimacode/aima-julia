@@ -354,10 +354,10 @@ function walksat(clauses::Array{Expression, 1}; p::Float64=0.5, max_flips::Int64
             symbol = rand(RandomDeviceInstance, proposition_symbols(clause));
         else
             symbol = argmax(proposition_symbols(clause),
-                            (function(e,; sat_model::Dict=model, sat_clauses::AbstractVector=clauses)
-                                sat_model[e] = !sat_model[e];
-                                count = length((collect(c for c in clauses if (pl_true(c, model=sat_model)))));
-                                sat_model[e] = !sat_model[e];
+                            (function(e)
+                                model[e] = !model[e];
+                                count = length((collect(c for c in clauses if (pl_true(c, model=model)))));
+                                model[e] = !model[e];
                                 return count;
                             end));
         end
