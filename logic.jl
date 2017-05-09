@@ -318,9 +318,9 @@ end
 """
     dpll_satisfiable(s)
 
-Use the Davis-Putname-Logemann-Loveland (DPLL) algorithm (Fig. 7.17) to check satisfiability
-of the given propositional logic sentence 's' and returns the model if the sentence is satisfiable
-and false otherwise.
+Use the Davis-Putnam-Logemann-Loveland (DPLL) algorithm (Fig. 7.17) to check satisfiability
+of the given propositional logic sentence 's' and return the model (dictionary of truth value
+assignments) if the sentence 's' is satisfiable and false otherwise.
 """
 function dpll_satisfiable(s::Expression)
     local clauses = conjuncts(to_conjunctive_normal_form(s));
