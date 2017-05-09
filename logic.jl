@@ -14,7 +14,7 @@ export hash, ==, show,
         tell, ask, retract, clauses_with_premise,
         pl_resolution, pl_resolve, pl_fc_entails,
         inspect_literal, unit_clause_assign, find_unit_clause, find_pure_symbol,
-        dpll, dpll_satisfiable;
+        dpll, dpll_satisfiable, walksat;
 
 abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
 
@@ -326,6 +326,44 @@ function dpll_satisfiable(s::Expression)
     local clauses = conjuncts(to_conjunctive_normal_form(s));
     local symbols = proposition_symbols(s);
     return dpll(clauses, symbols, Dict());
+end
+
+"""
+    walksat(clauses)
+
+Apply the WalkSAT algorithm (Fig. 7.18) to the given 'clauses'. walksat() will return a model
+that satisfies the clauses if possible and returns 'nothing' on failure.
+"""
+function walksat(clauses::Array{Expression, 1}; p::Float64=0.5, max_flips::Int64=10000)
+    local symbols::Set{Expression} = Set{Expression}(reduce(vcat,
+                                                            collect(collect(symbol for symbol in proposition_symbols(clause))
+                                                                    for clause in clauses)));
+    local model::Dict{Expression, Bool} = Dict(collect(Pair(symbol, rand(RandomDeviceInstance, [true, false]))
+                                                        for symbol in symbols));
+    for i in 1:max_flips
+        satisfied = Array{Expression, 1}();
+        unsatisfied = Array{Expression, 1}();
+        for clause in clauses
+            push!(if_(pl_true(clause, model=model), satisfied, unsatisfied), clause);
+        end
+        if (length(unsatisfied) == 0)
+            return model;
+        end
+        clause = rand(RandomDeviceInstance, unsatisfied);
+        if (p > rand(RandomDeviceInstance))
+            symbol = rand(RandomDeviceInstance, proposition_symbols(clause));
+        else
+            symbol = argmax(proposition_symbols(clause),
+                            (function(e,; sat_model::Dict=model, sat_clauses::AbstractVector=clauses)
+                                sat_model[e] = !sat_model[e];
+                                count = length((collect(c for c in clauses if (pl_true(c, model=sat_model)))));
+                                sat_model[e] = !sat_model[e];
+                                return count;
+                            end));
+        end
+        model[symbol] = !model[symbol];
+    end
+    nothing;
 end
 
 function is_logic_symbol(s::String)

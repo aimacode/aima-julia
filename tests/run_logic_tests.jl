@@ -219,3 +219,31 @@ tell(kb_wumpus, expr("B21"));
                 Pair(Expression("E"), false),
                 Pair(Expression("F"), false),]));
 
+function walksat_test(clauses::Array{Expression, 1}; solutions::Dict=Dict())
+    local sln = walksat(clauses);
+    if (!(typeof(sln) <: Void)) #found a satisfiable solution
+        @test all(collect(pl_true(clause, model=sln) for clause in clauses));
+        if (length(solutions) != 0)
+            @test all(collect(pl_true(clause, model=solutions) for clause in clauses));
+            @test sln == solutions;
+        end
+    end
+    nothing;
+end
+
+walksat_test(map(expr, ["A & B", "A & C"]));
+
+walksat_test(map(expr, ["A | B", "P & Q", "P & B"]));
+
+walksat_test(map(expr, ["A & B", "C | D", "~(D | P)"]), solutions=Dict([Pair(Expression("A"), true),
+                                                            Pair(Expression("B"), true),
+                                                            Pair(Expression("C"), true),
+                                                            Pair(Expression("D"), false),
+                                                            Pair(Expression("P"), false),]));
+
+@test (typeof(walksat(map(expr, ["A & ~A"]), p=0.5, max_flips=100)) <: Void);
+
+@test (typeof(walksat(map(expr, ["A | B", "~A", "~(B | C)", "C | D", "P | Q"]), p=0.5, max_flips=100)) <: Void);
+
+@test (typeof(walksat(map(expr, ["A | B", "B & C", "C | D", "D & A", "P", "~P"]), p=0.5, max_flips=100)) <: Void);
+
