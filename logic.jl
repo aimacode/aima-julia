@@ -14,7 +14,8 @@ export hash, ==, show,
         tell, ask, retract, clauses_with_premise,
         pl_resolution, pl_resolve, pl_fc_entails,
         inspect_literal, unit_clause_assign, find_unit_clause, find_pure_symbol,
-        dpll, dpll_satisfiable, walksat;
+        dpll, dpll_satisfiable, walksat, HybridWumpusAgentProgram, plan_route,
+        translate_to_sat, extract_solution, sat_plan;
 
 abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
 
@@ -311,8 +312,17 @@ function dpll(clauses::Array{Expression, 1}, symbols::Array{Expression, 1}, mode
         return dpll(clauses, removeall(symbols, P), extend(model, P, value));
     end
     P, symbols = symbols[1], symbols[2:end];
-    return (dpll(clauses, symbols, extend(model, P, true)) ||
-            dpll(clauses, symbols, extend(model, P, false)));
+
+    first_recursive_call = dpll(clauses, symbols, extend(model, P, true));
+    second_recursive_call = dpll(clauses, symbols, extend(model, P, false));
+
+    if (typeof(first_recursive_call) <: Dict)
+        return first_recursive_call;
+    elseif (typeof(first_recursive_call) <: Dict)
+        return second_recursive_call;
+    else
+        return false;
+    end
 end
 
 """
@@ -362,6 +372,113 @@ function walksat(clauses::Array{Expression, 1}; p::Float64=0.5, max_flips::Int64
                             end));
         end
         model[symbol] = !model[symbol];
+    end
+    nothing;
+end
+
+#=
+
+    HybridWumpusAgentProgram is a hybrid Wumpus implementation of AgentProgram (Fig. 7.20).
+
+=#
+type HybridWumpusAgentProgram <: AgentProgram
+    isTracing::Bool
+    kb::AbstractKnowledgeBase
+    t::UInt64
+    plan::AbstractVector
+
+    function HybridWumpusAgentProgram{T <: AbstractKnowledgeBase}(kb::T; trace::Bool=false)
+        return new(trace, kb, UInt64(0), []);
+    end
+end
+
+function plan_route(current, goals, allowed)
+    println("plan_route() is not yet implemented!");
+    nothing;
+end
+
+function execute(ap::HybridWumpusAgentProgram, percept::AbstractVector)
+    println("execute() is not implemented yet for HybridWumpusAgentProgram!");
+    nothing;
+end
+
+function translate_to_sat{T}(initial::T, transition::Dict, goal::T, time::Int64, state_dict::Dict, action_dict::Dict)
+    local clauses::Array{Expression, 1} = Array{Expression, 1}();
+    local states::AbstractVector = collect(keys(transition));
+    local state_count_iterator = countfrom();
+    local state_number::Int64 = -1;
+    for state in states
+        for t in 0:time
+            state_number = next(state_count_iterator, state_number)[2];
+            state_dict[(state, t)] = Expression(@sprintf("State_%lli", state_number));
+        end
+    end
+    push!(clauses, state_dict[(initial, 0)]);
+    push!(clauses, state_dict[(goal, time)]);
+    local transition_count_iterator = countfrom();
+    local transition_number = -1;
+    for state in states
+        for action in keys(transition[state])
+            state_val_key = transition[state][action];
+            for t in 0:(time - 1)
+                transition_number = next(transition_count_iterator, transition_number)[2];
+                action_dict[(state, action, t)] = Expression(@sprintf("Transition_%lli", transition_number));
+                push!(clauses, Expression("==>", action_dict[(state, action, t)], state_dict[(state, t)]));
+                push!(clauses, Expression("==>", action_dict[(state, action, t)], state_dict[(state_val_key, (t + 1))]));
+            end
+        end
+    end
+    for t in 0:time
+        push!(clauses, associate("|", Tuple((collect(state_dict[(state, t)] for state in states)...))));
+        for (i, state) in enumerate(states)
+            for state_val_key in states[(i+1):end]
+                push!(clauses, Expression("|",
+                                            Expression("~", state_dict[(state, t)]),
+                                            Expression("~", state_dict[(state_val_key, t)])));
+            end
+        end
+    end
+    for t in 0:(time - 1)
+        local transitions_t::AbstractVector = collect(transition_t for transition_t in keys(action_dict) if (transition_t[3] == t));
+        push!(clauses, associate("|", Tuple((collect(action_dict[transition_t] for transition_t in transitions_t)...))));
+        for (i, transition_t) in enumerate(transitions_t)
+            for transition_t_alternative in transitions_t[(i + 1):end]
+                push!(clauses, Expression("|",
+                                            Expression("~", action_dict[transition_t]),
+                                            Expression("~", action_dict[transition_t_alternative])));
+            end
+        end
+    end
+    return associate("&", Tuple((clauses...)));
+end
+
+function extract_solution(model::Dict, action_dict::Dict)
+    # Collect transitions that are true in the SAT 'model' solution.
+    local transitions::AbstractVector = collect(transition for transition in keys(action_dict) if (model[action_dict[transition]]));
+    sort!(transitions, lt=(function(t1, t2)
+                                return isless(t1[3], t2[3]);
+                            end));
+    return collect(action for (state, action, time) in transitions);
+end
+
+"""
+    sat_plan(initial, transition, goal, t_max)
+
+Apply the SATPlan algorithm (Fig. 7.22) to the given planning problem, returning a solution or 'nothing'
+when the algorithm fails. The planning problem is converted to conjunctive normal form logic sentence in
+order to be solved as a satisfication problem.
+
+The 'initial' and 'goal' states should have the same type.
+"""
+function sat_plan{T}(initial::T, transition::Dict, goal::T, t_max::Int64; sat_solver::Function=dpll_satisfiable)
+    for t in 0:(t_max - 1)
+        states = Dict();
+        actions = Dict();
+        local cnf::Expression = translate_to_sat(initial, transition, goal, t, states, actions);
+        local model = sat_solver(cnf);
+        if (model != false)
+            return extract_solution(model, actions);
+        end
     end
     nothing;
 end

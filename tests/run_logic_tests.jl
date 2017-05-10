@@ -247,3 +247,20 @@ walksat_test(map(expr, ["A & B", "C | D", "~(D | P)"]), solutions=Dict([Pair(Exp
 
 @test (typeof(walksat(map(expr, ["A | B", "B & C", "C | D", "D & A", "P", "~P"]), p=0.5, max_flips=100)) <: Void);
 
+transition = Dict([Pair("A", Dict([Pair("Left", "A"), Pair("Right", "B")])),
+                    Pair("B", Dict([Pair("Left", "A"), Pair("Right", "C")])),
+                    Pair("C", Dict([Pair("Left", "B"), Pair("Right", "C")]))]);
+
+@test (typeof(sat_plan("A", transition,"C", 2)) <: Void);
+
+@test sat_plan("A", transition, "B", 3) == ["Right"];
+
+@test sat_plan("C", transition, "A", 3) == ["Left", "Left"];
+
+transition = Dict([Pair((0, 0), Dict([Pair("Right", (0, 1)), Pair("Down", (1, 0))])),
+                    Pair((0, 1), Dict([Pair("Left", (1, 0)), Pair("Down", (1, 1))])),
+                    Pair((1, 0), Dict([Pair("Right", (1, 0)), Pair("Up", (1, 0)), Pair("Left", (1, 0)), Pair("Down", (1, 0))])),
+                    Pair((1, 1), Dict([Pair("Left", (1, 0)), Pair("Up", (0, 1))]))]);
+
+@test sat_plan((0, 0), transition, (1, 1), 4) == ["Right", "Down"];
+
