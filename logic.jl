@@ -15,7 +15,8 @@ export hash, ==, show,
         pl_resolution, pl_resolve, pl_fc_entails,
         inspect_literal, unit_clause_assign, find_unit_clause, find_pure_symbol,
         dpll, dpll_satisfiable, walksat, HybridWumpusAgentProgram, plan_route,
-        translate_to_sat, extract_solution, sat_plan;
+        translate_to_sat, extract_solution, sat_plan,
+        unify, occurrence_check, extend, substitute;
 
 abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
 
@@ -471,9 +472,11 @@ order to be solved as a satisfication problem.
 The 'initial' and 'goal' states should have the same type.
 """
 function sat_plan{T}(initial::T, transition::Dict, goal::T, t_max::Int64; sat_solver::Function=dpll_satisfiable)
+    local states::Dict = Dict();
+    local actions::Dict = Dict();
     for t in 0:(t_max - 1)
-        states = Dict();
-        actions = Dict();
+        empty!(states);
+        empty!(actions);
         local cnf::Expression = translate_to_sat(initial, transition, goal, t, states, actions);
         local model = sat_solver(cnf);
         if (model != false)
@@ -496,7 +499,7 @@ function is_logic_variable_symbol(s::String)
 end
 
 function is_logic_variable(e::Expression)
-    return ((length(e.arguments) == 0) && islower(e.operator))
+    return ((length(e.arguments) == 0) && islower(e.operator[1]))
 end
 
 """
@@ -834,6 +837,87 @@ function pl_resolution{T <: AbstractKnowledgeBase}(kb::T, alpha::Expression)
     end
 end
 
+function occurrence_check(key, x, substitutions::Dict)
+    if (key == x)
+        println("occurrence_check(::Any, ::Any, ::Dict) returned true!!!");
+        return true;
+    else
+        return false;
+    end
+end
+
+function occurrence_check{T <: Union{Tuple, AbstractVector}}(key::Expression, x::T, substitutions::Dict)
+    if (key == x)
+        println("occurrence_check(::Expression, ::Union{Tuple, AbstractVector}, ::Dict) returned true!!!");
+        return true;
+    else
+        if (length(collect(true for element in x if (occurrence_check(key, element, substitutions)))) == 0)
+            return false;
+        else
+            return true;
+        end
+    end
+end
+
+function occurrence_check(key::Expression, x::Expression, substitutions::Dict)
+    if (key == x)
+        println("occurrence_check(::Expression, ::Expression, ::Dict) returned true!!!");
+        return true;
+    elseif (is_logic_variable(x) && (x in keys(substitutions)))
+        return occurrence_check(key, substitutions[x], substitutions);
+    else
+        return (occurrence_check(key, x.operator, substitutions) ||
+                occurrence_check(key, x.arguments, substitutions));
+    end
+end
+
+function unify_variable(key::Expression, x::Expression, substitutions::Dict)
+    if (key in keys(substitutions))
+        return unify(substitutions[key], x, substitutions);
+    elseif (x in keys(substitutions))
+        return unify(key, substitutions[x], substitutions);
+    elseif (occurrence_check(key, x, substitutions))
+        return nothing;
+    else
+        return extend(substitutions, key, x);
+    end
+end
+
+unify(e1, e2, substitutions::Void) = nothing;
+unify(e1::Expression, e2::String, substitutions::Dict) = nothing;
+
+function unify(e1::String, e2::String, substitutions::Dict)
+    if (e1 == e2)
+        return substitutions;
+    else
+        return nothing;
+    end
+end
+
+function unify(e1::Expression, e2::Expression, substitutions::Dict)
+    if (e1 == e2)
+        return substitutions;
+    elseif (is_logic_variable(e1))
+        return unify_variable(e1, e2, substitutions);
+    elseif (is_logic_variable(e2))
+        return unify_variable(e2, e1, substitutions);
+    else
+        return unify(e1.arguments, e2.arguments, unify(e1.operator, e2.operator, substitutions));
+    end
+end
+
+function unify{S <: Union{AbstractVector, Tuple}, T <: Union{AbstractVector, Tuple}}(a1::S, a2::T, substitutions::Dict)
+    if (a1 == a2)
+        return substitutions;
+    else
+        if (length(a1) == length(a2))
+            return unify(a1[2:end], a2[2:end], unify(a1[1], a2[1], substitutions));
+        else
+            return nothing;
+        end
+    end
+end
+
 """
     extend(dict, key, val)
 
@@ -860,7 +944,7 @@ function substitute(dict::Dict, e::Expression)
     if (is_logic_variable_symbol(e.operator))
         return get(dict, e, e);
     else
-        return Expression(e.op, collect(substitute(dict, argument) for argument in e.arguments)...);
+        return Expression(e.operator, collect(substitute(dict, argument) for argument in e.arguments)...);
     end
 end
 

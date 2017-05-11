@@ -264,3 +264,17 @@ transition = Dict([Pair((0, 0), Dict([Pair("Right", (0, 1)), Pair("Down", (1, 0)
 
 @test sat_plan((0, 0), transition, (1, 1), 4) == ["Right", "Down"];
 
+@test unify(expr("x + y"), expr("y + C"), Dict([])) == Dict([Pair(Expression("x"), Expression("y")),
+                                                            Pair(Expression("y"), Expression("C"))]);
+
+@test unify(expr("x"), expr("3"), Dict([])) == Dict([Pair(Expression("x"), Expression("3"))]);
+
+@test unify(expr("x"), expr("x"), Dict([])) == Dict([]);
+
+@test extend(Dict([Pair(Expression("x"), 1)]), Expression("y"), 2) == Dict([Pair(Expression("x"), 1),
+                                                                            Pair(Expression("y"), 2)]);
+
+@test repr(substitute(Dict([Pair(Expression("x"), Expression("42")),
+                            Pair(Expression("y"), Expression("0"))]),
+                    expr("F(x) + y"))) == "(F(42) + 0)";
+
