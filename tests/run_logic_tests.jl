@@ -278,3 +278,27 @@ transition = Dict([Pair((0, 0), Dict([Pair("Right", (0, 1)), Pair("Down", (1, 0)
                             Pair(Expression("y"), Expression("0"))]),
                     expr("F(x) + y"))) == "(F(42) + 0)";
 
+function fol_bc_ask_query(q::Expression; kb::Union{Void, AbstractKnowledgeBase}=nothing)
+    local answers::Tuple;
+    if (typeof(kb) <: Void)
+        answers = fol_bc_ask(aimajulia.test_fol_kb, q);
+    else
+        answers = fol_bc_ask(kb, q);
+    end
+    local test_vars = variables(q);
+    return sort(collect(Dict(collect(Pair(k, v) for (k, v) in answer if (k in test_vars))) for answer in answers),
+            lt=(function(d1::Dict, d2::Dict)
+                    return isless(repr(d1), repr(d2));
+                end));
+end
+
+@test fol_bc_ask_query(expr("Farmer(x)")) == [Dict([Pair(Expression("x"), Expression("Mac"))])];
+
+@test fol_bc_ask_query(expr("Human(x)")) == [Dict([Pair(Expression("x"), Expression("Mac"))]),
+                                            Dict([Pair(Expression("x"), Expression("MrsMac"))])];
+
+@test fol_bc_ask_query(expr("Rabbit(x)")) == [Dict([Pair(Expression("x"), Expression("MrsRabbit"))]),
+                                            Dict([Pair(Expression("x"), Expression("Pete"))])];
+
+@test fol_bc_ask_query(expr("Criminal(x)"), kb=aimajulia.crime_kb) == [Dict([Pair(Expression("x"), Expression("West"))])];
+

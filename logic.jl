@@ -4,6 +4,8 @@ import Base: hash, ==, show;
 export hash, ==, show,
         Expression, expr, pretty_set,
         variables, subexpressions, proposition_symbols,
+        parse_logic_definite_clause, is_logic_definite_clause, is_logic_symbol,
+        is_logic_variable, is_logic_variable_symbol, is_logic_proposition_symbol,
         tt_entails, pl_true, tt_true,
         to_conjunctive_normal_form,
         eliminate_implications, move_not_inwards, distribute_and_over_or,
@@ -16,7 +18,10 @@ export hash, ==, show,
         inspect_literal, unit_clause_assign, find_unit_clause, find_pure_symbol,
         dpll, dpll_satisfiable, walksat, HybridWumpusAgentProgram, plan_route,
         translate_to_sat, extract_solution, sat_plan,
-        unify, occurrence_check, extend, substitute;
+        unify, occurrence_check, extend, substitute,
+        standardize_variables, fol_fc_ask,
+        FirstOrderLogicKnowledgeBase, fetch_rules_for_goal,
+        fol_bc_ask;
 
 abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
 
@@ -126,6 +131,49 @@ function retract(kb::PropositionalKnowledgeBase, e::Expression)
     nothing;
 end
 
+type FirstOrderLogicKnowledgeBase <: AbstractKnowledgeBase
+    clauses::Array{Expression, 1}
+
+    function FirstOrderLogicKnowledgeBase()
+        return new(Array{Expression, 1}());
+    end
+
+    function FirstOrderLogicKnowledgeBase(initial_clauses::Array{Expression, 1})
+        local fol_kb = new(Array{Expression, 1}());
+        for clause in initial_clauses
+            tell(fol_kb, clause);
+        end
+        return fol_kb;
+    end
+end
+
+function tell(kb::FirstOrderLogicKnowledgeBase, e::Expression)
+    if (is_logic_definite_clause(e))
+        push!(kb.clauses, e);
+    else
+        error("tell(): ", repr(e), " is not a definite clause!");
+    end
+    nothing;
+end
+
+function ask(kb::FirstOrderLogicKnowledgeBase, e::Expression)
+    return fol_bc_ask(e);
+end
+
+function retract(kb::FirstOrderLogicKnowledgeBase, e::Expression)
+    for (index, item) in enumerate(kb.clauses)
+        if (item == e)
+            deleteat!(kb.clauses, index);
+            break;
+        end
+    end
+    nothing;
+end
+
+function fetch_rules_for_goal(kb::FirstOrderLogicKnowledgeBase, goal::Expression)
+    return kb.clauses;
+end
+
 #=
 
     KnowledgeBaseAgentProgram is a generic knowledge-based implementation of AgentProgram (Fig 7.1).
@@ -199,7 +247,7 @@ end
 
 function retract(kb::PropositionalDefiniteKnowledgeBase, e::Expression)
     for (index, item) in enumerate(kb.clauses)
-        if (item == conjunct)
+        if (item == e)
             deleteat!(kb.clauses, index);
             break;
         end
@@ -637,6 +685,75 @@ function tt_true(alpha::String)
     return tt_entails(Expression("TRUE"), expr(alpha));
 end
 
+function pl_true(e::Expression; model::Dict=Dict())
+    if (e == Expression("TRUE"))
+        return true;
+    elseif (e == Expression("FALSE"))
+        return false;
+    elseif (is_logic_proposition_symbol(e.operator))
+        return get(model, e, nothing);
+    elseif (e.operator == "~")
+        subexpression = pl_true(e.arguments[1], model=model);
+        if (typeof(subexpression) <: Void)
+            return nothing;
+        else
+            return !subexpression;
+        end
+    elseif (e.operator == "|")
+        result = false;
+        for argument in e.arguments
+            subexpression = pl_true(argument, model=model);
+            if (subexpression == true)
+                return true;
+            end
+            if (typeof(subexpression) <: Void)
+                result = nothing;
+            end
+        end
+        return result;
+    elseif (e.operator == "&")
+        result = true;
+        for argument in e.arguments
+            subexpression = pl_true(argument, model=model);
+            if (subexpression == false)
+                return false;
+            end
+            if (typeof(subexpression) <: Void)
+                result = nothing;
+            end
+        end
+        return result;
+    end
+    local p::Expression;
+    local q::Expression;
+    if (length(e.arguments) == 2)
+        p, q = e.arguments;
+    else
+        error("PropositionalLogicError: Expected 2 arguments in expression ", repr(e),
+                " got ", length(e.arguments), " arguments!");
+    end
+    if (e.operator == "==>")
+        return pl_true(Expression("|", Expression("~", p), q), model=model);
+    elseif (e.operator == "<==")
+        return pl_true(Expression("|", p, Expression("~", q)), model=model);
+    end;
+    p_t = pl_true(p, model=model);
+    if (typeof(p_t) <: Void)
+        return nothing;
+    end
+    q_t = pl_true(q, model=model);
+    if (typeof(q_t) <: Void)
+        return nothing;
+    end
+    if (e.operator == "<=>")
+        return p_t == q_t;
+    elseif (e.operator == "^")
+        return p_t != q_t;
+    else
+        error("PropositionalLogicError: Illegal operator detected in expression ", repr(e), "!")
+    end
+end
+
 """
     eliminate_implications(e)
 
@@ -883,6 +1000,12 @@ function unify_variable(key::Expression, x::Expression, substitutions::Dict)
     end
 end
 
+"""
+    unify(e1, e2, substitutions)
+
+Return a dictionary of substitutions that make 'e1' equal to 'e2' using the unification algorithm (Fig. 9.1)
+and return 'nothing' on failure.
+"""
 unify(e1, e2, substitutions::Void) = nothing;
 unify(e1::Expression, e2::String, substitutions::Dict) = nothing;
 
@@ -948,73 +1071,116 @@ function substitute(dict::Dict, e::Expression)
     end
 end
 
-function pl_true(e::Expression; model::Dict=Dict())
-    if (e == Expression("TRUE"))
-        return true;
-    elseif (e == Expression("FALSE"))
-        return false;
-    elseif (is_logic_proposition_symbol(e.operator))
-        return get(model, e, nothing);
-    elseif (e.operator == "~")
-        subexpression = pl_true(e.arguments[1], model=model);
-        if (typeof(subexpression) <: Void)
-            return nothing;
+# This number is used to generate new variables in standardize_variables().
+standardize_variables_counter = [countfrom(BigInt(1)), BigInt(-1)];
+
+function standardize_variables(e, counter::AbstractVector; dict::Union{Void, Dict}=nothing)
+    return e;
+end
+
+function standardize_variables(e::Expression, counter::AbstractVector; dict::Union{Void, Dict}=nothing)
+    if (typeof(dict) <: Void)
+        dict = Dict();
+    end
+    if (is_logic_variable_symbol(e.operator))
+        if (haskey(dict, e))
+            return dict[e]
         else
-            return !subexpression;
+            counter[2] = next(counter[1], counter[2])[2];
+            local val::Expression = Expression(@sprintf("v_%s", repr(counter[2])));
+            dict[e] = val;
+            return val;
         end
-    elseif (e.operator == "|")
-        result = false;
-        for argument in e.arguments
-            subexpression = pl_true(argument, model=model);
-            if (subexpression == true)
-                return true;
-            end
-            if (typeof(subexpression) <: Void)
-                result = nothing;
-            end
-        end
-        return result;
-    elseif (e.operator == "&")
-        result = true;
-        for argument in e.arguments
-            subexpression = pl_true(argument, model=model);
-            if (subexpression == false)
-                return false;
-            end
-            if (typeof(subexpression) <: Void)
-                result = nothing;
-            end
-        end
-        return result;
-    end
-    local p::Expression;
-    local q::Expression;
-    if (length(e.arguments) == 2)
-        p, q = e.arguments;
     else
-        error("PropositionalLogicError: Expected 2 arguments in expression ", repr(e),
-                " got ", length(e.arguments), " arguments!");
+        return Expression(e.operator, collect(standardize_variables(argument, counter, dict=dict) for argument in e.arguments)...);
     end
-    if (e.operator == "==>")
-        return pl_true(Expression("|", Expression("~", p), q), model=model);
-    elseif (e.operator == "<==")
-        return pl_true(Expression("|", p, Expression("~", q)), model=model);
-    end;
-    p_t = pl_true(p, model=model);
-    if (typeof(p_t) <: Void)
-        return nothing;
+end
+
+"""
+    fol_fc_ask(kb, alpha)
+
+Apply a simple forward-chaining algorithm (Fig. 9.3) to a atomic sentence query and knowledge base of
+first-order logic definite clauses. Return a dictionary of substitutions or false on failure.
+"""
+function fol_fc_ask(kb::FirstOrderLogicKnowledgeBase, alpha::Expression)
+    local new_sentences::Array{Expression, 1} = Array{Expression, 1}();
+    while (length(new_sentences) == 0)
+        empty!(new_sentences);
+        for rule in kb.clauses
+            p, q = parse_logic_definite_clause(standardize_variables(rule, standardize_variables_counter));
+            # Generate p_prime using unimplemented invert_literals() function.
+            for p_prime in fetch(invert_literals(kb.clauses))
+                # generate_thetas() is an unimplmented function that generates substitutions
+                # such that each dictionary of substitution 's' fulfills 
+                # (substitute(s, p) == substitute(s, p_prime))
+                for theta in generate_thetas(p, p_prime)
+                    q_prime = substitute(theta, q);
+                    # Check if either q' and 'atomic_sentences(kb)''
+                    # or q' and 'new_sentences' can unify.
+                    #
+                    # Both unify(::Expression, ::Expression) and atomic_sentences(kb)
+                    # are unimplemented.
+                    if (!(typeof(unify(q_prime, atomic_sentences(kb))) <: Void) ||
+                        !(typeof(unify(q_prime, new_sentences)) <: Void))
+                        push!(new_sentence, q_prime);
+                        phi = unify(q_prime, alpha);
+                        if (!(typeof(phi) <: Void))
+                            return phi;
+                        end
+                    end
+                end
+            end
+        end
+        # Add atomic sentences in new_sentences to 'kb'.
+        for new_sentence in new_sentences
+            for new_literal in atomic_sentences(new_sentence)
+                tell(kb, new_literal);
+            end
+        end
     end
-    q_t = pl_true(q, model=model);
-    if (typeof(q_t) <: Void)
-        return nothing;
-    end
-    if (e.operator == "<=>")
-        return p_t == q_t;
-    elseif (e.operator == "^")
-        return p_t != q_t;
+    return false;
+end
+
+function fol_bc_and(kb::FirstOrderLogicKnowledgeBase, goals::Array{Expression, 1}, theta::Void, standardize_variables_counter_ref::AbstractVector)
+    return ();
+end
+
+function fol_bc_and(kb::FirstOrderLogicKnowledgeBase, goals::Array{Expression, 1}, theta::Dict, standardize_variables_counter_ref::AbstractVector)
+    if (length(goals) == 0)
+        return (theta,);
     else
-        error("PropositionalLogicError: Illegal operator detected in expression ", repr(e), "!")
+        first, rest = goals[1], goals[2:end];
+        thetas = ();
+        for theta_prime in fol_bc_or(kb, substitute(theta, first), theta, standardize_variables_counter_ref)
+            for theta_prime_prime in fol_bc_and(kb, rest, theta_prime, standardize_variables_counter_ref)
+                thetas = Tuple((thetas..., theta_prime_prime));
+            end
+        end
+        return thetas;
     end
+
+end
+
+function fol_bc_or(kb::FirstOrderLogicKnowledgeBase, goal::Expression, theta::Dict, standardize_variables_counter_ref::AbstractVector)
+    thetas = ();
+    for rule in fetch_rules_for_goal(kb, goal)
+        lhs, rhs = parse_logic_definite_clause(standardize_variables(rule, standardize_variables_counter_ref));
+        for theta_prime in fol_bc_and(kb, lhs, unify(rhs, goal, theta), standardize_variables_counter_ref)
+            thetas = Tuple((thetas..., theta_prime));
+        end
+    end
+    return thetas;
+end
+
+"""
+    fol_bc_ask(kb, query)
+
+Use a simple backward-chaining algorithm (Fig. 9.6) for first-order knowledge bases 
+on the given knowledge base and atomic sentence 'query' to return an array of
+dictionaries of substitutions.
+"""
+function fol_bc_ask(kb::FirstOrderLogicKnowledgeBase, query::Expression)
+    return fol_bc_or(kb, query, Dict(), standardize_variables_counter);
 end
 
 type ExpressionNode
@@ -1458,6 +1624,26 @@ horn_clauses_kb = PropositionalDefiniteKnowledgeBase();
 for clause in map(expr, map(String, split("P==>Q; (L&M)==>P; (B&L)==>M; (A&P)==>L; (A&B)==>L; A;B", ";")))
     tell(horn_clauses_kb, clause);
 end
+
+test_fol_kb = FirstOrderLogicKnowledgeBase(map(expr, ["Farmer(Mac)",
+                                                        "Rabbit(Pete)",
+                                                        "Mother(MrsMac, Mac)",
+                                                        "Mother(MrsRabbit, Pete)",
+                                                        "(Rabbit(r) & Farmer(f)) ==> Hates(f, r)",
+                                                        "(Mother(m, c)) ==> Loves(m, c)",
+                                                        "(Mother(m, r) & Rabbit(r)) ==> Rabbit(m)",
+                                                        "(Farmer(f)) ==> Human(f)",
+                                                        # "(Human(h) & Mother(m, h)) ==> Human(m)" # results in infinite recursion
+                                                        "(Mother(m, h) & Human(h)) ==> Human(m)"]));
+
+crime_kb = FirstOrderLogicKnowledgeBase(map(expr, ["(American(x) & Weapon(y) & Sells(x, y, z) & Hostile(z)) ==> Criminal(x)",
+                                                    "Owns(Nono, M1)",
+                                                    "Missile(M1)",
+                                                    "(Missile(x) & Owns(Nono, x)) ==> Sells(West, x, Nono)",
+                                                    "Missile(x) ==> Weapon(x)",
+                                                    "Enemy(x, America) ==> Hostile(x)",
+                                                    "American(West)",
+                                                    "Enemy(Nono, America)"]));
 
 function pretty_set(s::Set{Expression})
     return @sprintf("Set(%s)", repr(sort(collect(s),
