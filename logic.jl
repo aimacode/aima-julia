@@ -21,7 +21,8 @@ export hash, ==, show,
         unify, occurrence_check, extend, substitute,
         standardize_variables, fol_fc_ask,
         FirstOrderLogicKnowledgeBase, fetch_rules_for_goal,
-        fol_bc_ask;
+        fol_bc_ask,
+        is_number, differentiate, simplify, differentiate_simplify;
 
 abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
 
@@ -259,6 +260,13 @@ function clauses_with_premise(kb::PropositionalDefiniteKnowledgeBase, p::Express
     return collect(c for c in kb.clauses if ((c.operator == "==>") && (p in conjuncts(c.arguments[1]))));
 end
 
+"""
+    pl_fc_entails(kb, q)
+
+Apply the forward-chaining algorithm (Fig. 7.15) for propositional logic.
+Return true or false based on whether PropositionalKnowledgeBase 'kb' entails
+the proposition symbol 'q'.
+"""
 function pl_fc_entails(kb::PropositionalDefiniteKnowledgeBase, q::Expression)
     local count::Dict = Dict(collect(Pair(c, length(conjuncts(c.arguments[1]))) for c in kb.clauses if (c.operator == "==>")));
     local agenda::AbstractVector = collect(s for s in kb.clauses if (is_logic_proposition_symbol(s.operator)));
@@ -442,7 +450,7 @@ type HybridWumpusAgentProgram <: AgentProgram
 end
 
 function plan_route(current, goals, allowed)
-    println("plan_route() is not yet implemented!");
+    println("plan_route() is not implemented yet!");
     nothing;
 end
 
@@ -647,6 +655,13 @@ function parse_logic_definite_clause(e::Expression)
     end
 end
 
+"""
+    tt_entails(kb::Expression, alpha::Expression)
+
+Use the truth-table enumeration algorithm (Fig. 7.10) on the sentence 'alpha'
+and a conjunction of clauses 'kb'. Return true or false based on whether 'kb' entails
+'alpha'.
+"""
 function tt_entails(kb::Expression, alpha::Expression)
     if (length(variables(alpha)) != 0)
         error("tt_entails(): Found logic variables in 'alpha' Expression!");
@@ -902,6 +917,12 @@ function disjuncts(e::Expression)
     return dissociate("|", (e,));
 end
 
+"""
+    to_conjunctive_normal_form(s)
+
+Convert the given propositional logical sentence 's' to its equivalent
+conjunctive normal form.
+"""
 function to_conjunctive_normal_form(sentence::Expression)
     return distribute_and_over_or(move_not_inwards(eliminate_implications(sentence)));
 end
@@ -1181,6 +1202,170 @@ dictionaries of substitutions.
 """
 function fol_bc_ask(kb::FirstOrderLogicKnowledgeBase, query::Expression)
     return fol_bc_or(kb, query, Dict(), standardize_variables_counter);
+end
+
+function is_number(n::String)   # Not to be confused with isnumber() from Julia's Base library.
+    if (length(n) == 0)
+        return false;
+    else
+        if (isnumber(strip(n)))
+            return true;
+        else
+            local period_count = count((function(c::Char)
+                                            return c == '.';
+                                        end), n);
+            if (period_count == 1)
+                local decimal_index::UInt64 = UInt64(search(n, '.'));
+                if (decimal_index == UInt64(0))
+                    error("is_number(): Could not find decimal point!");
+                else
+                    return (isnumber(n[1:(decimal_index - UInt64(1))]) && isnumber(n[(decimal_index + UInt64(1)):end]))
+                end
+            else
+                return false
+            end
+        end
+    end
+end
+
+#=
+
+    The functions differentiate(), simplify(), and differentiate_simplify() are not in the book.
+
+    These functions apply symbolic differentiation on Expressions.
+
+    Symbolic differentiation used to be part of AI.
+
+    Now this topic is considered a separate field, Symbolic Algebra.
+
+=#
+function differentiate(y::Expression, x::Expression)
+    if (x == y)
+        return Expression("1");
+    elseif (length(y.arguments) == 0)
+        return Expression("0");
+    else
+        local u::Expression = y.arguments[1];
+        local operator::String = y.operator;
+        local v::Expression = reverse(y.arguments)[1];
+        if (operator == "+")
+            return Expression("+", differentiate(u, x), differentiate(v, x));
+        elseif ((operator == "-") && (length(y.arguments) == 1))
+            return Expression("-", differentiate(u, x));
+        elseif (operator == "-")
+            return ExpressioN("-", differentiate(u, x), differentiate(v, x));
+        elseif (operator == "*")
+            return Expression("+",
+                            Expression("*", u, differentiate(v, x)),
+                            Expression("*", v, differentiate(u, x)));
+        elseif (operator == "/")
+            return Expression("/",
+                            Expression("-",
+                                        Expression("*", v, differentiate(u, x)),
+                                        Expression("*", u, differentiate(v, x))),
+                            Expression("*", v, v));
+        elseif ((operator == "^") && is_number(x.operator))
+            return Expression("*",
+                                Expression("^",
+                                            Expression("*", v, u),
+                                            Expression("-", v, Expression("1"))),
+                                differentiate(u, x));
+        elseif (operator == "^")
+            return Expression("+",
+                                Expression("*",
+                                            Expression("^",
+                                                        Expression("*", v, u),
+                                                        Expression("-", v, Expression("1"))),
+                                            differentiate(u, x)),
+                                Expression("*",
+                                            Expression("*",
+                                                        Expression("^", u, v),
+                                                        Expression("log", u)),
+                                            differentiate(v, x)));
+        elseif (operator == "log")
+            return Expression("/", differentiate(u, x), u);
+        else
+            error("differentiate(): Unknown operator ", operator, " in differentiate(", repr(y), repr(x), ")!");
+        end
+    end
+end
+
+function simplify(x::Expression)
+    if (is_number(x.operator))
+        return x
+    elseif (length(x.arguments) == 0)
+        return x;
+    end
+    local arguments::Tuple = map(simplify, x.arguments);
+    local u::Expression = arguments[1];
+    local operator::String = x.operator;
+    local v::Expression = reverse(arguments)[1];
+    if (operator == "+")
+        if (v == Expression("0"))
+            return u;
+        elseif (u == Expression("0"))
+            return v;
+        elseif (u == v)
+            return Expression("*", Expression("2"), u);
+        elseif ((u == Expression("-", v)) || (v == Expression("-", u)))
+            return Expression("0");
+        end
+    elseif ((operator == "-") && (length(arguments) == 1))
+        if ((u.operator == "-") && (length(arguments) == 1))
+            return u.arguments[1];
+        end
+    elseif (operator == "-")
+        if (v == Expression("0"))
+            return u;
+        elseif (u == Expression("0"))
+            return Expression("-", v);
+        elseif (u == v)
+            return Expression("0");
+        elseif ((u == Expression("-", v)) || (v == Expression("-", u)))
+            return Expression("0");
+        end
+    elseif (operator == "*")
+        if ((u == Expression("0")) || (v == Expression("0")))
+            return Expression("0");
+        elseif (u == Expression("1"))
+            return v;
+        elseif (v == Expression("1"))
+            return u;
+        elseif (u == v)
+            return Expression("^", u, Expression("2"));
+        end
+    elseif (operator == "/")
+        if (u == Expression("0"))
+            return Expression("0");
+        elseif (v == Expression("0"))
+            return Expression("Inf");
+        elseif (u == v)
+            return Expression("1");
+        elseif ((u == Expression("-", v)) || (v == Expression("-", u)))
+            return Expression("0");
+        end
+    elseif (operator == "^")
+        if (u == Expression("0"))
+            return Expression("0");
+        elseif (v == Expression("0"))
+            return Expression("1");
+        elseif (u == Expression("1"))
+            return Expression("1");
+        elseif (v == Expression("1"))
+            return v;
+        end
+    elseif (operator == "log")
+        if (u == Expression("1"))
+            return Expression("0");
+        end
+    else
+        error("simplify(): Found unknown operator ", operator, "!");
+    end
+    return Expression(operator, arguments...);
+end
+
+function differentiate_simplify(y::Expression, x::Expression)
+    return simplify(differentiate(y, x));
 end
 
 type ExpressionNode

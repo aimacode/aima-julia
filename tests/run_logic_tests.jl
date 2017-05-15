@@ -302,3 +302,7 @@ end
 
 @test fol_bc_ask_query(expr("Criminal(x)"), kb=aimajulia.crime_kb) == [Dict([Pair(Expression("x"), Expression("West"))])];
 
+@test differentiate(expr("x * x", expr("x"))) == expr("(x * 1) + (x * 1)");
+
+@test differentiate_simplify(expr("x * x", expr("x"))) == expr("2 * x");
+
