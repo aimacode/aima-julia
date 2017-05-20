@@ -14,4 +14,6 @@ include("games.jl");
 
 include("csp.jl");
 
+include("planning.jl");
+
 end;

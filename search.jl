@@ -233,7 +233,7 @@ end
     SimpleProblemSolvingAgentProgram is a abstract problem solving agent (Fig. 3.1).
 
 =#
-type SimpleProblemSolvingAgentProgram
+type SimpleProblemSolvingAgentProgram <: AgentProgram
     state::Nullable{String}
     goal::Nullable{String}
     seq::Array{String, 1}
@@ -244,7 +244,7 @@ type SimpleProblemSolvingAgentProgram
     end
 end
 
-function execute{T <: SimpleProblemSolvingAgentProgram}(spsap::T, percept::Tuple{Any, Any})
+function execute(spsap::SimpleProblemSolvingAgentProgram, percept::Tuple{Any, Any})
     spsap.state = update_state(spsap, spsap.state, percept);
     if (length(spsap.seq) == 0)
         spsap.goal = formulate_problem(spsap, spsap.state);
@@ -258,22 +258,22 @@ function execute{T <: SimpleProblemSolvingAgentProgram}(spsap::T, percept::Tuple
     return action;
 end
 
-function update_state{T <: SimpleProblemSolvingAgentProgram}(spsap::T, state::String, percept::Tuple{Any, Any})
+function update_state(spsap::SimpleProblemSolvingAgentProgram, state::String, percept::Tuple{Any, Any})
     println("update_state() is not implemented yet for ", typeof(spsap), "!");
     nothing;
 end
 
-function formulate_goal{T <: SimpleProblemSolvingAgentProgram}(spsap::T, state::String)
+function formulate_goal(spsap::SimpleProblemSolvingAgentProgram, state::String)
     println("formulate_goal() is not implemented yet for ", typeof(spsap), "!");
     nothing;
 end
 
-function formulate_problem{T <: SimpleProblemSolvingAgentProgram}(spsap::T, state::String, goal::String)
+function formulate_problem(spsap::SimpleProblemSolvingAgentProgram, state::String, goal::String)
     println("formulate_problem() is not implemented yet for ", typeof(spsap), "!");
     nothing;
 end
 
-function search{T <: SimpleProblemSolvingAgentProgram}(spsap::T, problem::Problem)
+function search{T <: AbstractProblem}(spsap::SimpleProblemSolvingAgentProgram, problem::T)
     println("search() is not implemented yet for ", typeof(spsap), "!");
     nothing;
 end
