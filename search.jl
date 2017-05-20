@@ -43,7 +43,7 @@ function actions{T <: AbstractProblem}(ap::T, state::String)
     nothing;
 end
 
-function get_result{T <: AbstractProblem}(ap::T, state::String, action::Action)
+function get_result{T <: AbstractProblem}(ap::T, state::String, action::String)
     println("get_result() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
@@ -52,7 +52,7 @@ function goal_test{T <: AbstractProblem}(ap::T, state::String)
     return ap.goal == state;
 end
 
-function path_cost{T <: AbstractProblem}(ap::T, cost::Float64, state1::String, action::Action, state2::String)
+function path_cost{T <: AbstractProblem}(ap::T, cost::Float64, state1::String, action::String, state2::String)
     return cost + 1;
 end
 
@@ -96,7 +96,7 @@ function actions(ap::InstrumentedProblem, state::String)
     return actions(ap.problem, state);
 end
 
-function get_result(ap::InstrumentedProblem, state::String, action::Action)
+function get_result(ap::InstrumentedProblem, state::String, action::String)
     ap.results = ap.results + 1;
     return get_result(ap.problem, state, action);
 end
@@ -124,7 +124,7 @@ function goal_test(ap::InstrumentedProblem, state::AbstractVector)
     return result;
 end
 
-function path_cost(ap::InstrumentedProblem, cost::Float64, state1::String, action::Action, state2::String)
+function path_cost(ap::InstrumentedProblem, cost::Float64, state1::String, action::String, state2::String)
     return path_cost(ap.problem, cost, state1, action, state2);
 end
 
@@ -153,7 +153,7 @@ type Node{T}
     parent::Nullable{Node}
     f::Float64
 
-    function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, Action, Int64, Tuple}=nothing, path_cost::Float64=0.0, f::Union{Void, Float64}=nothing)
+    function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, String, Int64, Tuple}=nothing, path_cost::Float64=0.0, f::Union{Void, Float64}=nothing)
         nn = new(state, path_cost, UInt32(0), Nullable(action), Nullable{Node}(parent));
         if (typeof(parent) <: Node)
             nn.depth = UInt32(parent.depth + 1);
@@ -169,7 +169,7 @@ function expand{T <: AbstractProblem}(n::Node, ap::T)
     return collect(child_node(n, ap, act) for act in actions(ap, n.state));
 end
 
-function child_node{T <: AbstractProblem}(n::Node, ap::T, action::Action)
+function child_node{T <: AbstractProblem}(n::Node, ap::T, action::String)
     local next_node = get_result(ap, n.state, action);
     return Node{typeof(next_node)}(next_node, parent=n, action=action, path_cost=path_cost(ap, n.path_cost, n.state, action, next_node));
 end
@@ -236,15 +236,15 @@ end
 type SimpleProblemSolvingAgentProgram
     state::Nullable{String}
     goal::Nullable{String}
-    seq::Array{Action, 1}
+    seq::Array{String, 1}
     problem::Nullable{Problem}
 
     function SimpleProblemSolvingAgentProgram(;initial_state::Union{Void, String}=nothing)
-        return new(Nullable{String}(initial_state), Nullable{String}(), Array{Action, 1}(), Nullable{Problem}());
+        return new(Nullable{String}(initial_state), Nullable{String}(), Array{String, 1}(), Nullable{Problem}());
     end
 end
 
-function execute{T <: SimpleProblemSolvingAgentProgram}(spsap::T, percept::Percept)
+function execute{T <: SimpleProblemSolvingAgentProgram}(spsap::T, percept::Tuple{Any, Any})
     spsap.state = update_state(spsap, spsap.state, percept);
     if (length(spsap.seq) == 0)
         spsap.goal = formulate_problem(spsap, spsap.state);
@@ -258,7 +258,7 @@ function execute{T <: SimpleProblemSolvingAgentProgram}(spsap::T, percept::Perce
     return action;
 end
 
-function update_state{T <: SimpleProblemSolvingAgentProgram}(spsap::T, state::String, percept::Percept)
+function update_state{T <: SimpleProblemSolvingAgentProgram}(spsap::T, state::String, percept::Tuple{Any, Any})
     println("update_state() is not implemented yet for ", typeof(spsap), "!");
     nothing;
 end
@@ -645,11 +645,11 @@ function actions(gp::GraphProblem, loc::String)
     return collect(keys(get_linked_nodes(gp.graph,loc)));
 end
 
-function get_result(gp::GraphProblem, state::String, action::Action)
+function get_result(gp::GraphProblem, state::String, action::String)
     return action;
 end
 
-function path_cost(gp::GraphProblem, current_cost::Float64, location_A::String, action::Action, location_B::String)
+function path_cost(gp::GraphProblem, current_cost::Float64, location_A::String, action::String, location_B::String)
     local AB_distance::Float64;
     if (haskey(gp.graph.dict, location_A) && haskey(gp.graph.dict[location_A], location_B))
         AB_distance= Float64(get_linked_nodes(gp.graph,location_A, b=location_B));

@@ -33,7 +33,7 @@ export AgentProgram,
         
 =#
 
-function execute{T <: AgentProgram}(ap::T, p::Percept)      #implement functionality later
+function execute{T <: AgentProgram}(ap::T, p::Tuple{Any, Any})      #implement functionality later
     #comment the following line to reduce verbosity
     #println("execute() is not implemented yet for ", typeof(ap), "!");
     nothing;
@@ -41,14 +41,14 @@ end
 
 type TableDrivenAgentProgram <: AgentProgram
     isTracing::Bool
-    percepts::Array{Percept, 1}
+    percepts::Array{Tuple{Any, Any}, 1}
     table::Dict{Any, Any}
 
     function TableDrivenAgentProgram(;table_dict::Union{Void, Dict{Any, Any}}=nothing, trace::Bool=false)
         if (table_dict == C_NULL)           #no table given, create empty dictionary
-            return new(Bool(trace), Array{Percept, 1}(), Dict{Any, Any}());
+            return new(Bool(trace), Array{Tuple{Any, Any}, 1}(), Dict{Any, Any}());
         else
-            return new(Bool(trace), Array{Percept, 1}(), table_dict);
+            return new(Bool(trace), Array{Tuple{Any, Any}, 1}(), table_dict);
         end
     end
 end
@@ -78,19 +78,19 @@ end
 
 type RandomAgentProgram <: AgentProgram
     isTracing::Bool
-    actions::Array{Action, 1}
+    actions::Array{String, 1}
 
-    function RandomAgentProgram(actions::Array{Action, 1}; trace::Bool=false)
+    function RandomAgentProgram(actions::Array{String, 1}; trace::Bool=false)
         return new(Bool(trace), deepcopy(actions));
     end
 end
 
 type Rule   #condition-action rules
     condition::String
-    action::Action
+    action::String
 
-    function Rule(cond::String, act::Action)
-        return new(cond, act);
+    function Rule(cond::String, action::String)
+        return new(cond, action);
     end
 end
 
@@ -110,7 +110,7 @@ type ModelBasedReflexAgentProgram <: AgentProgram
     state::Dict{Any, Any}
     model::Dict{Any, Any}
     rules::Array{Rule, 1}
-    action::Action          #most recent action, initialized to empty string ""
+    action::String          #most recent action, initialized to empty string ""
 
     function ModelBasedReflexAgentProgram(state::Dict{Any, Any}, model::Dict{Any, Any}, rules::Array{Rule, 1}; trace::Bool=false)
         mbrap = new(Bool(trace));
@@ -282,7 +282,7 @@ end
 loc_A = (0, 0)
 loc_B = (1, 0)
 
-function execute(ap::TableDrivenAgentProgram, percept::Percept)
+function execute(ap::TableDrivenAgentProgram, percept::Tuple{Any, Any})
     push!(ap.percepts, percept);
     local action;
     if (haskey(ap.table, Tuple((ap.percepts...))))
@@ -302,7 +302,7 @@ function execute(ap::TableDrivenAgentProgram, percept::Percept)
     return action;
 end
 
-function execute(ap::ReflexVacuumAgentProgram, location_status::Percept)
+function execute(ap::ReflexVacuumAgentProgram, location_status::Tuple{Any, Any})
     local location = location_status[1];
     local status = location_status[2];
     if (status == "Dirty")
@@ -323,7 +323,7 @@ function execute(ap::ReflexVacuumAgentProgram, location_status::Percept)
     end
 end
 
-function execute(ap::ModelBasedVacuumAgentProgram, location_status::Percept)
+function execute(ap::ModelBasedVacuumAgentProgram, location_status::Tuple{Any, Any})
     local location = location_status[1];
     local status = location_status[2];
     ap.model[location] = status;                            #update existing model
@@ -350,7 +350,7 @@ function execute(ap::ModelBasedVacuumAgentProgram, location_status::Percept)
     end
 end
 
-function execute(ap::RandomAgentProgram, percept::Percept)
+function execute(ap::RandomAgentProgram, percept::Tuple{Any, Any})
     return rand(RandomDeviceInstance, ap.actions);
 end
 
@@ -363,17 +363,17 @@ function rule_match(state::String, rules::Array{Rule, 1})
     return C_NULL;                  #the function did not find a matching rule
 end
 
-function interpret_input{T <: AgentProgram}(ap::T, percept::Percept)        #implement this later
+function interpret_input{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})        #implement this later
     println("interpret_input() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
 
-function update_state{T <: AgentProgram}(ap::T, percept::Percept)           #implement this later
+function update_state{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})           #implement this later
     println("update_state() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
 
-function execute(ap::SimpleReflexAgentProgram, percept::Percept)
+function execute(ap::SimpleReflexAgentProgram, percept::Tuple{Any, Any})
     #the agent acts according to the given percept (Fig. 2.10)
     local state = interpret_input(ap, percept);     #generate condition string from given percept
     local rule = rule_match(state, ap.rules);
@@ -384,7 +384,7 @@ function execute(ap::SimpleReflexAgentProgram, percept::Percept)
     return action;
 end
 
-function execute(ap::ModelBasedReflexAgentProgram, percept::Percept)
+function execute(ap::ModelBasedReflexAgentProgram, percept::Tuple{Any, Any})
     #the agent acts according to the agent state and model and given percept (Fig. 2.12)
 
     #ap.state <- update-state(ap.state, ap.action, percept, ap.model);  #set new state
@@ -460,7 +460,7 @@ end
 
 #VacuumEnvironment is a 2-dimensional Environment implementation with obstacles.
 #Agents can perceive their location as "Dirty" or "Clean".
-#Agent performance measures are updated when Dirt is removed or a non-NoOp Action is executed.
+#Agent performance measures are updated when Dirt is removed or a non-NoOp action is executed.
 type VacuumEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
@@ -512,9 +512,9 @@ end
 """
     percept(e, agent, act)
 
-Returns a Percept representing what the agent perceives in the enviroment.
+Returns a percept representing what the agent perceives in the enviroment.
 """
-function percept{T1 <: Environment, T2 <: EnvironmentAgent, T3 <: Action}(e::T1, a::T2, act::T3)    #implement this later
+function percept{T1 <: Environment, T2 <: EnvironmentAgent, T3 <: String}(e::T1, a::T2, act::T3)    #implement this later
     println("percept() is not implemented yet for ", typeof(e), "!");
     nothing;
 end
@@ -633,12 +633,12 @@ function environment_objects(e::WumpusEnvironment)
     return [Wall, Gold, Pit, Arrow, Wumpus, Explorer];
 end
 
-function execute_action{T1 <: Environment, T2 <: EnvironmentAgent}(e::T1, a::T2, act::Action)   #implement this later
+function execute_action{T1 <: Environment, T2 <: EnvironmentAgent}(e::T1, a::T2, act::String)   #implement this later
     println("execute_action() is not implemented yet for ", string(typeof(e)), "!");
     nothing;
 end
 
-function execute_action(e::XYEnvironment, a::EnvironmentAgent, act::Action)
+function execute_action(e::XYEnvironment, a::EnvironmentAgent, act::String)
     a.bump = false;
     if (act == "TurnRight")
         a.heading = utils.turn_heading(a.heading, -1);
@@ -654,7 +654,7 @@ function execute_action(e::XYEnvironment, a::EnvironmentAgent, act::Action)
     nothing;
 end
 
-function execute_action(e::VacuumEnvironment, a::EnvironmentAgent, act::Action)
+function execute_action(e::VacuumEnvironment, a::EnvironmentAgent, act::String)
     if (act == "Suck")
         local dirt_array = get_objects_at(e, a.location, Dirt);
         if (length(dirt_array) > 0)
@@ -682,7 +682,7 @@ function execute_action(e::VacuumEnvironment, a::EnvironmentAgent, act::Action)
     nothing;
 end
 
-function execute_action(e::TrivialVacuumEnvironment, a::EnvironmentAgent, act::Action)
+function execute_action(e::TrivialVacuumEnvironment, a::EnvironmentAgent, act::String)
     if (act == "Right")
         a.location = loc_B;
         a.performance = a.performance - 1;
