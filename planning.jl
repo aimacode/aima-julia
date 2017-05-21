@@ -3,7 +3,8 @@ export AbstractPDDL,
         PDDL, goal_test, execute_action,
         AbstractPlanningAction, PlanningAction,
         substitute, check_precondition,
-        air_cargo_pddl, air_cargo_goal_test;
+        air_cargo_pddl, air_cargo_goal_test,
+        spare_tire_pddl, spare_tire_goal_test;
 
 abstract AbstractPDDL;
 
@@ -134,7 +135,7 @@ end
 """
     air_cargo_pddl()
 
-Returns a PDDL representing the air cargo transportation planning problem (Fig. 10.1).
+Return a PDDL representing the air cargo transportation planning problem (Fig. 10.1).
 """
 function air_cargo_pddl()
     local initial::Array{Expression, 1} = map(expr, ["At(C1, SFO)",
@@ -147,7 +148,7 @@ function air_cargo_pddl()
                                                 "Plane(P2)",
                                                 "Airport(JFK)",
                                                 "Airport(SFO)"]);
-    # Load Action
+    # Load Action Schema
     local precondition_positive::Array{Expression, 1} = map(expr, ["At(c, a)",
                                                             "At(p, a)",
                                                             "Cargo(c)",
@@ -159,7 +160,7 @@ function air_cargo_pddl()
     local load::PlanningAction = PlanningAction(expr("Load(c, p, a)"),
                                                 (precondition_positive, precondition_negated),
                                                 (effect_add_list, effect_delete_list));
-    # Unload Action
+    # Unload Action Schema
     precondition_positive = map(expr, ["In(c, p)", "At(p, a)", "Cargo(c)", "Plane(p)", "Airport(a)"]);
     precondition_negated = [];
     effect_add_list = [expr("At(c, a)")];
@@ -167,7 +168,7 @@ function air_cargo_pddl()
     local unload::PlanningAction = PlanningAction(expr("Unload(c, p, a)"),
                                                 (precondition_positive, precondition_negated),
                                                 (effect_add_list, effect_delete_list));
-    # Fly Action
+    # Fly Action Schema
     precondition_positive = map(expr, ["At(p, f)", "Plane(p)", "Airport(f)", "Airport(to)"]);
     precondition_negated = [];
     effect_add_list = [expr("At(p, to)")];
@@ -176,5 +177,58 @@ function air_cargo_pddl()
                                                 (precondition_positive, precondition_negated),
                                                 (effect_add_list, effect_delete_list));
     return PDDL(initial, [load, unload, fly], air_cargo_goal_test);
+end
+
+function spare_tire_goal_test{T <: AbstractKnowledgeBase}(kb::T)
+    return all((function(ans)
+                    if (typeof(ans) <: Bool)
+                        return ans;
+                    else
+                        if (length(ans) == 0)   # length of Tuple
+                            return false;
+                        else
+                            return true;
+                        end
+                    end
+                end),
+                collect(ask(kb, q) for q in (expr("At(Spare, Axle)"),)));
+end
+
+"""
+    spare_tire_pddl()
+
+Return a PDDL representing the spare tire planning problem (Fig. 10.2).
+"""
+function spare_tire_pddl()
+    local initial::Array{Expression, 1} = map(expr, ["Tire(Flat)",
+                                                    "Tire(Spare)",
+                                                    "At(Flat, Axle)",
+                                                    "At(Spare, Trunk)"]);
+    # Remove Action Schema
+    local precondition_positive::Array{Expression, 1} = [expr("At(obj, loc)")];
+    local precondition_negated::Array{Expression, 1} = [];
+    local effect_add_list::Array{Expression, 1} = [expr("At(obj, Ground)")];
+    local effect_delete_list::Array{Expression, 1} = [expr("At(obj, loc)")];
+    local remove::PlanningAction = PlanningAction(expr("Remove(obj, loc)"),
+                                                (precondition_positive, precondition_negated),
+                                                (effect_add_list, effect_delete_list));
+    # PutOn Action Schema
+    precondition_positive = map(expr, ["Tire(t)", "At(t, Ground)"]);
+    precondition_negated = [expr("At(Flat, Axle)")];
+    effect_add_list = [expr("At(t, Axle)")];
+    effect_delete_list = [expr("At(t, Ground)")];
+    local put_on::PlanningAction = PlanningAction(expr("PutOn(t, Axle)"),
+                                                    (precondition_positive, precondition_negated),
+                                                    (effect_add_list, effect_delete_list));
+    # LeaveOvernight Action Schema
+    precondition_positive = [];
+    precondition_negated = [];
+    effect_add_list = [];
+    effect_delete_list = map(expr, ["At(Spare, Ground)", "At(Spare, Axle)", "At(Spare, Trunk)",
+                                    "At(Flat, Ground)", "At(Flat, Axle)", "At(Flat, Trunk)"]);
+    local leave_overnight::PlanningAction = PlanningAction(expr("LeaveOvernight"),
+                                                            (precondition_positive, precondition_negated),
+                                                            (effect_add_list, effect_delete_list));
+    return PDDL(initial, [remove, put_on, leave_overnight], spare_tire_goal_test);
 end
 

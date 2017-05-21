@@ -55,3 +55,13 @@ end
 
 @test goal_test(air_cargo);
 
+spare_tire = spare_tire_pddl();
+
+@test (goal_test(spare_tire) == false);
+
+for action in map(expr, ("Remove(Flat, Axle)", "Remove(Spare, Trunk)", "PutOn(Spare, Axle)"))
+    execute_action(spare_tire, action);
+end
+
+@test goal_test(spare_tire);
+
