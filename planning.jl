@@ -167,11 +167,11 @@ function air_cargo_pddl()
     local unload::PlanningAction = PlanningAction(expr("Unload(c, p, a)"),
                                                 (precondition_positive, precondition_negated),
                                                 (effect_add_list, effect_delete_list));
+    # Fly Action
     precondition_positive = map(expr, ["At(p, f)", "Plane(p)", "Airport(f)", "Airport(to)"]);
     precondition_negated = [];
     effect_add_list = [expr("At(p, to)")];
     effect_delete_list = [expr("At(p, f)")];
-    # Fly Action
     local fly::PlanningAction = PlanningAction(expr("Fly(p, f, to)"),
                                                 (precondition_positive, precondition_negated),
                                                 (effect_add_list, effect_delete_list));
