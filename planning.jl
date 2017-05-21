@@ -2,7 +2,8 @@
 export AbstractPDDL,
         PDDL, goal_test, execute_action,
         AbstractPlanningAction, PlanningAction,
-        substitute, check_precondition;
+        substitute, check_precondition,
+        air_cargo_pddl, air_cargo_goal_test;
 
 abstract AbstractPDDL;
 
@@ -105,13 +106,75 @@ function execute_action{T <: AbstractPDDL}(plan::T, action::Expression)
     if (length(relevant_actions) == 0)
         error(@sprintf("execute_action(): Action \"%s\" not found!", action_name));
     else
-        local first_relevant_action::PlanningAction = first(a for a in plan.actions if (a.name == action_name));
+        local first_relevant_action::PlanningAction = relevant_actions[1];
         if (!check_precondition(first_relevant_action, plan.kb, arguments))
-            error(@sprintf("execute_action(): Action \"%s\" preconditions are not satisfied!", action_name));
+            error(@sprintf("execute_action(): Action \"%s\" preconditions are not satisfied!", repr(action)));
         else
             execute_action(first_relevant_action, plan.kb, arguments);
         end
     end
     nothing;
+end
+
+function air_cargo_goal_test{T <: AbstractKnowledgeBase}(kb::T)
+    return all((function(ans)
+                    if (typeof(ans) <: Bool)
+                        return ans;
+                    else
+                        if (length(ans) == 0)   # length of Tuple
+                            return false;
+                        else
+                            return true;
+                        end
+                    end
+                end),
+                collect(ask(kb, q) for q in (expr("At(C1, JFK)"), expr("At(C2, SFO)"))));
+end
+
+"""
+    air_cargo_pddl()
+
+Returns a PDDL representing the air cargo transportation planning problem (Fig. 10.1).
+"""
+function air_cargo_pddl()
+    local initial::Array{Expression, 1} = map(expr, ["At(C1, SFO)",
+                                                "At(C2, JFK)",
+                                                "At(P1, SFO)",
+                                                "At(P2, JFK)",
+                                                "Cargo(C1)",
+                                                "Cargo(C2)",
+                                                "Plane(P1)",
+                                                "Plane(P2)",
+                                                "Airport(JFK)",
+                                                "Airport(SFO)"]);
+    # Load Action
+    local precondition_positive::Array{Expression, 1} = map(expr, ["At(c, a)",
+                                                            "At(p, a)",
+                                                            "Cargo(c)",
+                                                            "Plane(p)",
+                                                            "Airport(a)"]);
+    local precondition_negated::Array{Expression, 1} = [];
+    local effect_add_list::Array{Expression, 1} = [expr("In(c, p)")];
+    local effect_delete_list::Array{Expression, 1} = [expr("At(c, a)")];
+    local load::PlanningAction = PlanningAction(expr("Load(c, p, a)"),
+                                                (precondition_positive, precondition_negated),
+                                                (effect_add_list, effect_delete_list));
+    # Unload Action
+    precondition_positive = map(expr, ["In(c, p)", "At(p, a)", "Cargo(c)", "Plane(p)", "Airport(a)"]);
+    precondition_negated = [];
+    effect_add_list = [expr("At(c, a)")];
+    effect_delete_list = [expr("In(c, p)")];
+    local unload::PlanningAction = PlanningAction(expr("Unload(c, p, a)"),
+                                                (precondition_positive, precondition_negated),
+                                                (effect_add_list, effect_delete_list));
+    precondition_positive = map(expr, ["At(p, f)", "Plane(p)", "Airport(f)", "Airport(to)"]);
+    precondition_negated = [];
+    effect_add_list = [expr("At(p, to)")];
+    effect_delete_list = [expr("At(p, f)")];
+    # Fly Action
+    local fly::PlanningAction = PlanningAction(expr("Fly(p, f, to)"),
+                                                (precondition_positive, precondition_negated),
+                                                (effect_add_list, effect_delete_list));
+    return PDDL(initial, [load, unload, fly], air_cargo_goal_test);
 end
 

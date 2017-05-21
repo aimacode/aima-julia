@@ -38,3 +38,5 @@ julia --color=yes run_csp_tests.jl
 
 julia --color=yes run_logic_tests.jl
 
+julia --color=yes run_planning_tests.jl
+
