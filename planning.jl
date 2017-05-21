@@ -4,7 +4,8 @@ export AbstractPDDL,
         AbstractPlanningAction, PlanningAction,
         substitute, check_precondition,
         air_cargo_pddl, air_cargo_goal_test,
-        spare_tire_pddl, spare_tire_goal_test;
+        spare_tire_pddl, spare_tire_goal_test,
+        three_block_tower_pddl, three_block_tower_goal_test;
 
 abstract AbstractPDDL;
 
@@ -230,5 +231,53 @@ function spare_tire_pddl()
                                                             (precondition_positive, precondition_negated),
                                                             (effect_add_list, effect_delete_list));
     return PDDL(initial, [remove, put_on, leave_overnight], spare_tire_goal_test);
+end
+
+function three_block_tower_goal_test{T <: AbstractKnowledgeBase}(kb::T)
+    return all((function(ans)
+                    if (typeof(ans) <: Bool)
+                        return ans;
+                    else
+                        if (length(ans) == 0)   #length of Tuple
+                            return false;
+                        else
+                            return true;
+                        end
+                    end
+                end),
+                collect(ask(kb, q) for q in (expr("On(A, B)"), expr("On(B, C)"))));
+end
+
+"""
+    three_block_tower_pddl()
+
+Return a PDDL representing the building of a three-block tower planning problem (Fig. 10.3).
+"""
+function three_block_tower_pddl()
+    local initial::Array{Expression, 1} = map(expr, ["On(A, Table)",
+                                                    "On(B, Table)",
+                                                    "On(C, A)",
+                                                    "Block(A)",
+                                                    "Block(B)",
+                                                    "Block(C)",
+                                                    "Clear(B)",
+                                                    "Clear(C)"]);
+    # Move Action Schema
+    local precondition_positive::Array{Expression, 1} = map(expr, ["On(b, x)", "Clear(b)", "Clear(y)", "Block(b)", "Block(y)"]);
+    local precondition_negated::Array{Expression, 1} = [];
+    local effect_add_list::Array{Expression, 1} = [expr("On(b, y)"), expr("Clear(x)")];
+    local effect_delete_list::Array{Expression, 1} = [expr("On(b, x)"), expr("Clear(y)")];
+    local move::PlanningAction = PlanningAction(expr("Move(b, x, y)"),
+                                                (precondition_positive, precondition_negated),
+                                                (effect_add_list, effect_delete_list));
+    # MoveToTable Action Schema
+    precondition_positive = map(expr, ["On(b, x)", "Clear(b)", "Block(b)"]);
+    precondition_negated = [];
+    effect_add_list = [expr("On(b, Table)"), expr("Clear(x)")];
+    effect_delete_list = [expr("On(b, x)")];
+    local move_to_table::PlanningAction = PlanningAction(expr("MoveToTable(b, x)"),
+                                                        (precondition_positive, precondition_negated),
+                                                        (effect_add_list, effect_delete_list));
+    return PDDL(initial, [move, move_to_table], three_block_tower_goal_test);
 end
 

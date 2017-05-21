@@ -65,3 +65,13 @@ end
 
 @test goal_test(spare_tire);
 
+three_block_tower = three_block_tower_pddl();
+
+@test (goal_test(three_block_tower) == false);
+
+for action in map(expr, ("MoveToTable(C, A)", "Move(B, Table, C)", "Move(A, Table, B)"))
+    execute_action(three_block_tower, action);
+end
+
+@test goal_test(three_block_tower);
+
