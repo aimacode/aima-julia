@@ -5,7 +5,8 @@ export AbstractPDDL,
         substitute, check_precondition,
         air_cargo_pddl, air_cargo_goal_test,
         spare_tire_pddl, spare_tire_goal_test,
-        three_block_tower_pddl, three_block_tower_goal_test;
+        three_block_tower_pddl, three_block_tower_goal_test,
+        have_cake_and_eat_cake_too_pddl, have_cake_and_eat_cake_too_goal_test;
 
 abstract AbstractPDDL;
 
@@ -118,7 +119,7 @@ function execute_action{T <: AbstractPDDL}(plan::T, action::Expression)
     nothing;
 end
 
-function air_cargo_goal_test{T <: AbstractKnowledgeBase}(kb::T)
+function air_cargo_goal_test(kb::FirstOrderLogicKnowledgeBase)
     return all((function(ans)
                     if (typeof(ans) <: Bool)
                         return ans;
@@ -180,7 +181,7 @@ function air_cargo_pddl()
     return PDDL(initial, [load, unload, fly], air_cargo_goal_test);
 end
 
-function spare_tire_goal_test{T <: AbstractKnowledgeBase}(kb::T)
+function spare_tire_goal_test(kb::FirstOrderLogicKnowledgeBase)
     return all((function(ans)
                     if (typeof(ans) <: Bool)
                         return ans;
@@ -233,7 +234,7 @@ function spare_tire_pddl()
     return PDDL(initial, [remove, put_on, leave_overnight], spare_tire_goal_test);
 end
 
-function three_block_tower_goal_test{T <: AbstractKnowledgeBase}(kb::T)
+function three_block_tower_goal_test(kb::FirstOrderLogicKnowledgeBase)
     return all((function(ans)
                     if (typeof(ans) <: Bool)
                         return ans;
@@ -279,5 +280,46 @@ function three_block_tower_pddl()
                                                         (precondition_positive, precondition_negated),
                                                         (effect_add_list, effect_delete_list));
     return PDDL(initial, [move, move_to_table], three_block_tower_goal_test);
+end
+
+function have_cake_and_eat_cake_too_goal_test(kb::FirstOrderLogicKnowledgeBase)
+    return all((function(ans)
+                    if (typeof(ans) <: Bool)
+                        return ans;
+                    else
+                        if (length(ans) == 0)   # length of Tuple
+                            return false;
+                        else
+                            return true;
+                        end
+                    end
+                end),
+                collect(ask(kb, q) for q in (expr("Have(Cake)"), expr("Eaten(Cake)"))));
+end
+
+"""
+    have_cake_and_eat_cake_too_pddl()
+
+Return a PDDL representing the 'have cake and eat cake too' planning problem (Fig. 10.7).
+"""
+function have_cake_and_eat_cake_too_pddl()
+    local initial::Array{Expression, 1} = [expr("Have(Cake)")];
+    # Eat Cake Action Schema
+    local precondition_positive::Array{Expression, 1} = [expr("Have(Cake)")];
+    local precondition_negated::Array{Expression, 1} = [];
+    local effect_add_list::Array{Expression, 1} = [expr("Eaten(Cake)")];
+    local effect_delete_list::Array{Expression, 1} = [expr("Have(Cake)")];
+    local eat_cake::PlanningAction = PlanningAction(expr("Eat(Cake)"),
+                                                    (precondition_positive, precondition_negated),
+                                                    (effect_add_list, effect_delete_list));
+    # Bake Cake Action Schema
+    precondition_positive = [];
+    precondition_negated = [expr("Have(Cake)")];
+    effect_add_list = [expr("Have(Cake)")];
+    effect_delete_list = [];
+    local bake_cake::PlanningAction = PlanningAction(expr("Bake(Cake)"),
+                                                    (precondition_positive, precondition_negated),
+                                                    (effect_add_list, effect_delete_list));
+    return PDDL(initial, [eat_cake, bake_cake], have_cake_and_eat_cake_too_goal_test);
 end
 

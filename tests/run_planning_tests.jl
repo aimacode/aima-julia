@@ -75,3 +75,13 @@ end
 
 @test goal_test(three_block_tower);
 
+have_cake_and_eat_cake_too = have_cake_and_eat_cake_too_pddl();
+
+@test (goal_test(have_cake_and_eat_cake_too) == false);
+
+for action in map(expr, ("Eat(Cake)", "Bake(Cake)"))
+    execute_action(have_cake_and_eat_cake_too, action);
+end
+
+@test goal_test(have_cake_and_eat_cake_too);
+
