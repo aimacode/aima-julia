@@ -323,3 +323,91 @@ function have_cake_and_eat_cake_too_pddl()
     return PDDL(initial, [eat_cake, bake_cake], have_cake_and_eat_cake_too_goal_test);
 end
 
+type PlanningLevel
+    positive_kb::FirstOrderLogicKnowledgeBase
+    current_state_positive::Array{Expression, 1}    #current state of the planning problem
+    current_state_negated::Array{Expression, 1}     #current state of the planning problem
+    current_action_links_positive::Dict             #current actions to current state link
+    current_action_links_negated::Dict              #current actions to current state link
+    current_state_links_positive::Dict              #current state to action link
+    current_state_links_negated::Dict               #current state to action link
+    next_action_links::Dict                         #current action to next state link
+    next_state_links_positive::Dict                 #next state to current action link
+    next_state_links_negated::Dict                  #next state to current action link
+    mutex_links::Array{Set, 1}                      #each mutex relation is a Set of 2 actions/literals
+
+    function PlanningLevel(p_kb::FirstOrderLogicKnowledgeBase, n_kb::FirstOrderLogicKnowledgeBase)
+        return new(p_kb, p_kb.clauses, n_kb.clauses, Dict(), Dict(), Dict(), Dict(), Dict(), Dict(), Dict(), []);
+    end
+end
+
+function find_mutex_links(level::PlanningLevel)
+    # Inconsistent effects condition between 2 action schemas at a given level
+    for positve_effect in level.next_state_links_positive
+        negated_effect = positive_effect;
+        if (haskey(level.next_state_links_negated, negated_effect))
+            for a in level.next_state_links_positive[positive_effect]
+                for b in level.next_state_links_negated[negated_effect]
+                    if (!(Set([a, b]) in level.mutex_links))
+                        push!(level.mutex_links, Set([a, b]));
+                    end
+                end
+            end
+        end
+    end
+    # Inference condition between 2 action schemas at a given level
+    for positive_precondition in level.current_state_links_positive
+        negated_effect = positive_precondition;
+        if (haskey(level.next_state_links_negated, negated_effect))
+            for a in level.current_state_links_positive[positive_precondition]
+                for b in level.next_state_links_negated[negated_effect]
+                    if (!(Set([a, b]) in level.mutex_links))
+                        push!(level.mutex_links, Set([a, b]));
+                    end
+                end
+            end
+        end
+    end
+    for negated_precondition in level.current_state_links_negated
+        positive_effect = negated_precondition;
+        if (haskey(level.next_state_links_positive, positive_effect))
+            for a in level.next_state_links_positive[positive_effect]
+                for b in level.current_state_links_negated[negated_precondition]
+                    if (!(Set([a, b]) in level.mutex_links))
+                        push!(level.mutex_links, Set([a, b]));
+                    end
+                end
+            end
+        end
+    end
+    # Competing needs condition between 2 action schemas
+    for positive_precondition in level. current_state_links_positive
+        negated_precondition = positive_precondition;
+        if (haskey(level.current_state_links_negated, negated_precondition))
+            for a in level.current_state_links_positive[positive_precondition]
+                for b in level.current_state_links_negated[negated_precondition]
+                    if (!(Set([a, b]) in level.mutex_links))
+                        push!(level.mutex_links, Set([a, b]));
+                    end
+                end
+            end
+        end
+    end
+    # Inconsistent support condition
+    local state_mutex_links::AbstractVector = [];
+    for pair in level.mutex_links
+        collected_pair::AbstractVector = collect(pair);
+        next_state_1 = level.next_action_links[collected_pair[1]];
+        if (length(sorted_pair) == 2)
+            next_state_2 = level.next_action_links[collected_pair[2]];
+        else
+            next_state_2 = level.next_action_links[collected_pair[1]];
+        end
+        if ((length(next_state_1) == 1) && (length(next_state_2) == 1))
+            push!(state_mutex_links, Set([next_state_1[1], next_state_2[1]]));
+        end
+    end
+    level.mutex_links = vcat(level.mutex_links, state_mutex_links);
+    nothing;
+end
+
