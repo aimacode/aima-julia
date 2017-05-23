@@ -6,7 +6,9 @@ export AbstractPDDL,
         air_cargo_pddl, air_cargo_goal_test,
         spare_tire_pddl, spare_tire_goal_test,
         three_block_tower_pddl, three_block_tower_goal_test,
-        have_cake_and_eat_cake_too_pddl, have_cake_and_eat_cake_too_goal_test;
+        have_cake_and_eat_cake_too_pddl, have_cake_and_eat_cake_too_goal_test,
+        PlanningLevel,
+        find_mutex_links, build_level_links, build_level_links_permute_arguments, perform_actions;
 
 abstract AbstractPDDL;
 
@@ -409,5 +411,116 @@ function find_mutex_links(level::PlanningLevel)
     end
     level.mutex_links = vcat(level.mutex_links, state_mutex_links);
     nothing;
+end
+
+function build_level_links_permute_arguments(depth::Int64, objects::AbstractVector, current_permutation::Tuple, permutations_array::AbstractVector)
+    if (depth == 0)
+        push!(permutations_array, current_permutation);
+    elseif (depth < 0)
+        error("build_level_links_permute_arguments(): Found negative depth!");
+    else
+        for (i, item) in enumerate(objects)
+            build_level_links_permute_arguments((depth - 1),
+                                                Tuple((objects[1:(i - 1)]..., objects[(i + 1):end]...)),
+                                                Tuple((current_permutation..., item)),
+                                                permutations_array)
+        end
+    end
+end
+
+function build_level_links_permute_arguments(depth::Int64, objects::Tuple, current_permutation::Tuple, permutations_array::AbstractVector)
+    if (depth == 0)
+        push!(permutations_array, current_permutation);
+    elseif (depth < 0)
+        error("build_level_links_permute_arguments(): Found negative depth!");
+    else
+        for (i, item) in enumerate(objects)
+            build_level_links_permute_arguments((depth - 1),
+                                                Tuple((objects[1:(i - 1)]..., objects[(i + 1):end]...)),
+                                                Tuple((current_permutation..., item)),
+                                                permutations_array)
+        end
+    end
+end
+
+function build_level_links(level::PlanningLevel, actions, objects)
+    # Create persistence actions for positive states
+    for clause in level.current_state_positive
+        level.current_action_links_positive[Expression("Persistence", clause)] = [clause];
+        level.next_action_links[Expression("Persistence", clause)] = [clause];
+        level.current_state_links_positive[clause] = [Expression("Persistence", clause)];
+        level.next_state_links_positive[clause] = [Expression("Persistence", clause)];
+    end
+    # Create persistence actions for negated states
+    for clause in level.current_state_negated
+        not_expression = Expression("not"*clause.operator, clause.arguments);
+        level.current_action_links_negated[Expression("Persistence", not_expression)] = [clause];
+        level.next_action_links[Expression("Persistence", not_expression)] = [clause];
+        level.current_state_links_negated[clause] = [Expression("Persistence", not_expression)];
+        level.next_state_links_negated[clause] = [Expression("Persistence", not_expression)];
+    end
+    # Recursively collect num_arg depth, collecting a Tuple of Tuples
+    for action in actions
+        local num_arguments::Int64 = length(action.arguments);
+        local possible_arguments::AbstractVector = [];
+        build_level_links_permute_arguments(num_arguments, collect(objects), (), possible_arguments);
+        for argument in possible_arguments
+            if (check_precondition(action, level.positive_kb, argument))
+                for (number, symbol) in enumerate(action.arguments)
+                    if (!islower(symbol.operator))
+                        argument = Tuple((argument[1:(number - 1)]..., symbol, argument[(number + 1):end]));
+                    end
+                end
+                local new_action::Expression = substitute(action, Expression(action.name, action.arguments), argument);
+                level.current_action_links_positive[new_action] = [];
+                level.current_action_links_negated[new_action] = [];
+                local new_clause::Expression;
+                for clause in action.precondition_positive
+                    new_clause = substitute(action, clause, argument);
+                    push!(level.current_action_links_positive[new_action], new_clause);
+                    if (haskey(level.current_state_links_positive, new_clause))
+                        push!(level.current_state_links_positive[new_clause], new_action);
+                    else
+                        level.current_state_links_positive[new_clause] = [new_action];
+                    end
+                end
+                for clause in action.precondition_negated
+                    new_clause = substitute(action, clause, argument);
+                    push!(level.current_action_links_negated[new_action], new_clause);
+                    if (haskey(level.current_state_links_negated, new_clause))
+                        push!(level.current_state_links_negated[new_clause], new_action);
+                    else
+                        level.current_state_links_negated[new_clause] = [new_action];
+                    end
+                end
+                level.next_action_links[new_action] = [];
+                for clause in action.effect_add_list
+                    new_clause = substitute(action, clause, argument);
+                    push!(level.next_action_links[new_action], new_clause);
+                    if (haskey(level.next_state_links_positive, new_clause))
+                        push!(level.next_state_links_positive[new_clause], new_action);
+                    else
+                        level.next_state_links_positive[new_clause] = [new_action];
+                    end
+                end
+                for clause in action.effect_delete_list
+                    new_clause = substitute(action, clause, argument);
+                    push!(level.next_action_links[new_action], new_clause);
+                    if (haskey(level.next_state_links_negated, new_clause))
+                        push!(level.next_state_links_negated[new_clause], new_action);
+                    else
+                        level.next_state_links_negated[new_clause] = [new_action];
+                    end
+                end
+            end
+        end
+    end
+    nothing;
+end
+
+function perform_actions(level::PlanningLevel)
+    local new_kb_positive::FirstORderLogicKnowledgeBase = FirstOrderLogicKnowledgeBase(collect(Set(collect(keys(level.next_state_links_positive)))));
+    local new_kb_negated::FirstORderLogicKnowledgeBase = FirstOrderLogicKnowledgeBase(collect(Set(collect(keys(level.next_state_links_negated)))));
+    return PlanningLevel(new_kb_positive, new_kb_negated);
 end
 
