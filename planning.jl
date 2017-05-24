@@ -8,7 +8,8 @@ export AbstractPDDL,
         three_block_tower_pddl, three_block_tower_goal_test,
         have_cake_and_eat_cake_too_pddl, have_cake_and_eat_cake_too_goal_test,
         PlanningLevel,
-        find_mutex_links, build_level_links, build_level_links_permute_arguments, perform_actions;
+        find_mutex_links, build_level_links, build_level_links_permute_arguments, perform_actions,
+        PlanningGraph, expand_graph, non_mutex_goal_combinations, non_mutex_goals;
 
 abstract AbstractPDDL;
 
@@ -443,7 +444,7 @@ function build_level_links_permute_arguments(depth::Int64, objects::Tuple, curre
     end
 end
 
-function build_level_links(level::PlanningLevel, actions, objects)
+function build_level_links(level::PlanningLevel, actions::AbstractVector, objects::Set)
     # Create persistence actions for positive states
     for clause in level.current_state_positive
         level.current_action_links_positive[Expression("Persistence", clause)] = [clause];
@@ -522,5 +523,43 @@ function perform_actions(level::PlanningLevel)
     local new_kb_positive::FirstORderLogicKnowledgeBase = FirstOrderLogicKnowledgeBase(collect(Set(collect(keys(level.next_state_links_positive)))));
     local new_kb_negated::FirstORderLogicKnowledgeBase = FirstOrderLogicKnowledgeBase(collect(Set(collect(keys(level.next_state_links_negated)))));
     return PlanningLevel(new_kb_positive, new_kb_negated);
+end
+
+type PlanningGraph
+    pddl::AbstractPDDL
+    levels::Array{PlanningLevel, 1}
+    objects::Set{Expression}
+
+    function PlanningGraph{T <: AbstractPDDL}(pddl::T, n_kb::FirstOrderLogicKnowledgeBase)
+        return new(pddl, [PlanningLevel(pddl.kb, n_kb)], Set(arg for clause in vcat(pddl.kb.clauses, n_kb.clauses) for arg in clause.arguments));
+    end
+end
+
+function expand_graph(pg::PlanningGraph)
+    local last_level = pg.levels[length(pg.levels)];
+    build_level_links(last_level, pg.pddl.actions, pg.objects);
+    find_mutex_links(last_level);
+    push!(pg.levels, perform_actions(last_level));
+    nothing;
+end
+
+function non_mutex_goal_combinations(goals::AbstractVector) #ordered permutations of length 2
+    local combinations::AbstractVector = [];
+    for (i, a) in enumerate(goals)
+        for b in goals[(i + 1):end]
+            push!(combinations, (a, b));
+        end
+    end
+    return combinations;
+end
+
+function non_mutex_goals(pg::PlanningGraph, goals::AbstractVector, index::Int64)
+    local goal_combinations::AbstractVector = non_mutex_goal_combinations(goals);
+    for goal in goal_combinations
+        if (Set(collect(goal)) in pg.levels[index].mutex)
+            return false;
+        end
+    end
+    return true;
 end
 
