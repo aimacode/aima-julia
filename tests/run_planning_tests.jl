@@ -85,6 +85,18 @@ end
 
 @test goal_test(have_cake_and_eat_cake_too);
 
+spare_tire = spare_tire_pddl();
+
+negated_kb = FirstOrderLogicKnowledgeBase([expr("At(Flat, Trunk)")]);
+
+spare_tire_graph = PlanningGraph(spare_tire, negated_kb);
+
+untouched_graph_levels_count = length(spare_tire_graph.levels);
+
+expand_graph(spare_tire_graph);
+
+@test (untouched_graph_levels_count == (length(spare_tire_graph.levels) - 1));
+
 # Apply graphplan() to spare tire planning problem.
 
 spare_tire = spare_tire_pddl();
