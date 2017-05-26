@@ -638,13 +638,14 @@ function extract_solution(gpp::GraphPlanProblem, goals_positive::AbstractVector,
         push!(actions, level.next_state_links_negated[goal]);
     end
 
+    # Create all possible combinations of actions by using finding the cartesian product.
     local action_combinations::AbstractVector = [];
     actions_cartesian_product(actions, 0, [], action_combinations);
-
+    # Remove action combinations that contain mutexes.
     local non_mutex_actions::AbstractVector = [];
-    for action_tuple in action_combinations
-        action_pairs = planning_combinations(collect(Set(action_tuple)));
-        push!(non_mutex_actions, collect(Set(action_tuple)));
+    for action_list in action_combinations
+        action_pairs = planning_combinations(collect(Set(action_list)));
+        push!(non_mutex_actions, collect(Set(action_list)));
         for pair in action_pairs
             if (Set(collect(pair)) in level.mutex_links)
                 pop!(non_mutex_actions);
@@ -652,6 +653,7 @@ function extract_solution(gpp::GraphPlanProblem, goals_positive::AbstractVector,
             end
         end
     end
+
     for action_list in non_mutex_actions
         if (!([action_list, index] in gpp.solution))
             push!(gpp.solution, [action_list, index]);
