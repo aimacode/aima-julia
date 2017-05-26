@@ -85,3 +85,13 @@ end
 
 @test goal_test(have_cake_and_eat_cake_too);
 
+# Apply graphplan() to spare tire planning problem.
+
+spare_tire = spare_tire_pddl();
+
+negated_kb = FirstOrderLogicKnowledgeBase([expr("At(Flat, Trunk)")]);
+
+spare_tire_gp = GraphPlanProblem(spare_tire, negated_kb);
+
+@test (!(typeof(graphplan(spare_tire_gp, ([expr("At(Spare, Axle)"), expr("At(Flat, Ground)")], []))) <: Void));
+
