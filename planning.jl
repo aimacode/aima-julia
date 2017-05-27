@@ -3,16 +3,17 @@ export AbstractPDDL,
         PDDL, goal_test, execute_action,
         AbstractPlanningAction, PlanningAction,
         substitute, check_precondition,
-        air_cargo_pddl, air_cargo_goal_test,
-        spare_tire_pddl, spare_tire_goal_test,
-        three_block_tower_pddl, three_block_tower_goal_test,
-        have_cake_and_eat_cake_too_pddl, have_cake_and_eat_cake_too_goal_test,
+        air_cargo_pddl, air_cargo_pddl_goal_test,
+        spare_tire_pddl, spare_tire_pddl_goal_test,
+        three_block_tower_pddl, three_block_tower_pddl_goal_test,
+        have_cake_and_eat_cake_too_pddl, have_cake_and_eat_cake_too_pddl_goal_test,
         PlanningLevel,
         find_mutex_links, build_level_links, build_level_links_permute_arguments, perform_actions,
         planning_combinations,
         PlanningGraph, expand_graph, non_mutex_goals,
         GraphPlanProblem, check_level_off, actions_cartesian_product, extract_solution,
-        graphplan;
+        graphplan,
+        double_tennis_pddl, double_tennis_pddl_goal_test;
 
 abstract AbstractPDDL;
 
@@ -125,7 +126,7 @@ function execute_action{T <: AbstractPDDL}(plan::T, action::Expression)
     nothing;
 end
 
-function air_cargo_goal_test(kb::FirstOrderLogicKnowledgeBase)
+function air_cargo_pddl_goal_test(kb::FirstOrderLogicKnowledgeBase)
     return all((function(ans)
                     if (typeof(ans) <: Bool)
                         return ans;
@@ -184,10 +185,10 @@ function air_cargo_pddl()
     local fly::PlanningAction = PlanningAction(expr("Fly(p, f, to)"),
                                                 (precondition_positive, precondition_negated),
                                                 (effect_add_list, effect_delete_list));
-    return PDDL(initial, [load, unload, fly], air_cargo_goal_test);
+    return PDDL(initial, [load, unload, fly], air_cargo_pddl_goal_test);
 end
 
-function spare_tire_goal_test(kb::FirstOrderLogicKnowledgeBase)
+function spare_tire_pddl_goal_test(kb::FirstOrderLogicKnowledgeBase)
     return all((function(ans)
                     if (typeof(ans) <: Bool)
                         return ans;
@@ -237,10 +238,10 @@ function spare_tire_pddl()
     local leave_overnight::PlanningAction = PlanningAction(expr("LeaveOvernight"),
                                                             (precondition_positive, precondition_negated),
                                                             (effect_add_list, effect_delete_list));
-    return PDDL(initial, [remove, put_on, leave_overnight], spare_tire_goal_test);
+    return PDDL(initial, [remove, put_on, leave_overnight], spare_tire_pddl_goal_test);
 end
 
-function three_block_tower_goal_test(kb::FirstOrderLogicKnowledgeBase)
+function three_block_tower_pddl_goal_test(kb::FirstOrderLogicKnowledgeBase)
     return all((function(ans)
                     if (typeof(ans) <: Bool)
                         return ans;
@@ -285,10 +286,10 @@ function three_block_tower_pddl()
     local move_to_table::PlanningAction = PlanningAction(expr("MoveToTable(b, x)"),
                                                         (precondition_positive, precondition_negated),
                                                         (effect_add_list, effect_delete_list));
-    return PDDL(initial, [move, move_to_table], three_block_tower_goal_test);
+    return PDDL(initial, [move, move_to_table], three_block_tower_pddl_goal_test);
 end
 
-function have_cake_and_eat_cake_too_goal_test(kb::FirstOrderLogicKnowledgeBase)
+function have_cake_and_eat_cake_too_pddl_goal_test(kb::FirstOrderLogicKnowledgeBase)
     return all((function(ans)
                     if (typeof(ans) <: Bool)
                         return ans;
@@ -326,7 +327,7 @@ function have_cake_and_eat_cake_too_pddl()
     local bake_cake::PlanningAction = PlanningAction(expr("Bake(Cake)"),
                                                     (precondition_positive, precondition_negated),
                                                     (effect_add_list, effect_delete_list));
-    return PDDL(initial, [eat_cake, bake_cake], have_cake_and_eat_cake_too_goal_test);
+    return PDDL(initial, [eat_cake, bake_cake], have_cake_and_eat_cake_too_pddl_goal_test);
 end
 
 type PlanningLevel
@@ -729,5 +730,55 @@ function graphplan(gpp::GraphPlanProblem, goals::Tuple)
         end
     end
     return nothing;
+end
+
+function double_tennis_pddl_goal_test(kb::FirstOrderLogicKnowledgeBase)
+    return all((function(ans)
+                    if (typeof(ans) <: Bool)
+                        return ans;
+                    else
+                        if (length(ans) == 0)   #length of Tuple
+                            return false;
+                        else
+                            return true;
+                        end
+                    end
+                end),
+                collect(ask(kb, q) for q in map(expr, ["Returned(Ball)", "At(a, RightNet)", "At(a, LeftNet)"])));
+end
+
+"""
+    double_tennis_pddl()
+
+Return a PDDL representing the double tennis planning problem (Fig. 11.10).
+
+The PlanningActions 'hit' and 'go' both take 3 arguments because their
+preconditions will not be satisfied without the 'loc' variable.
+This occurs when substituting propositional logic variables within
+the check_precondition() function.
+"""
+function double_tennis_pddl()
+    local initial::Array{Expression, 1} = map(expr, ["At(A, LeftBaseLine)",
+                                                    "At(B, RightNet)",
+                                                    "Approaching(Ball, RightBaseLine)",
+                                                    "Partner(A, B)",
+                                                    "Partner(B, A)"]);
+    # Hit Action Schema
+    local precondition_positive::Array{Expression, 1} = map(expr, ["Approaching(Ball, loc)", "At(actor, loc)"]);
+    local precondition_negated::Array{Expression, 1} = [];
+    local effect_add_list::Array{Expression, 1} = [expr("Returned(Ball)")];
+    local effect_delete_list::Array{Expression, 1} = [];
+    local hit::PlanningAction = PlanningAction(expr("Hit(actor, loc, Ball)"),
+                                                (precondition_positive, precondition_negated),
+                                                (effect_add_list, effect_delete_list));
+    # Go Action Schema
+    precondition_positive = [expr("At(actor, loc)")];
+    precondition_negated = [];
+    effect_add_list = [expr("At(actor, to)")];
+    effect_delete_list = [expr("At(actor, loc)")];
+    local go::PlanningAction = PlanningAction(expr("Go(actor, loc, to)"),
+                                            (precondition_positive, precondition_negated),
+                                            (effect_add_list, effect_delete_list));
+    return PDDL(initial, [hit, go], double_tennis_pddl_goal_test);
 end
 
