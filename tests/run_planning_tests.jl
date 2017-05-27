@@ -107,13 +107,13 @@ spare_tire_gp = GraphPlanProblem(spare_tire, negated_kb);
 
 @test (!(typeof(graphplan(spare_tire_gp, ([expr("At(Spare, Axle)"), expr("At(Flat, Ground)")], []))) <: Void));
 
-double_tennis = double_tennis_pddl();
+doubles_tennis = doubles_tennis_pddl();
 
-@test (goal_test(double_tennis) == false);
+@test (goal_test(doubles_tennis) == false);
 
 for action in map(expr, ["Go(A, LeftBaseLine, RightBaseLine)", "Hit(A, RightBaseLine, Ball)", "Go(A, RightBaseLine, LeftNet)"])
-    execute_action(double_tennis, action);
+    execute_action(doubles_tennis, action);
 end
 
-@test goal_test(double_tennis);
+@test goal_test(doubles_tennis);
 
