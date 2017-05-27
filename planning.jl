@@ -779,6 +779,6 @@ function doubles_tennis_pddl()
     local go::PlanningAction = PlanningAction(expr("Go(actor, loc, to)"),
                                             (precondition_positive, precondition_negated),
                                             (effect_add_list, effect_delete_list));
-    return PDDL(initial, [hit, go], double_tennis_pddl_goal_test);
+    return PDDL(initial, [hit, go], doubles_tennis_pddl_goal_test);
 end
 
