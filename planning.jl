@@ -13,7 +13,7 @@ export AbstractPDDL,
         PlanningGraph, expand_graph, non_mutex_goals,
         GraphPlanProblem, check_level_off, actions_cartesian_product, extract_solution,
         graphplan,
-        double_tennis_pddl, double_tennis_pddl_goal_test;
+        doubles_tennis_pddl, doubles_tennis_pddl_goal_test;
 
 abstract AbstractPDDL;
 
@@ -732,7 +732,7 @@ function graphplan(gpp::GraphPlanProblem, goals::Tuple)
     return nothing;
 end
 
-function double_tennis_pddl_goal_test(kb::FirstOrderLogicKnowledgeBase)
+function doubles_tennis_pddl_goal_test(kb::FirstOrderLogicKnowledgeBase)
     return all((function(ans)
                     if (typeof(ans) <: Bool)
                         return ans;
@@ -748,16 +748,16 @@ function double_tennis_pddl_goal_test(kb::FirstOrderLogicKnowledgeBase)
 end
 
 """
-    double_tennis_pddl()
+    doubles_tennis_pddl()
 
-Return a PDDL representing the double tennis planning problem (Fig. 11.10).
+Return a PDDL representing the doubles tennis planning problem (Fig. 11.10).
 
 The PlanningActions 'hit' and 'go' both take 3 arguments because their
 preconditions will not be satisfied without the 'loc' variable.
 This occurs when substituting propositional logic variables within
 the check_precondition() function.
 """
-function double_tennis_pddl()
+function doubles_tennis_pddl()
     local initial::Array{Expression, 1} = map(expr, ["At(A, LeftBaseLine)",
                                                     "At(B, RightNet)",
                                                     "Approaching(Ball, RightBaseLine)",
