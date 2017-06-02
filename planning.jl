@@ -13,7 +13,8 @@ export AbstractPDDL,
         PlanningGraph, expand_graph, non_mutex_goals,
         GraphPlanProblem, check_level_off, actions_cartesian_product, extract_solution,
         graphplan,
-        doubles_tennis_pddl, doubles_tennis_pddl_goal_test;
+        doubles_tennis_pddl, doubles_tennis_pddl_goal_test,
+        PlanningHighLevelAction;
 
 abstract AbstractPDDL;
 
@@ -780,5 +781,34 @@ function doubles_tennis_pddl()
                                             (precondition_positive, precondition_negated),
                                             (effect_add_list, effect_delete_list));
     return PDDL(initial, [hit, go], doubles_tennis_pddl_goal_test);
+end
+
+#=
+
+    PlanningHighLevelAction (HLA) is an action schema with resource constraints and refinements.
+
+=#
+type PlanningHighLevelAction <: AbstractPlanningAction
+    name::String
+    arguments::Tuple
+    precondition_positive::Nullable{Array{Expression, 1}}
+    precondition_negated::Nullable{Array{Expression, 1}}
+    effect_add_list::Nullable{Array{Expression, 1}}
+    effect_delete_list::Nullable{Array{Expression, 1}}
+    duration::Int64
+    consumes::Dict
+    uses::Dict
+    completed::Bool
+    priority::Int64     #undefined field used to schedule multiple HLAs
+    job_group::Int64    #undefined field used to schedule multiple HLAs
+
+    function PlanningHighLevelAction(action::Expression;
+                                    precondition::Union{Tuple{Void, Void}, Tuple{Vararg{Array{Expression, 1}, 2}}}=(nothing, nothing),
+                                    effect::Union{Tuple{Void, Void}, Tuple{Vararg{Array{Expression, 1}, 2}}}=(nothing, nothing),
+                                    duration::Int64=0,
+                                    consumes::Dict=Dict(),
+                                    uses::Dict=Dict())
+        return new(action.operator, action.arguments, precondition[1], precondition[2], effect[1], effect[2], duration, consumes, uses, false);
+    end
 end
 
