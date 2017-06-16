@@ -905,3 +905,12 @@ function execute_action(plan::HighLevelPDDL, action::PlanningHighLevelAction)
     nothing;
 end
 
+function get_result(plan::HighLevelPDDL, action::PlanningHighLevelAction)
+    execute_action(plan, action);
+    return plan;
+end
+
+function get_result(plan::HighLevelPDDL, action::Void)
+    return plan;
+end
+
