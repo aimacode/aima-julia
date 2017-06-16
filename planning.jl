@@ -892,3 +892,15 @@ type HighLevelPDDL <: AbstractPDDL
         return new(FirstOrderLogicKnowledgeBase(initial_state), actions, goal_test, Array{Array{PlanningHighLevelAction, 1}, 1}(jobs), resources);
     end
 end
+
+function execute_action(plan::HighLevelPDDL, action::PlanningHighLevelAction)
+    local arguments::Tuple = action.arguments;
+    local relevant_actions::AbstractVector = collect(a for a in plan.actions if (a.name == action.name));
+    if (length(relevant_actions) == 0)
+        error(@sprintf("execute_action(): High-level action \"%s\" not found!", action.name));
+    else
+        execute_action(first_relevant_action, plan.jobs, plan.resources, plan.kb, arguments);
+    end
+    nothing;
+end
+
