@@ -899,6 +899,7 @@ function execute_action(plan::HighLevelPDDL, action::PlanningHighLevelAction)
     if (length(relevant_actions) == 0)
         error(@sprintf("execute_action(): High-level action \"%s\" not found!", action.name));
     else
+        local first_relevant_action::PlanningHighLevelAction = relevant_actions[1];
         execute_action(first_relevant_action, plan.jobs, plan.resources, plan.kb, arguments);
     end
     nothing;
