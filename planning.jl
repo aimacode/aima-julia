@@ -14,7 +14,8 @@ export AbstractPDDL,
         GraphPlanProblem, check_level_off, actions_cartesian_product, extract_solution,
         graphplan,
         doubles_tennis_pddl, doubles_tennis_pddl_goal_test,
-        PlanningHighLevelAction;
+        PlanningHighLevelAction, check_resource, check_job_order,
+        HighLevelPDDL;
 
 abstract AbstractPDDL;
 
@@ -812,3 +813,82 @@ type PlanningHighLevelAction <: AbstractPlanningAction
     end
 end
 
+function execute_action(hla::PlanningHighLevelAction, job_order::Array{Array{PlanningHighLevelAction, 1}, 1}, available_resources::Dict, kb::AbstractKnowledgeBase, arguments::Tuple)
+    if (!check_resource(hla, available_resources, :consumes))
+        error(@sprintf("execute_action(): High-level action \"%s\"'s consumable constraint was not satisfied!", hla.name));
+    elseif (!check_resource(hla, available_resources, :uses))
+        error(@sprintf("execute_action(): High-level action \"%s\"'s reusable constraint was not satisfied!", hla.name));
+    elseif (!check_job_order(hla, job_order))
+        error(@sprintf("execute_action(): High-level action \"%s\" is not scheduled to execute! All scheduled unexecuted actions should run first!", hla.name));
+    end
+
+    # Execute 'hla' like a primitive action within this method to avoid confusion of
+    # calling execute_action() within execute_action().
+
+    if (!(check_precondition(hla, kb, arguments)))
+        error(@sprintf("execute_action(): High-level action \"%s\" preconditions are not satisfied!", hla.name));
+    end
+    # Retract negated literals to knowledge base 'kb'.
+    for clause in hla.effect_delete_list
+        retract(kb, substitute(hla, clause, arguments));
+    end
+    # Add positive literals to knowledge base 'kb'.
+    for clause in hla.effect_add_list
+        tell(kb, substitute(hla, clause, arguments));
+    end
+
+    for resource in keys(hla.consumes)
+        available_resources[resource] = available_resources[resource] - hla.consumes[resource];
+    end
+
+    # Update current high-level action task as completed.
+    hla.completed = true;
+    nothing;
+end
+
+function check_resource(hla::PlanningHighLevelAction, available_resources::Dict, resource_type::Symbol)
+    for resource in keys(hla.resource_type)
+        if (!haskey(available_resources, resource))
+            return false;
+        elseif (available_resourced[resource] < hla.resource_type[resource])
+            return false;
+        end
+    end
+    return true;
+end
+
+function check_job_order(hla::PlanningHighLevelAction, job_order::Array{Array{PlanningHighLevelAction, 1}, 1})
+    for jobs in job_order
+        if (hla in jobs)
+            for job in jobs
+                if (job == hla)
+                    return true;
+                elseif (!job.completed)
+                    return false;
+                end
+            end
+        end
+    end
+    return true;
+end
+
+#=
+
+    HighLevelPDDL is a high-level Planning Domain Definition Language (PDDL) is used to define a search problem.
+
+    The HighLevelPDDL includes job scheduling and resource constraints in addition to the states, action
+
+    schemas, and the goal test found in the PDDL datatype.
+
+=#
+type HighLevelPDDL <: AbstractPDDL 
+    kb::FirstOrderLogicKnowledgeBase
+    actions::Array{PlanningHighLevelAction, 1}
+    goal_test::Function
+    jobs::Array{Array{PlanningHighLevelAction, 1}, 1}
+    resources::Dict
+
+    function HighLevelPDDL(initial_state::Array{Expression, 1}, actions::Array{PlanningHighLevelAction, 1}, goal_test::Function; jobs::Array{Array{PlanningHighLevelAction, 1}, 1}=[], resources::Dict=Dict())
+        return new(FirstOrderLogicKnowledgeBase(initial_state), actions, goal_test, Array{Array{PlanningHighLevelAction, 1}, 1}(jobs), resources);
+    end
+end
