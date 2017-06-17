@@ -15,7 +15,7 @@ export AbstractPDDL,
         graphplan,
         doubles_tennis_pddl, doubles_tennis_pddl_goal_test,
         PlanningHighLevelAction, check_resource, check_job_order,
-        HighLevelPDDL;
+        HighLevelPDDL, refinements;
 
 abstract AbstractPDDL;
 
@@ -792,10 +792,10 @@ end
 type PlanningHighLevelAction <: AbstractPlanningAction
     name::String
     arguments::Tuple
-    precondition_positive::Nullable{Array{Expression, 1}}
-    precondition_negated::Nullable{Array{Expression, 1}}
-    effect_add_list::Nullable{Array{Expression, 1}}
-    effect_delete_list::Nullable{Array{Expression, 1}}
+    precondition_positive::Array{Expression, 1}
+    precondition_negated::Array{Expression, 1}
+    effect_add_list::Array{Expression, 1}
+    effect_delete_list::Array{Expression, 1}
     duration::Int64
     consumes::Dict
     uses::Dict
@@ -803,9 +803,9 @@ type PlanningHighLevelAction <: AbstractPlanningAction
     priority::Int64     #undefined field used to schedule multiple HLAs
     job_group::Int64    #undefined field used to schedule multiple HLAs
 
-    function PlanningHighLevelAction(action::Expression;
-                                    precondition::Union{Tuple{Void, Void}, Tuple{Vararg{Array{Expression, 1}, 2}}}=(nothing, nothing),
-                                    effect::Union{Tuple{Void, Void}, Tuple{Vararg{Array{Expression, 1}, 2}}}=(nothing, nothing),
+    function PlanningHighLevelAction(action::Expression,
+                                    precondition::Tuple{Vararg{Array{Expression, 1}, 2}},
+                                    effect::Tuple{Vararg{Array{Expression, 1}, 2}};
                                     duration::Int64=0,
                                     consumes::Dict=Dict(),
                                     uses::Dict=Dict())
@@ -888,8 +888,8 @@ type HighLevelPDDL <: AbstractPDDL
     jobs::Array{Array{PlanningHighLevelAction, 1}, 1}
     resources::Dict
 
-    function HighLevelPDDL(initial_state::Array{Expression, 1}, actions::Array{PlanningHighLevelAction, 1}, goal_test::Function; jobs::Array{Array{PlanningHighLevelAction, 1}, 1}=[], resources::Dict=Dict())
-        return new(FirstOrderLogicKnowledgeBase(initial_state), actions, goal_test, Array{Array{PlanningHighLevelAction, 1}, 1}(jobs), resources);
+    function HighLevelPDDL(initial_state::Array{Expression, 1}, actions::Array{PlanningHighLevelAction, 1}, goal_test::Function; jobs::Array{Array{PlanningHighLevelAction, 1}, 1}=Array{Array{PlanningHighLevelAction, 1}, 1}(), resources::Dict=Dict())
+        return new(FirstOrderLogicKnowledgeBase(initial_state), actions, goal_test, jobs, resources);
     end
 end
 

@@ -126,3 +126,36 @@ go_to_sfo_refinements_dict = Dict([Pair("HLA", ["Go(Home,SFO)", "Go(Home,SFO)", 
                                     Pair("effect_delete_list", [["At(Home)"], ["At(Home)"], ["At(Home)"], ["At(SFOLongTermParking)"], ["At(Home)"]])
                                     ]);
 
+# Base.Test tests for refinements().
+function test_refinement_goal_test(kb::FirstOrderLogicKnowledgeBase)
+    return ask(kb, expr("At(SFO)"));
+end
+
+refinement_lib = Dict([Pair("HLA", ["Go(Home, SFO)", "Taxi(Home, SFO)"]),
+                        Pair("steps", [["Taxi(Home, SFO)"], []]),
+                        Pair("precondition_positive", [["At(Home)"], ["At(Home)"]]),
+                        Pair("precondition_negated", [[],[]]),
+                        Pair("effect_add_list", [["At(SFO)"],["At(SFO)"]]),
+                        Pair("effect_delete_list", [["At(Home)"], ["At(Home)"]])]);
+# Go to San Francisco airport high-level action schema
+precondition_positive = Array{Expression, 1}([expr("At(Home)")]);
+precondition_negated = Array{Expression, 1}([]);
+effect_add_list = Array{Expression, 1}([expr("At(SFO)")]);
+effect_delete_list = Array{Expression, 1}([expr("At(Home)")]);
+go_sfo = PlanningHighLevelAction(expr("Go(Home, SFO)"),
+                                (precondition_positive, precondition_negated),
+                                (effect_add_list, effect_delete_list));
+# Take Taxi to San Francisco airport high-level action schema
+precondition_positive = Array{Expression, 1}([expr("At(Home)")]);
+precondition_negated = Array{Expression, 1}([]);
+effect_add_list = Array{Expression, 1}([expr("At(SFO)")]);
+effect_delete_list = Array{Expression, 1}([expr("At(Home)")]);
+taxi_sfo = PlanningHighLevelAction(expr("Go(Home, SFO)"),
+                                    (precondition_positive, precondition_negated),
+                                    (effect_add_list, effect_delete_list));
+go_sfo_pddl = HighLevelPDDL(Array{Expression, 1}([expr("At(Home)")]), [go_sfo, taxi_sfo], test_refinement_goal_test);
+result = refinements(go_sfo, go_sfo_pddl, refinement_lib);
+@test (length(result) == 1);
+@test (result[1].name == "Taxi");
+@test (result[1].arguments == (expr("Home"), expr("SFO")));
+
