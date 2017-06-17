@@ -165,7 +165,7 @@ job_shop_scheduling = job_shop_scheduling_pddl();
 
 for i in reverse(1:2)
     for j in 1:3
-        execute_action(job_shop_scheduling, job_shop_scheduling.job[i][j]);
+        execute_action(job_shop_scheduling, job_shop_scheduling.jobs[i][j]);
     end
 end
 

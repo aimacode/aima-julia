@@ -70,6 +70,11 @@ function check_precondition{T1 <: AbstractPlanningAction, T2 <: AbstractKnowledg
     return true;
 end
 
+"""
+    execute_action(action, kb, arguments)
+
+Execute the given action 'action' on the knowledge base of the planning problem.
+"""
 function execute_action{T1 <: AbstractPlanningAction, T2 <: AbstractKnowledgeBase}(action::T1, kb::T2, arguments::Tuple)
     if (!(check_precondition(action, kb, arguments)))
         error(@sprintf("execute_action(): Action \"%s\" preconditions are not satisfied!", action.name));
@@ -112,6 +117,12 @@ function goal_test{T <: AbstractPDDL}(plan::T)
     return plan.goal_test(plan.kb);
 end
 
+"""
+    execute_action(plan, action)
+
+Execute the first relevant PlanningAction associated with action 'action'
+on the given planning problem's knowledgebase.
+"""
 function execute_action{T <: AbstractPDDL}(plan::T, action::Expression)
     local action_name::String = action.operator;
     local arguments::Tuple = action.arguments;
@@ -814,6 +825,12 @@ type PlanningHighLevelAction <: AbstractPlanningAction
     end
 end
 
+"""
+    execute_action(hla, job_order, available_resources, kb, arguments)
+
+Execute the given action 'hla' on the knowledge base of the planning problem.
+This function checks for resources and job order execution required for the action to be executed.
+"""
 function execute_action(hla::PlanningHighLevelAction, job_order::Array{Array{PlanningHighLevelAction, 1}, 1}, available_resources::Dict, kb::AbstractKnowledgeBase, arguments::Tuple)
     if (!check_consumes_resource(hla, available_resources))
         error(@sprintf("execute_action(): High-level action \"%s\"'s consumable constraint was not satisfied!", hla.name));
@@ -905,6 +922,12 @@ type HighLevelPDDL <: AbstractPDDL
     end
 end
 
+"""
+    execute_action(plan, action)
+
+Execute the first relevant PlanningHighLevelAction associated with action 'action'
+on the given planning problem's knowledgebase.
+"""
 function execute_action(plan::HighLevelPDDL, action::PlanningHighLevelAction)
     local arguments::Tuple = action.arguments;
     local relevant_actions::AbstractVector = collect(a for a in plan.actions if (a.name == action.name));
@@ -917,6 +940,11 @@ function execute_action(plan::HighLevelPDDL, action::PlanningHighLevelAction)
     nothing;
 end
 
+"""
+    get_result(plan, action)
+
+Return the planning problem after executing the given high-level action 'action'.
+"""
 function get_result(plan::HighLevelPDDL, action::PlanningHighLevelAction)
     execute_action(plan, action);
     return plan;
@@ -926,6 +954,12 @@ function get_result(plan::HighLevelPDDL, action::Void)
     return plan;
 end
 
+"""
+    refinements(hla, state, dict)
+
+Return a action sequence such that each refinement's preconditions of 'hla' are satisfied by
+the given state of the planning problem 'state'.
+"""
 function refinements(hla::PlanningHighLevelAction, state::HighLevelPDDL, dict::Dict)
     local solution::Array{PlanningHighLevelAction, 1} = Array{PlanningHighLevelAction, 1}();
     local indices::AbstractVector = collect(i for (i, x) in enumerate(dict["HLA"]) if (expr(x).operator == hla.name));
@@ -994,7 +1028,6 @@ function job_shop_scheduling_pddl_goal_test(kb::FirstOrderLogicKnowledgeBase)
                                                         "Wheels(W1)", "Wheels(W2)",
                                                         "Engine(E1)", "Engine(E2)"])));
 end
-
 
 """
     job_shop_scheduling_pddl()
