@@ -15,7 +15,7 @@ export AbstractPDDL,
         graphplan,
         doubles_tennis_pddl, doubles_tennis_pddl_goal_test,
         PlanningHighLevelAction, check_resource, check_job_order,
-        HighLevelPDDL, refinements;
+        HighLevelPDDL, refinements, hierarchical_search;
 
 abstract AbstractPDDL;
 
@@ -926,5 +926,41 @@ function refinements(hla::PlanningHighLevelAction, state::HighLevelPDDL, dict::D
         end
     end
     return solution;
+end
+
+"""
+    hierarchical_search(problem, hierarchy)
+
+Use the breadth-first implementation of the Hierarchical Search algorithm (Fig. 11.5) to the 
+given high-level planning problem 'problem' and 'hierarchy'. Return the solution or 'nothing' 
+on failure.
+"""
+function hierarchical_search(problem::HighLevelPDDL, hierarchy)
+    local act::Node = Node(problem.actions[1]);
+    local frontier::FIFOQueue();
+    push!(frontier, act);
+    while (true)
+        if (length(frontier) == 0)
+            return nothing;
+        end
+        local plan = pop!(frontier);
+        hla = plan.state;
+        if (!isnull(plan.parent))
+            prefix = get(plan.parent).action;
+        else
+            prefix = nothing;
+        end
+        local outcome::HighLevelPDDL = get_result(problem, prefix);
+        if (typeof(hla) <: Void)
+            if (goal_test(outcome))
+                return path(plan);
+            end
+        else
+            for sequence in refinements(hla, outcome, hierachy)
+                push!(frontier, Node(plan.state, parent=plan.parent, action=sequence));
+            end
+        end
+    end
+    nothing;
 end
 
