@@ -117,3 +117,12 @@ end
 
 @test goal_test(doubles_tennis);
 
+# Create dictionary representation of possible refinements for "going to San Francisco airport HLA" (Fig. 11.4).
+go_to_sfo_refinements_dict = Dict([Pair("HLA", ["Go(Home,SFO)", "Go(Home,SFO)", "Drive(Home, SFOLongTermParking)", "Shuttle(SFOLongTermParking, SFO)", "Taxi(Home, SFO)"]),
+                                    Pair("steps", [["Drive(Home, SFOLongTermParking)", "Shuttle(SFOLongTermParking, SFO)"], ["Taxi(Home, SFO)"], [], [], []]),
+                                    Pair("precondition_positive", [["At(Home), Have(Car)"], ["At(Home)"], ["At(Home)", "Have(Car)"], ["At(SFOLongTermParking)"], ["At(Home)"]]),
+                                    Pair("precondition_negated", [[], [], [], [], []]),
+                                    Pair("effect_add_list", [["At(SFO)"], ["At(SFO)"], ["At(SFOLongTermParking)"], ["At(SFO)"], ["At(SFO)"]]),
+                                    Pair("effect_delete_list", [["At(Home)"], ["At(Home)"], ["At(Home)"], ["At(SFOLongTermParking)"], ["At(Home)"]])
+                                    ]);
+

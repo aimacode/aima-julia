@@ -914,3 +914,17 @@ function get_result(plan::HighLevelPDDL, action::Void)
     return plan;
 end
 
+function refinements(hla::PlanningHighLevelAction, state::HighLevelPDDL, dict::Dict)
+    local solution::Array{PlanningHighLevelAction, 1} = Array{PlanningHighLevelAction, 1}();
+    local indices::AbstractVector = collect(i for (i, x) in enumerate(dict["HLA"]) if (expr(x).operator == hla.name));
+    for i in indices
+        local action::PlanningHighLevelAction = PlanningHighLevelAction(expr(dict["steps"][i][1]),
+                                                                        (collect(expr(x) for x in dict["precondition_positive"][i]), collect(expr(x) for x in dict["precondition_negated"][i])),
+                                                                        (collect(expr(x) for x in dict["effect_add_list"][i]), collect(expr(x) for x in dict["effect_delete_list"][i])));
+        if (check_precondition(hla, state.kb, action.arguments))
+            push!(solution, action);
+        end
+    end
+    return solution;
+end
+
