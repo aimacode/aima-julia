@@ -926,7 +926,7 @@ end
     execute_action(plan, action)
 
 Execute the first relevant PlanningHighLevelAction associated with action 'action'
-on the given planning problem's knowledgebase.
+on the given planning problem's knowledge base.
 """
 function execute_action(plan::HighLevelPDDL, action::PlanningHighLevelAction)
     local arguments::Tuple = action.arguments;
