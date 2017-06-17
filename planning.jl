@@ -15,7 +15,8 @@ export AbstractPDDL,
         graphplan,
         doubles_tennis_pddl, doubles_tennis_pddl_goal_test,
         PlanningHighLevelAction, check_resource, check_job_order,
-        HighLevelPDDL, refinements, hierarchical_search;
+        HighLevelPDDL, refinements, hierarchical_search,
+        job_shop_scheduling_pddl, job_shop_scheduling_pddl_goal_test;
 
 abstract AbstractPDDL;
 
@@ -814,9 +815,9 @@ type PlanningHighLevelAction <: AbstractPlanningAction
 end
 
 function execute_action(hla::PlanningHighLevelAction, job_order::Array{Array{PlanningHighLevelAction, 1}, 1}, available_resources::Dict, kb::AbstractKnowledgeBase, arguments::Tuple)
-    if (!check_resource(hla, available_resources, :consumes))
+    if (!check_consumes_resource(hla, available_resources))
         error(@sprintf("execute_action(): High-level action \"%s\"'s consumable constraint was not satisfied!", hla.name));
-    elseif (!check_resource(hla, available_resources, :uses))
+    elseif (!check_uses_resource(hla, available_resources))
         error(@sprintf("execute_action(): High-level action \"%s\"'s reusable constraint was not satisfied!", hla.name));
     elseif (!check_job_order(hla, job_order))
         error(@sprintf("execute_action(): High-level action \"%s\" is not scheduled to execute! All scheduled unexecuted actions should run first!", hla.name));
@@ -846,11 +847,22 @@ function execute_action(hla::PlanningHighLevelAction, job_order::Array{Array{Pla
     nothing;
 end
 
-function check_resource(hla::PlanningHighLevelAction, available_resources::Dict, resource_type::Symbol)
-    for resource in keys(hla.resource_type)
+function check_consumes_resource(hla::PlanningHighLevelAction, available_resources::Dict)
+    for resource in keys(hla.consumes)
         if (!haskey(available_resources, resource))
             return false;
-        elseif (available_resourced[resource] < hla.resource_type[resource])
+        elseif (available_resources[resource] < (hla.consumes)[resource])
+            return false;
+        end
+    end
+    return true;
+end
+
+function check_uses_resource(hla::PlanningHighLevelAction, available_resources::Dict)
+    for resource in keys(hla.uses)
+        if (!haskey(available_resources, resource))
+            return false;
+        elseif (available_resources[resource] < (hla.uses)[resource])
             return false;
         end
     end
@@ -962,5 +974,97 @@ function hierarchical_search(problem::HighLevelPDDL, hierarchy)
         end
     end
     nothing;
+end
+
+function job_shop_scheduling_pddl_goal_test(kb::FirstOrderLogicKnowledgeBase)
+    return all((function(ans)
+                    if (typeof(ans) <: Bool)
+                        return ans;
+                    else
+                        if (length(ans) == 0)   # length of Tuple
+                            return false;
+                        else
+                            return true;
+                        end
+                    end
+                end),
+                collect(ask(kb, q) for q in map(expr, ["Has(C1, W1)", "Has(C1, E1)", "Inspected(C1)",
+                                                        "Has(C2, W2)", "Has(C2, E2)", "Inspected(C2)",
+                                                        "Car(C1)", "Car(C2)",
+                                                        "Wheels(W1)", "Wheels(W2)",
+                                                        "Engine(E1)", "Engine(E2)"])));
+end
+
+
+"""
+    job_shop_scheduling_pddl()
+
+Return a HighLevelPDDL representing the job-shop scheduling planning problem (Fig. 11.1).
+"""
+function job_shop_scheduling_pddl()
+    local initial::Array{Expression, 1} = map(expr, ["Car(C1)", "Car(C2)",
+                                                    "Wheels(W1)", "Wheels(W2)",
+                                                    "Engine(E1)", "Engine(E2)"]);
+    local resources::Dict = Dict([Pair("EngineHoists", 1),
+                                Pair("WheelStations", 2),
+                                Pair("Inspectors", 2),
+                                Pair("LugNuts", 500)]);
+    # AddEngine1 high-level action schema
+    local precondition_positive::Array{Expression, 1} = [];
+    local precondition_negated::Array{Expression, 1} = [expr("Has(C1, E1)")];
+    local effect_add_list::Array{Expression, 1} = [expr("Has(C1, E1)")];
+    local effect_delete_list::Array{Expression, 1} = [];
+    local add_engine_1::PlanningHighLevelAction = PlanningHighLevelAction(expr("AddEngine1"),
+                                                                        (precondition_positive, precondition_negated),
+                                                                        (effect_add_list, effect_delete_list),
+                                                                        duration=30, uses=Dict([Pair("EngineHoists", 1)]));
+    # AddEngine2 high-level action schema
+    precondition_positive = [];
+    precondition_negated = [expr("Has(C2, E2)")];
+    effect_add_list = [expr("Has(C2, E2)")];
+    effect_delete_list = [];
+    local add_engine_2::PlanningHighLevelAction = PlanningHighLevelAction(expr("AddEngine2"),
+                                                                        (precondition_positive, precondition_negated),
+                                                                        (effect_add_list, effect_delete_list),
+                                                                        duration=60, uses=Dict([Pair("EngineHoists", 1)]));
+    # AddWheels1 high-level action schema
+    precondition_positive = [];
+    precondition_negated = [expr("Has(C1, W1)")];
+    effect_add_list = [expr("Has(C1, W1)")];
+    effect_delete_list = [];
+    local add_wheels_1::PlanningHighLevelAction = PlanningHighLevelAction(expr("AddWheels1"),
+                                                                        (precondition_positive, precondition_negated),
+                                                                        (effect_add_list, effect_delete_list),
+                                                                        duration=30, consumes=Dict([Pair("LugNuts", 20)]), uses=Dict([Pair("WheelStations", 1)]));
+    # AddWheels2 high-level action schema
+    precondition_positive = [];
+    precondition_negated = [expr("Has(C2, W2)")];
+    effect_add_list = [expr("Has(C2, W2)")];
+    effect_delete_list = [];
+    local add_wheels_2::PlanningHighLevelAction = PlanningHighLevelAction(expr("AddWheels2"),
+                                                                        (precondition_positive, precondition_negated),
+                                                                        (effect_add_list, effect_delete_list),
+                                                                        duration=15, consumes=Dict([Pair("LugNuts", 20)]), uses=Dict([Pair("WheelStations", 1)]));
+    # Inspect1 high-level action schema
+    precondition_positive = [];
+    precondition_negated = [expr("Inspected(C1)")];
+    effect_add_list = [expr("Inspected(C1)")];
+    effect_delete_list = [];
+    local inspect_1::PlanningHighLevelAction = PlanningHighLevelAction(expr("Inspect1"),
+                                                                        (precondition_positive, precondition_negated),
+                                                                        (effect_add_list, effect_delete_list),
+                                                                        duration=10, uses=Dict([Pair("Inspectors", 1)]));
+    # Inspect2 high-level action schema
+    precondition_positive = [];
+    precondition_negated = [expr("Inspected(C2)")];
+    effect_add_list = [expr("Inspected(C2)")];
+    effect_delete_list = [];
+    local inspect_2::PlanningHighLevelAction = PlanningHighLevelAction(expr("Inspect2"),
+                                                                        (precondition_positive, precondition_negated),
+                                                                        (effect_add_list, effect_delete_list),
+                                                                        duration=10, uses=Dict([Pair("Inspectors", 1)]));
+    local job_group_1::Array{PlanningHighLevelAction, 1} = [add_engine_1, add_wheels_1, inspect_1];
+    local job_group_2::Array{PlanningHighLevelAction, 1} = [add_engine_2, add_wheels_2, inspect_2];
+    return HighLevelPDDL(initial, [add_engine_1, add_engine_2, add_wheels_1, add_wheels_2, inspect_1, inspect_2], job_shop_scheduling_pddl_goal_test, jobs=[job_group_1, job_group_2], resources=resources);
 end
 

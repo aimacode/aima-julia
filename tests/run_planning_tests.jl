@@ -159,3 +159,15 @@ result = refinements(go_sfo, go_sfo_pddl, refinement_lib);
 @test (result[1].name == "Taxi");
 @test (result[1].arguments == (expr("Home"), expr("SFO")));
 
+job_shop_scheduling = job_shop_scheduling_pddl();
+
+@test (goal_test(job_shop_scheduling) == false);
+
+for i in reverse(1:2)
+    for j in 1:3
+        execute_action(job_shop_scheduling, job_shop_scheduling.job[i][j]);
+    end
+end
+
+@test goal_test(job_shop_scheduling);
+
