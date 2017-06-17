@@ -17,7 +17,7 @@ using aimajulia;
 Running tests
 -------------
 
-All Base.Test tests for the aima-julia project can be found in the **tests** directory.
+All Base.Test tests for the aima-julia project can be found in the [tests](https://github.com/aimacode/aima-julia/tree/master/tests) directory.
 
 Conventions
 -----------
