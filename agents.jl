@@ -26,8 +26,6 @@ export AgentProgram,
         test_agent, compare_agents;
 
 
-abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
-
 #=
 
     Define a global execute() function to be implemented for each respective
