@@ -16,13 +16,13 @@ The intent of this fork is to align the code with a clearer interface like struc
 
 |Fig       |Page      |Name (in book)|Code    |File   |
 | -------- |:--------:| :------------| :----- |:------|
-|2|34|Environment|[Environment]|[agent.jl](/blob/master/agents.jl)|
-|2.1|35|Agent|[Agent]|[agent.jl](/blob/master/agents.jl)|
-|2.3|36|Table-Driven-Vacuum-Agent|[TableDrivenVacuumAgent]|[agent.jl](/blob/master/agents.jl)|
-|2.7|47|Table-Driven-Agent|[TableDrivenAgentProgram]|[agent.jl](/blob/master/agents.jl)|
-|2.8|48|Reflex-Vacuum-Agent|[ReflexVacuumAgent]|[agent.jl](/blob/master/agents.jl)|
-|2.10|49|Simple-Reflex-Agent|[SimpleReflexAgentProgram]|[agent.jl](/blob/master/agents.jl)|
-|2.12|51|Model-Based-Reflex-Agent|[ModelBasedReflexAgentProgram]|[agent.jl](/blob/master/agents.jl)|
+|2|34|Environment|[Environment]|[agent.jl](/agents.jl)|
+|2.1|35|Agent|[Agent]|[agent.jl](/agents.jl)|
+|2.3|36|Table-Driven-Vacuum-Agent|[TableDrivenVacuumAgent]|[agent.jl](/agents.jl)|
+|2.7|47|Table-Driven-Agent|[TableDrivenAgentProgram]|[agent.jl](/agents.jl)|
+|2.8|48|Reflex-Vacuum-Agent|[ReflexVacuumAgent]|[agent.jl](/agents.jl)|
+|2.10|49|Simple-Reflex-Agent|[SimpleReflexAgentProgram]|[agent.jl](/agents.jl)|
+|2.12|51|Model-Based-Reflex-Agent|[ModelBasedReflexAgentProgram]|[agent.jl](/agents.jl)|
 |3|66|Problem|[Problem]|
 |3.1|67|Simple-Problem-Solving-Agent|[SimpleProblemSolvingAgent]|
 |3.2|68|Romania|[SimplifiedRoadMapOfPartOfRomania]|
