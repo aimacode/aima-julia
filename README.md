@@ -14,10 +14,10 @@ The intent of this fork is to align the code with a clearer interface like struc
 
 ### Index of Implemented Algorithms
 
-|Fig|Page|Name (in book)|Code|File
-| -------- |:--------:| :-----| :----- |
-|2|34|Environment|[Environment]|`agent.jl`
-|2.1|35|Agent|[Agent]|`agent.jl`
+|Fig|Page|Name (in book)|Code|File|
+| -------- |:--------:| :-----| :----- |:------|
+|2|34|Environment|[Environment]|`agent.jl`|
+|2.1|35|Agent|[Agent]|`agent.jl`|
 |2.3|36|Table-Driven-Vacuum-Agent|[TableDrivenVacuumAgent]|
 |2.7|47|Table-Driven-Agent|[TableDrivenAgentProgram]|
 |2.8|48|Reflex-Vacuum-Agent|[ReflexVacuumAgent]|
