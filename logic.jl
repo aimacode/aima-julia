@@ -158,7 +158,7 @@ function tell(kb::FirstOrderLogicKnowledgeBase, e::Expression)
 end
 
 function ask(kb::FirstOrderLogicKnowledgeBase, e::Expression)
-    return fol_bc_ask(e);
+    return fol_bc_ask(kb, e);
 end
 
 function retract(kb::FirstOrderLogicKnowledgeBase, e::Expression)
