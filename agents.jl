@@ -1,3 +1,35 @@
+#=
+
+Implement Agents and Environments (Chapters 1-2).
+
+The class hierarchies are as follows:
+
+Thing ## A physical object that can exist in an environment
+    Agent
+        Wumpus
+    Dirt
+    Wall
+    ...
+
+Environment ## An environment holds objects, runs simulations
+    XYEnvironment
+        VacuumEnvironment
+        WumpusEnvironment
+
+An agent program is a callable instance, taking percepts and choosing actions
+    SimpleReflexAgentProgram
+    ...
+
+EnvGUI ## A window with a graphical representation of the Environment
+
+EnvToolbar ## contains buttons for controlling EnvGUI
+
+EnvCanvas ## Canvas to display the environment of an EnvGUI
+
+=#
+
+
+
 import Base: run;
 
 export AgentProgram,
@@ -25,33 +57,111 @@ export AgentProgram,
         run_once,
         test_agent, compare_agents;
 
+export Environment,
+       Action, Percept,
+       AgentProgram,
+          TableDrivenAgentProgram,
+          ReflexVacuumAgentProgram,
+          SimpleReflexAgentProgram
 
-#=
+"""
+An agent perceives an *environment* through sensors and acts with actuators.
 
-    Define a global execute() function to be implemented for each respective
-    AgentProgram DataType implementation.
-        
-=#
+Sensors provide agent the *percepts*, based on which the agent delivers
+*actions*
 
-function execute{T <: AgentProgram}(ap::T, p::Percept)      #implement functionality later
-    #comment the following line to reduce verbosity
-    #println("execute() is not implemented yet for ", typeof(ap), "!");
+Pg. 35, AIMA 3ed
+"""
+abstract Environment
+
+"""
+*AgentProgram* is an internal representation of an agent function with an
+concrete implementation. While *agent function* can be abstract *AgentProgram*
+provides clear direction to the implementation.
+
+Pg. 35, AIMA 3ed
+"""
+abstract AgentProgram
+
+
+"""
+*Action* is an agent's response to the environment through actuators.
+"""
+abstract Action
+
+"""
+*Percept* is an input to the *Agent* from environment through sensors.
+"""
+abstract Percept
+
+
+type DefaultAction <: Action
+  val::String
+end
+
+type DefaultPercept <: Percept
+  val::Tuple{Any,Any}
+end
+
+
+"""
+Given a *Percept* returns an *Action* apt for the agent.
+
+Depending on the agent program the function may respond with different *Action*
+evaluation strategies.
+
+Abstract implemetation does nothing.
+"""
+
+function execute{T <: AgentProgram}(ap::T, p::Percept)
     nothing;
 end
 
+
+"""
+*TableDrivenAgentProgram* is a simple model of an agent program where all
+percept sequences are well-known ahead in time and can be organized as a
+mapping from percepts to action.
+
+Look at the corresponding execute method for *Action* evaluation strategy.
+
+Fig 2.7 Pg. 47, AIMA 3ed
+"""
 type TableDrivenAgentProgram <: AgentProgram
     isTracing::Bool
-    percepts::Array{Percept, 1}
+    percept_sequence::Vector{Percept}
     table::Dict{Any, Any}
 
-    function TableDrivenAgentProgram(;table_dict::Union{Void, Dict{Any, Any}}=nothing, trace::Bool=false)
-        if (table_dict == C_NULL)           #no table given, create empty dictionary
-            return new(Bool(trace), Array{Percept, 1}(), Dict{Any, Any}());
-        else
-            return new(Bool(trace), Array{Percept, 1}(), table_dict);
-        end
+    function TableDrivenAgentProgram(table::Dict{Any, Any}, trace::Bool=false)
+      return new(trace, table, Vector{Percept}())
     end
 end
+
+function execute(ap::TableDrivenAgentProgram, percept::Percept)
+    push!(ap.percepts, percept);
+
+    local action;
+    if (haskey(ap.table, ap.percept_sequence))
+        action = ap.table[ap.percept_sequence]
+        if (ap.isTracing)
+            @printf("%s perceives %s and does %s\n",
+                    string(typeof(ap)), string(percept), action.name);
+        end
+    else
+      @printf("%s perceives %s but cannot execute as table does not have the percept sequence.\n",
+              string(typeof(ap)), string(percept));
+    end
+    return action;
+end
+
+"""
+*ReflexVacuumAgentProgram* is a simple *Percept* to *Action* matching model
+only catering to the vacuum robot environment.
+
+It does not depend on the historical percept data.
+
+Fig 2.8 Pg. 48, AIMA 3ed
+"""
 
 type ReflexVacuumAgentProgram <: AgentProgram
     isTracing::Bool
@@ -60,6 +170,81 @@ type ReflexVacuumAgentProgram <: AgentProgram
         return new(Bool(trace));
     end
 end
+
+function execute(ap::ReflexVacuumAgentProgram, location_status::Percept)
+    location = location_status[1]
+    status = location_status[2]
+    action = (status == "Dirty")? "Suck":
+             (location == loc_A)? "Right":
+             (location == loc_B)? "Left" : nothing
+    if (ap.isTracing)
+      @printf("%s perceives %s and does %s\n",
+              string(typeof(ap)), string(location_status), "Suck")
+    end
+    return action
+end
+
+type Rule   #condition-action rules
+    condition::String
+    action::Action
+
+    function Rule(cond::String, act::Action)
+        return new(cond, act)
+    end
+end
+
+"""
+*SimpleReflexAgentProgram* is a simple *Percept* to *Action* matching model
+based rules.
+
+It does not depend on the historical percept data.
+
+Fig 2.10 Pg. 49, AIMA 3ed
+"""
+type SimpleReflexAgentProgram <: AgentProgram
+    isTracing::Bool
+    rules::Vector{Rule}
+
+    function SimpleReflexAgentProgram(rules_array::Vector{Rule};trace::Bool=false)
+        srap = new(Bool(trace));
+        srap.rules = deepcopy(rules_array);
+        return rules_array;
+    end
+end
+
+function execute(ap::SimpleReflexAgentProgram, percept::Percept)
+    state = interpret_input(ap, percept);
+    rule = rule_match(state, ap.rules);
+    action = rule.action;
+    if (ap.isTracing)
+        @printf("%s perceives %s and does %s\n",
+                string(typeof(ap)), string(percept), action);
+    end
+    return action;
+end
+
+function rule_match(state::String, rules::Vector{Rule})
+    for element in rules
+        if (state == element.condition)
+            return element;
+        end
+    end
+    return nothing;                  #the function did not find a matching rule
+end
+
+function interpret_input(ap::SimpleReflexAgentProgram, percept::Percept)
+    println("interpret_input() is not implemented yet for ", typeof(ap), "!");
+    nothing;
+end
+
+function update_state{T <: AgentProgram}(ap::T, percept::Percept)
+    println("update_state() is not implemented yet for ", typeof(ap), "!");
+    nothing;
+end
+
+
+
+
 
 type ModelBasedVacuumAgentProgram <: AgentProgram
     isTracing::Bool
@@ -85,25 +270,7 @@ type RandomAgentProgram <: AgentProgram
     end
 end
 
-type Rule   #condition-action rules
-    condition::String
-    action::Action
 
-    function Rule(cond::String, act::Action)
-        return new(cond, act);
-    end
-end
-
-type SimpleReflexAgentProgram <: AgentProgram
-    isTracing::Bool
-    rules::Array{Rule, 1}
-
-    function SimpleReflexAgentProgram(rules_array::Array{Rule, 1};trace::Bool=false)
-        srap = new(Bool(trace));
-        srap.rules = deepcopy(rules_array);
-        return rules_array;
-    end
-end
 
 type ModelBasedReflexAgentProgram <: AgentProgram
     isTracing::Bool
@@ -302,26 +469,7 @@ function execute(ap::TableDrivenAgentProgram, percept::Percept)
     return action;
 end
 
-function execute(ap::ReflexVacuumAgentProgram, location_status::Percept)
-    local location = location_status[1];
-    local status = location_status[2];
-    if (status == "Dirty")
-        if (ap.isTracing)
-            @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Suck");
-        end
-        return "Suck";
-    elseif (location == loc_A)
-        if (ap.isTracing)
-            @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Right");
-        end
-        return "Right";
-    elseif (location == loc_B)
-        if (ap.isTracing)
-            @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Left");
-        end
-        return "Left";
-    end
-end
+
 
 function execute(ap::ModelBasedVacuumAgentProgram, location_status::Percept)
     local location = location_status[1];
@@ -354,35 +502,6 @@ function execute(ap::RandomAgentProgram, percept::Percept)
     return rand(RandomDeviceInstance, ap.actions);
 end
 
-function rule_match(state::String, rules::Array{Rule, 1})
-    for element in rules
-        if (state == element.condition)
-            return element;
-        end
-    end
-    return C_NULL;                  #the function did not find a matching rule
-end
-
-function interpret_input{T <: AgentProgram}(ap::T, percept::Percept)        #implement this later
-    println("interpret_input() is not implemented yet for ", typeof(ap), "!");
-    nothing;
-end
-
-function update_state{T <: AgentProgram}(ap::T, percept::Percept)           #implement this later
-    println("update_state() is not implemented yet for ", typeof(ap), "!");
-    nothing;
-end
-
-function execute(ap::SimpleReflexAgentProgram, percept::Percept)
-    #the agent acts according to the given percept (Fig. 2.10)
-    local state = interpret_input(ap, percept);     #generate condition string from given percept
-    local rule = rule_match(state, ap.rules);
-    local action = rule.action;
-    if (ap.isTracing)
-        @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), action);
-    end
-    return action;
-end
 
 function execute(ap::ModelBasedReflexAgentProgram, percept::Percept)
     #the agent acts according to the agent state and model and given percept (Fig. 2.12)
@@ -437,7 +556,6 @@ function RandomVacuumAgent()
     return Agent(RandomAgentProgram(["Right", "Left", "Suck", "NoOp"]));
 end
 
-abstract Environment;               #declare Environment as a supertype for Environment implementations
 
 abstract TwoDimensionalEnvironment <: Environment;
 
