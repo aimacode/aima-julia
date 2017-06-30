@@ -1,68 +1,16 @@
-#=
-
-Implement Agents and Environments (Chapters 1-2).
-
-The class hierarchies are as follows:
-
-Thing ## A physical object that can exist in an environment
-    Agent
-        Wumpus
-    Dirt
-    Wall
-    ...
-
-Environment ## An environment holds objects, runs simulations
-    XYEnvironment
-        VacuumEnvironment
-        WumpusEnvironment
-
-An agent program is a callable instance, taking percepts and choosing actions
-    SimpleReflexAgentProgram
-    ...
-
-EnvGUI ## A window with a graphical representation of the Environment
-
-EnvToolbar ## contains buttons for controlling EnvGUI
-
-EnvCanvas ## Canvas to display the environment of an EnvGUI
-
-=#
-
-
-
 import Base: run;
 
-export AgentProgram,
-        TableDrivenAgentProgram,
-        ReflexVacuumAgentProgram,
-        ModelBasedVacuumAgentProgram,
-        RandomAgentProgram,
-        Rule, SimpleReflexAgentProgram,
-        ModelBasedReflexAgentProgram,
-        EnvironmentObject, EnvironmentAgent,
-        Agent, Wumpus, Explorer,
-        isAlive, setAlive,
-        Obstacle, Wall,
-        Dirt, Gold, Pit, Arrow,
-        execute, rule_match, interpret_input, update_state,
-        TableDrivenVacuumAgent,
-        ReflexVacuumAgent,
-        ModelBasedVacuumAgent,
-        RandomVacuumAgent,
-        Environment, TwoDimensionalEnvironment, XYEnvironment,
-        VacuumEnvironment, TrivialVacuumEnvironment, WumpusEnvironment,
-        percept, objects_near, get_objects_at, some_objects_at, is_done, step,
-        run, exogenous_change, default_location, environment_objects, execute_action,
-        add_object, delete_object, add_walls, move_to,
-        run_once,
-        test_agent, compare_agents;
+using Compat
 
 export Environment,
-       Action, Percept,
+       Action,
+          NoOpAction,
+       Percept,
        AgentProgram,
           TableDrivenAgentProgram,
           ReflexVacuumAgentProgram,
-          SimpleReflexAgentProgram
+          SimpleReflexAgentProgram,
+          ModelBasedReflexAgentProgram
 
 """
 An agent perceives an *environment* through sensors and acts with actuators.
@@ -72,7 +20,7 @@ Sensors provide agent the *percepts*, based on which the agent delivers
 
 Pg. 35, AIMA 3ed
 """
-abstract Environment
+@compat abstract type Environment end
 
 """
 *AgentProgram* is an internal representation of an agent function with an
@@ -81,40 +29,51 @@ provides clear direction to the implementation.
 
 Pg. 35, AIMA 3ed
 """
-abstract AgentProgram
-
+@compat abstract type AgentProgram end
 
 """
 *Action* is an agent's response to the environment through actuators.
+
+Although the representation of a string may suffice for more most sample
+programs, an abstract type is introduced to emphacize the need for
+providing a concrete type based on the environment or agent at hand.
+
+In most problems we try to solve, the *Action* may be driven by the choice
+of the *Environment*
 """
-abstract Action
+@compat abstract type Action end
+
+"""
+*NoOp* is a directive where the agent does not take any futher action.
+"""
+immutable NoOpActionType <: Action
+  val::Symbol
+  NoOpActionType()=new("NoOp")
+end
+
+const Action_NoOp = NoOpActionType()
 
 """
 *Percept* is an input to the *Agent* from environment through sensors.
+
+Although the representation of a Tuple may suffice for more most sample
+programs, an abstract type is introduced to emphacize the need for
+providing a concrete type based on the environment or agent at hand.
+
+In most problems we try to solve, the *Percept* may be driven by the choice
+of the *Environment*
 """
-abstract Percept
-
-
-type DefaultAction <: Action
-  val::String
-end
-
-type DefaultPercept <: Percept
-  val::Tuple{Any,Any}
-end
-
+@compat abstract type Percept end
 
 """
 Given a *Percept* returns an *Action* apt for the agent.
 
 Depending on the agent program the function may respond with different *Action*
 evaluation strategies.
-
-Abstract implemetation does nothing.
 """
 
-function execute{T <: AgentProgram}(ap::T, p::Percept)
-    nothing;
+function execute{AP <: AgentProgram}(ap::AP, p::Percept)
+    error(E_ABSTRACT)
 end
 
 
@@ -125,33 +84,251 @@ mapping from percepts to action.
 
 Look at the corresponding execute method for *Action* evaluation strategy.
 
+The implementation must have the following methods:
+
+1. append - percept to the list of percepts seen my the AgentProgram
+2. lookup - the percepts in the tables of the AgentProgram
+
 Fig 2.7 Pg. 47, AIMA 3ed
 """
-type TableDrivenAgentProgram <: AgentProgram
-    isTracing::Bool
-    percept_sequence::Vector{Percept}
-    table::Dict{Any, Any}
 
-    function TableDrivenAgentProgram(table::Dict{Any, Any}, trace::Bool=false)
-      return new(trace, table, Vector{Percept}())
+@compat abstract type TableDrivenAgentProgram <: AgentProgram end
+
+function execute(ap::TableDrivenAgentProgram, percept::Percept)
+  append(ap.percepts, percept)
+  action = lookup(ap.table, ap.percepts)
+  return action
+end
+
+"""
+*Rule* is an abstract representation of a framework that associates a *State*
+condition to the appropriate action.
+
+Definition of a condition can be implementation dependent.
+"""
+
+@compat abstract type Rule end
+
+"""
+*State* is an internal evaluated position of the Environment. In the context
+of the problem the *Environment* can be one of the stated states. Any input or'
+action may lead to change in *Environment* state.
+"""
+@compat abstract type State end
+
+"""
+*SimpleReflexAgentProgram* is a simple *Percept* to *Action* matching state
+based rules.
+
+It does not depend on the historical percept data.
+
+It needs to implement two methods
+
+1. interpret_input
+2. rule_match
+
+for all the concrete implementations.
+
+3. rules - Will provide all the rules associated with the
+AgentProgram.
+
+Fig 2.10 Pg. 49, AIMA 3ed
+"""
+@compat abstract type SimpleReflexAgentProgram <: AgentProgram end
+
+function execute(ap::SimpleReflexAgentProgram, percept::Percept)
+    state = interpret_input(percept);
+    rule = rule_match(state, ap.rules);
+    action = rule.action;
+    return action;
+end
+
+"""
+Given a *State* to provide an *Action* that the agent must execute.
+
+Matching is useful for both:
+
+1. *SimpleReflexAgentProgram*
+2. *ModelBasedReflexAgentProgram*
+
+Both *AgentPrograms* have state models in-built, hence the rule matches the
+relevant *Action* to be picked up.
+"""
+function rule_match(state::State, rules::Vector{Rule})
+    error(E_ABSTRACT)
+end
+
+"""
+*ModelBasedReflexAgentProgram* uses a model which is close to the
+understanding of the world.
+
+The *AgentProgram* updates the states based on the *Percepts* received.
+
+"""
+@compat abstract type ModelBasedReflexAgentProgram <: AgentProgram end
+
+function execute(ap::ModelBasedReflexAgentProgram, percept::Percept)
+    ap.state = update_state(ap.state, ap.action, percept, ap.model);
+    rule = rule_match(state, ap.rules);
+    action = rule.action
+    return action
+end
+
+"""
+
+"""
+type Agent{T <: AgentProgram}
+  ap::T
+end
+
+#=
+Concrete instantiation of VacuumEnvironment using the models described above.
+=#
+
+"""
+*VacuumEnvironment* has 2 locations:
+
+1. loc_A
+2. loc_B
+
+adjacent to each other. loc_B to the *Right* of loc_A. This shall mean loc_A is
+on the *Left* of loc_B.
+
+A vacuum cleaner can sense *Dirt* is the location it's in.
+
+If *Dirt* is found it will *Suck* the *Dirt* and *Clean* the location.
+
+The *Environment* is still abstract as it gets expressed through its components.
+"""
+@compat abstract type VacuumEnvironment <: Environment end
+
+"""
+In a *VacuumEnvironment* a robot can only read where it's current location is
+and whether the location has *Dirt* or is *Clean*.
+
+There are 4 possible *Percept*.
+
+(loc_A, Dirty)
+(loc_A, Clean)
+(loc_B, Dirty)
+(loc_B, Clean)
+"""
+type VacuumPercept <: Percept
+  location_status::Tuple{Symbol, Symbol}
+  VacuumPercept(loc::AbstractString, cstate::AbstractString)=
+    new(Tuple(Symbol(loc), Symbol(cstate)))
+end
+
+"""
+The vacuum cleaner can do the following actions.
+
+Move from loc_A to loc_B --> Right
+Move from loc_B to loc_A --> Left
+If Dirty, Suck the Dirt  --> Suck
+"""
+type VacuumAction <: Action
+  sym::Symbol
+  VacuumAction(str::AbstractString)=new(Symbol(str))
+end
+
+const Action_Left = VacuumAction("Left")
+const Action_Right = VacuumAction("Right")
+const Action_Suck = VacuumAction("Suck")
+
+"""
+Concrete implementation for the Vacuum Agent using the
+*TableDrivenAgentProgram*
+"""
+type TableDrivenVacuumAgentProgram <: TableDrivenAgentProgram
+    table::Dict{Vector{VacuumPercept}, Action}
+    percepts::Vector{VacuumPercept}
+
+    function TableDrivenVacuumAgentProgram()
+      PAC = VacuumPercept("loc_A", "Clean")
+      PAD = VacuumPercept("loc_A", "Dirty")
+      PBC = VacuumPercept("loc_B", "Clean")
+      PBD = VacuumPercept("loc_B", "Dirty")
+      table =   Dict([PAC] => Action_Right,
+                     [PAD] => Action_Suck,
+                     [PBC] => Action_Left,
+                     [PBD] => Action_Suck,
+                     [PAC, PAC] => Action_Right,
+                     [PAC, PAD] => Action_Suck,
+                     [PAC, PAC, PAC] => Action_Right,
+                     [PAC, PAC, PAD] => Action_Suck)
+      return new(table, Vector{Percept}())
     end
 end
 
-function execute(ap::TableDrivenAgentProgram, percept::Percept)
-    push!(ap.percepts, percept);
+function append(percepts::Vector{VacuumPercept},
+                percept::VacuumPercept)
+  push!(percepts, percept)
+end
 
-    local action;
-    if (haskey(ap.table, ap.percept_sequence))
+function lookup(table::Dict{Vector{VacuumPercept}, Action},
+                percepts::Vector{VacuumPercept})
+    if (haskey(table, ap.percept_sequence))
         action = ap.table[ap.percept_sequence]
-        if (ap.isTracing)
-            @printf("%s perceives %s and does %s\n",
-                    string(typeof(ap)), string(percept), action.name);
-        end
+        @printf("%s perceives %s and does %s\n",
+                string(typeof(ap)), string(percept), action.name);
     else
-      @printf("%s perceives %s but cannot execute as table does not have the percept sequence.\n",
+        @printf("%s perceives %s but cannot execute as table does not have the percept sequence.\n",
               string(typeof(ap)), string(percept));
     end
-    return action;
+    return action
+end
+
+"""
+Technically the data in *Percept* is not very different from *State* as
+the *SimpleReflexAgentProgram* contains no knowledge of overall model nor has
+information of historical states.
+"""
+type ReflexVacuumState <: State
+  location_status::Tuple{Symbol, Symbol}
+  ReflexVacuumState(loc::AbstractString, cstate::AbstractString)=
+    new((Symbol(loc), Symbol(cstate)))
+end
+
+const State_A_Clean=ReflexVacuumState("loc_A","Clean")
+const State_B_Clean=ReflexVacuumState("loc_B","Clean")
+const State_A_Dirty=ReflexVacuumState("loc_A","Dirty")
+const State_B_Dirty=ReflexVacuumState("loc_B","Dirty")
+
+"""
+A method needed by the SimpleReflexAgentProgram abstraction to map
+
+*Percept* to an internal *State* of the *AgentProgram*
+"""
+#=
+In this case as the State datastructure is very similar to Persept mere
+reinterpretatation carried out in reality there may be additional
+transformations or data repurposing may be needed.
+=#
+function interpret_input(percept::VacuumPercept)
+    return reinterpret(ReflexVacuumState, percept)
+end
+
+type MappingRule <: Rule
+  state::State
+  action::Action
+end
+
+const Rule_A_Clean=MappingRule(State_A_Clean,Action_Right)
+const Rule_B_Clean=MappingRule(State_B_Clean,Action_Left)
+const Rule_A_Dirty=MappingRule(State_A_Dirty,Action_Suck)
+const Rule_B_Dirty=MappingRule(State_B_Dirty,Action_Suck)
+
+type SimpleReflexVacuumAgentProgram <: SimpleReflexAgentProgram
+  rules::Vector{MappingRule}
+  SimpleReflexVacuumAgentProgram()=new([State_A_Clean, State_B_Clean, State_A_Dirty, State_B_Dirty])
+end
+
+function rule_match(state, rules)
+  for rule in rules
+    if (state == rule.state_val)
+      return rule.action
+    end
+  end
 end
 
 """
@@ -163,737 +340,143 @@ It does not depend on the historical percept data.
 Fig 2.8 Pg. 48, AIMA 3ed
 """
 
-type ReflexVacuumAgentProgram <: AgentProgram
-    isTracing::Bool
+@compat abstract type ReflexVacuumAgentProgram <: AgentProgram end
 
-    function ReflexVacuumAgentProgram(;trace::Bool=false)
-        return new(Bool(trace));
-    end
-end
-
-function execute(ap::ReflexVacuumAgentProgram, location_status::Percept)
-    location = location_status[1]
-    status = location_status[2]
-    action = (status == "Dirty")? "Suck":
-             (location == loc_A)? "Right":
-             (location == loc_B)? "Left" : nothing
-    if (ap.isTracing)
-      @printf("%s perceives %s and does %s\n",
-              string(typeof(ap)), string(location_status), "Suck")
-    end
+function execute(ap::ReflexVacuumAgentProgram, percept::VacuumPercept)
+    location = percept.location_status[1]
+    status = percept.location_status[2]
+    action = (status == Symbol("Dirty"))? Action_Suck:
+             (location == loc_A)? Action_Right:
+             (location == loc_B)? Action_Left : nothing
     return action
 end
 
-type Rule   #condition-action rules
-    condition::String
-    action::Action
-
-    function Rule(cond::String, act::Action)
-        return new(cond, act)
-    end
-end
-
 """
-*SimpleReflexAgentProgram* is a simple *Percept* to *Action* matching model
-based rules.
+Model is a theoretical representation of the system or world. Sensors of the
+Agent are the eyes and ears of the system to update the model.
 
-It does not depend on the historical percept data.
+The model has its internal states which will vary for *AgentProgram*.
 
-Fig 2.10 Pg. 49, AIMA 3ed
+In the *VacuumEnvironment* we choose the following as a Model.
+
+**Model**
+
+Model|Loc_A|Loc_B|
+=====|=====|=====|
+Agent|  1  |  0  |
+=====|=====|=====|
+Dirty|  1  |  1  |
+=====|=====|=====|
+
+Existence of the agent or dirt is shown as    : 1
+Non-Existence of the agent or dirt is shown as: 0
+When status is unknown it's kept as           :-1
+
+Hence, when the model is initialized it will be a 2x2 grid as below:
+
+Model|Loc_A|Loc_B|
+=====|=====|=====|
+Agent| -1  |  -1 |
+=====|=====|=====|
+Dirty| -1  |  -1 |
+=====|=====|=====|
+
+Hence, effectively there are 3 states per slot leading to 3^4=81 states.
+
+However, as  you can see some states are impossible for example we know there is
+only one agent. Hence, when location of the agent is known it's fairly
+deterministic.
+
+Agent state can be: (1,0) for loc_A or (0,1) for loc_B.
+Indeterminate state (-1,-1) can be only for the first time but never
+subsequently.
+
+For example, the following states are impossible in the model.
+First 2 elements are agent states and second 2 are the dirt state.
+
+-1, 0, 0, 0   <-I1. Agent state in one location tells the other location state.
+-1, 1, 0, 0   <-I2. Same as S1
+-1,-1,-1, 0   <-I3. Dirt state known means agent state cannot be unknown.
+-1,-1,-1, 1   <-I4. Same as S3.
+-1,-1, 0, 0   <-I5. Same as S3
+-1,-1, 0, 1   <-I6. Same as S3
+-1,-1, 1, 0   <-I7. Same as S3
+-1,-1, 1, 1   <-I8. Same as S3
+...
+
+Effectively, the model has only following valid environment states.
+
+-1,-1,-1,-1   <-R0. Initial state Agent has not received any Percept.
+                    Ignore this state and move read next Percept
+ 1, 0, 1,-1   <-R1. Agent goes to loc_A first. sees dirt.    -> Suck
+ 1, 0, 0,-1   <-R2. Agent goes to loc_A first. sees no dirt. -> Right
+ 0, 1,-1, 1   <-R3. Agent goes to loc_B first. sees dirt.    -> Suck
+ 0, 1,-1, 0   <-R4. Agent goes to loc_B first. sees no dirt. -> Left
+ 1, 0, 1, 0   <-R5. Agent goes to loc_A second.sees dirt.    -> Suck
+ 1, 0, 0, 0   <-R6. Agent goes to loc_A second.sees no dirt. -> NoOp
+ 0, 1, 0, 1   <-R7. Agent goes to loc_B second.sees dirt.    -> Suck
+ 0, 1, 0, 0   <-R8. Agent goes to loc_B second.sees no dirt. -> NoOp
+
+ When Agent goes second time the first location has to be clean and cannot be
+ unknown or dirty.
+
+Due to the presence of the model the previous states are captured and
+decisions can be taken on NoOp. One can also see an inherent assumption in the
+model, dirt does not get generated in the locations autonomously nor added by
+someone external. Those will fail the model.
+
+Note: States here are very different from that of the
+*SimpleReflexVacuumAgentProgram*
 """
-type SimpleReflexAgentProgram <: AgentProgram
-    isTracing::Bool
-    rules::Vector{Rule}
 
-    function SimpleReflexAgentProgram(rules_array::Vector{Rule};trace::Bool=false)
-        srap = new(Bool(trace));
-        srap.rules = deepcopy(rules_array);
-        return rules_array;
-    end
+type ModelVacuumState <: State
+  val::Tuple{Int,Int,Int,Int}
+  ModelVacuumState(v::Tuple{Int,Int,Int,Int})=new(v)
 end
 
-function execute(ap::SimpleReflexAgentProgram, percept::Percept)
-    state = interpret_input(ap, percept);
-    rule = rule_match(state, ap.rules);
-    action = rule.action;
-    if (ap.isTracing)
-        @printf("%s perceives %s and does %s\n",
-                string(typeof(ap)), string(percept), action);
-    end
-    return action;
+ModelVacuumState(v::Vector{Int})=ModelVacuumState(tuple(v...))
+
+const R1=MappingRule(ModelVacuumState([1, 0, 1,-1]), Action_Suck)
+const R2=MappingRule(ModelVacuumState([1, 0, 0,-1]), Action_Right)
+const R3=MappingRule(ModelVacuumState([0, 1,-1, 1]), Action_Suck)
+const R4=MappingRule(ModelVacuumState([0, 1,-1, 0]), Action_Left)
+const R5=MappingRule(ModelVacuumState([1, 0, 1, 0]), Action_Suck)
+const R6=MappingRule(ModelVacuumState([1, 0, 0, 0]), Action_NoOp)
+const R7=MappingRule(ModelVacuumState([0, 1, 0, 1]), Action_Suck)
+const R8=MappingRule(ModelVacuumState([0, 1, 0, 0]), Action_NoOp)
+
+type ModelBasedVacuumAgentProgram <: ModelBasedReflexAgentProgram
+  model::Vector{Int}
+  rules::Vector{Rule}
+  state::ModelVacuumState
+  action::Action
+
+  function ModelBasedVacuumAgentProgram()
+    model = [-1,-1,-1,-1]
+    rules = [R1, R2, R3, R4, R5, R6, R7, R8]
+    state = ModelVacuumState([-1,-1,-1,-1])
+    action = Action_NoOp
+    return new(model, rules, state, action)
+  end
 end
 
-function rule_match(state::String, rules::Vector{Rule})
-    for element in rules
-        if (state == element.condition)
-            return element;
-        end
-    end
-    return nothing;                  #the function did not find a matching rule
-end
-
-function interpret_input(ap::SimpleReflexAgentProgram, percept::Percept)
-    println("interpret_input() is not implemented yet for ", typeof(ap), "!");
-    nothing;
-end
-
-function update_state{T <: AgentProgram}(ap::T, percept::Percept)
-    println("update_state() is not implemented yet for ", typeof(ap), "!");
-    nothing;
-end
-
-
-
-
-
-type ModelBasedVacuumAgentProgram <: AgentProgram
-    isTracing::Bool
-    model::Dict{Any, Any}
-
-    function ModelBasedVacuumAgentProgram(;trace::Bool=false, model::Union{Void, Dict{Any, Any}}=nothing)
-        if (typeof(model) <: Dict{Any, Any})
-            new_ap = new(Bool(trace));
-            new_ap.model = deepcopy(model);
-            return new_ap;
-        else
-            return new(Bool(trace), Dict{Any, Any}());
-        end
-    end
-end
-
-type RandomAgentProgram <: AgentProgram
-    isTracing::Bool
-    actions::Array{Action, 1}
-
-    function RandomAgentProgram(actions::Array{Action, 1}; trace::Bool=false)
-        return new(Bool(trace), deepcopy(actions));
-    end
-end
-
-
-
-type ModelBasedReflexAgentProgram <: AgentProgram
-    isTracing::Bool
-    state::Dict{Any, Any}
-    model::Dict{Any, Any}
-    rules::Array{Rule, 1}
-    action::Action          #most recent action, initialized to empty string ""
-
-    function ModelBasedReflexAgentProgram(state::Dict{Any, Any}, model::Dict{Any, Any}, rules::Array{Rule, 1}; trace::Bool=false)
-        mbrap = new(Bool(trace));
-        mbrap.state = deepcopy(state);
-        mbrap.model = deepcopy(model);
-        mbrap.rules = deepcopy(rules);
-        return mbrap;
-    end
-end
-
-#=
-
-    Agents can interact with the environment through percepts and actions.
-
-=#
-
-abstract EnvironmentObject;         #declare EnvironmentObject as a supertype for EnvironmentObject implementations
-
-#the EnvironmentAgent implementations exist in the environment like other EnvironmentObjects such as Gold or Dirt
-abstract EnvironmentAgent <: EnvironmentObject;
-
-type Agent <: EnvironmentAgent
-    alive::Bool
-    performance::Float64
-    bump::Bool
-    heading::Tuple{Any, Any}
-    holding::Array{Any, 1}
-    program::AgentProgram
-    location::Tuple{Any, Any}       #initialized when adding agent to environment
-
-    function Agent()
-        return new(Bool(true), Float64(0), Bool(false),
-                                            rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
-                                            Array{Any, 1}());
-    end
-
-    function Agent{T <: AgentProgram}(ap::T)
-        new_agent = new(Bool(true), Float64(0), Bool(false),
-                                                rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
-                                                Array{Any, 1}());   #program is undefined
-        new_agent.program = ap;
-        return new_agent;
-    end
-end
-
-type Wumpus <: EnvironmentAgent
-    alive::Bool
-    performance::Float64
-    bump::Bool
-    heading::Tuple{Any, Any}
-    holding::Array{Any, 1}
-    program::AgentProgram
-    location::Tuple{Any, Any}       #initialized when adding agent to environment
-
-    function Wumpus()
-        return new(Bool(true), Float64(0), Bool(false),
-                                            rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
-                                            Array{Any, 1}());
-    end
-
-    function Wumpus{T <: AgentProgram}(ap::T)
-        new_agent = new(Bool(true), Float64(0), Bool(false),
-                                                rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
-                                                Array{Any, 1}());   #program is undefined
-        new_agent.program = ap;
-        return new_agent;
-    end
-end
-
-type Explorer <: EnvironmentAgent
-    alive::Bool
-    performance::Float64
-    bump::Bool
-    heading::Tuple{Any, Any}
-    holding::Array{Any, 1}
-    program::AgentProgram
-    location::Tuple{Any, Any}       #initialized when adding agent to environment
-
-    function Explorer()
-        return new(Bool(true), Float64(0), Bool(false),
-                                            rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
-                                            Array{Any, 1}());
-    end
-
-    function Explorer{T <: AgentProgram}(ap::T)
-        new_agent = new(Bool(true), Float64(0), Bool(false),
-                                                rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
-                                                Array{Any, 1}());   #program is undefined
-        new_agent.program = ap;
-        return new_agent;
-    end
-end
-
-function isAlive{T <: Agent}(a::T)
-    return a.alive;
-end
-
-function setAlive{T <: Agent}(a::T, bv::Bool)
-    a.alive = bv;
-    nothing;
-end
-
-#=
-
-    Obstacle Environment Objects
-
-=#
-
-abstract Obstacle <: EnvironmentObject
-
-type Wall <: Obstacle
-    location::Tuple{Any, Any}
-
-    function Wall()
-        return new();
-    end
-end
-
-#=
-
-    Vacuum Environment Objects
-
-=#
-
-type Dirt <: EnvironmentObject
-    location::Tuple{Any, Any}
-
-    function Dirt()
-        return new();
-    end
-end
-
-#=
-
-    Wumpus Environment Objects
-
-=#
-
-type Gold <: EnvironmentObject
-    location::Tuple{Any, Any}
-
-    function Gold()
-        return new();
-    end
-end
-
-type Pit <: EnvironmentObject
-    location::Tuple{Any, Any}
-
-    function Pit()
-        return new();
-    end
-end
-
-type Arrow <: EnvironmentObject
-    location::Tuple{Any, Any}
-
-    function Array()
-        return new();
-    end
-end
-
-#=
-
-    Implement execute() methods for implemented AgentPrograms.
-
-=#
-
-loc_A = (0, 0)
-loc_B = (1, 0)
-
-function execute(ap::TableDrivenAgentProgram, percept::Percept)
-    push!(ap.percepts, percept);
-    local action;
-    if (haskey(ap.table, Tuple((ap.percepts...))))
-        action = ap.table[Tuple((ap.percepts...))]  #convert percept sequence to tuple
-        if (ap.isTracing)
-            @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), action.name);
-        end
-    else
-        #The table is not complete with all possible percept sequences.
-        #So, this program should now behave like a ReflexVacuumAgentProgram.
-        if (percept[1] == loc_A)
-            action = "Right";
-        elseif (percept[1] == loc_B)
-            action = "Left";
-        end
-    end
-    return action;
-end
-
-
-
-function execute(ap::ModelBasedVacuumAgentProgram, location_status::Percept)
-    local location = location_status[1];
-    local status = location_status[2];
-    ap.model[location] = status;                            #update existing model
-    if (ap.model[loc_A] == ap.model[loc_B] == "Clean")      #return "NoOp" when no work is necessary
-        if (ap.isTracing)
-            @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "NoOp");
-        end
-        return "NoOp";
-    elseif (status == "Dirty")
-        if (ap.isTracing)
-            @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Suck");
-        end
-        return "Suck";
-    elseif (location == loc_A)
-        if (ap.isTracing)
-            @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Right");
-        end
-        return "Right";
-    elseif (location == loc_B)
-        if (ap.isTracing)
-            @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "Left");
-        end
-        return "Left";
-    end
-end
-
-function execute(ap::RandomAgentProgram, percept::Percept)
-    return rand(RandomDeviceInstance, ap.actions);
-end
-
-
-function execute(ap::ModelBasedReflexAgentProgram, percept::Percept)
-    #the agent acts according to the agent state and model and given percept (Fig. 2.12)
-
-    #ap.state <- update-state(ap.state, ap.action, percept, ap.model);  #set new state
-    ap.state = update_state(ap, percept);
-    local rule = rule_match(ap.state, ap.rules);
-    ap.action = rule.action;
-    if (ap.isTracing)
-        @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), ap.action);
-    end
-    return ap.action;
-end
-
-#=
-
-    Load a implemented AgentProgram into a Agent.
-
-=#
-
-function TableDrivenVacuumAgent()
-    #dictionary representation of table (Fig. 2.3) of percept sequences (key) mappings to actions (value).
-    local table = Dict{Any, Any}([
-                Pair(((loc_A, "Clean"),), "Right"),
-                Pair(((loc_A, "Dirty"),), "Suck"),
-                Pair(((loc_B, "Clean"),), "Left"),
-                Pair(((loc_B, "Dirty"),), "Suck"),
-                Pair(((loc_A, "Clean"), (loc_A, "Clean")), "Right"),
-                Pair(((loc_A, "Clean"), (loc_A, "Dirty")), "Suck"),
-                # ...
-                Pair(((loc_A, "Clean"), (loc_A, "Clean"), (loc_A, "Clean")), "Right"),
-                Pair(((loc_A, "Clean"), (loc_A, "Clean"), (loc_A, "Dirty")), "Suck"),
-                # ...
-                ]);
-    return Agent(TableDrivenAgentProgram(table_dict=table));
-end
-
-function ReflexVacuumAgent()
-    #Return a reflex agent for the two-state vacuum environment (Fig. 2.8).
-    return Agent(ReflexVacuumAgentProgram());
-end
-
-function ModelBasedVacuumAgent()
-    #Return a agent that tracks statuses of clean and dirty locations.
-    return Agent(ModelBasedVacuumAgentProgram(model=Dict{Any, Any}([
-            Pair(loc_A, Void),
-            Pair(loc_B, Void),
-            ])));
-end
-
-function RandomVacuumAgent()
-    return Agent(RandomAgentProgram(["Right", "Left", "Suck", "NoOp"]));
-end
-
-
-abstract TwoDimensionalEnvironment <: Environment;
-
-#XYEnvironment is a 2-dimensional Environment implementation with obstacles.
-#Agents perceive their location as a tuple of objects within perceptible_distance radius.
-#This environment does not update agent performance measures.
-type XYEnvironment <: TwoDimensionalEnvironment
-    objects::Array{EnvironmentObject, 1}
-    agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
-    width::Float64
-    height::Float64
-    perceptible_distance::Float64
-
-    function XYEnvironment()
-        local xy = new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10), Float64(1));
-        add_walls(xy);
-        return xy;
-    end
-end
-
-#VacuumEnvironment is a 2-dimensional Environment implementation with obstacles.
-#Agents can perceive their location as "Dirty" or "Clean".
-#Agent performance measures are updated when Dirt is removed or a non-NoOp Action is executed.
-type VacuumEnvironment <: TwoDimensionalEnvironment
-    objects::Array{EnvironmentObject, 1}
-    agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
-    width::Float64
-    height::Float64
-    perceptible_distance::Float64
-
-    function VacuumEnvironment()
-        local ve = new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10), Float64(1));
-        add_walls(ve);
-        return ve;
-    end
-end
-
-#TrivialVacuumEnvironment has 2 possible locations: loc_A and loc_B.
-#The status of those locations can be either "Dirty" or "Clean".
-type TrivialVacuumEnvironment <: Environment
-    objects::Array{EnvironmentObject, 1}
-    agents::Array{Agent, 1}
-    status::Dict{Tuple{Any, Any}, String}
-    perceptible_distance::Float64
-
-    function TrivialVacuumEnvironment()
-        local tve = new(
-                Array{EnvironmentObject, 1}(),
-                Array{Agent, 1}(),
-                Dict{Tuple{Any, Any}, String}([
-                    Pair(loc_A, rand(RandomDeviceInstance, ["Clean", "Dirty"])),
-                    Pair(loc_B, rand(RandomDeviceInstance, ["Clean", "Dirty"])),
-                    ]), Float64(1));
-        return tve;
-    end
-end
-
-type WumpusEnvironment <: TwoDimensionalEnvironment
-    objects::Array{EnvironmentObject, 1}
-    agents::Array{Array, 1}
-    width::Float64
-    height::Float64
-    perceptible_distance::Float64
-
-    function WumpusEnvironment()
-        local we = new(Array{EnvironmentObject, 1}(), Array{Agent, 1}(), Float64(10), Float64(10), Float64(1));
-        add_walls(we);
-        return we;
-    end
-end
-
-"""
-    percept(e, agent, act)
-
-Returns a Percept representing what the agent perceives in the enviroment.
-"""
-function percept{T1 <: Environment, T2 <: EnvironmentAgent, T3 <: Action}(e::T1, a::T2, act::T3)    #implement this later
-    println("percept() is not implemented yet for ", typeof(e), "!");
-    nothing;
-end
-
-function percept(e::VacuumEnvironment, a::Agent)
-    local status = if_(some_objects_at(a.location, Dirt), "Dirty", "Clean");
-    local bump = if_(a.bump, "Bump", "None");
-    return (status, bump)
-end
-
-"""
-    objects_near(e, location)
-    objects_near(e, location, radius)
-
-Return a list of EnvironmentObjects within the radius of a given location.
-"""
-function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius::Union{Void, Float64}=nothing)
-    if (typeof(radius) <: Void)
-        radius = e.perceptible_distance;
-    end
-    sq_radius = radius * radius;
-    return [obj for obj in e.objects if (utils.distance2(loc, obj.location) <= sq_radius)];
-end
-
-function percept(e::XYEnvironment, a::Agent)
-    #this percept might not consist of exactly 2 elements
-    return Tuple(([string(typeof(obj)) for obj in objects_near(a.location)]...));
-end
-
-function percept(e::TrivialVacuumEnvironment, a::Agent)
-    return (a.location, e.status[a.location]);
-end
-
-function get_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::DataType)
-    if (objType <: EnvironmentObject)
-        return [obj for obj in e.objects if (typeof(obj) <: objType && obj.location == loc)];
-    else
-        error(@sprintf("InvalidEnvironmentObjectError: %s is not a subtype of EnvironmentObject!", string(typeof(objType))));
-    end
-end
-
-function some_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::DataType)
-    object_array = get_objects_at(e, loc, objType);
-    if (length(object_array) == 0)
-        return false;
-    else
-        return true;
-    end
-end
-
-function is_done{T <:Environment}(e::T)
-    for a in e.agents
-        if (a.alive)
-            return false;
-        end
-    end
-    return true;
-end
-
-function step{T <: Environment}(e::T)
-    if (!is_done(e))
-        local actions = [execute(agent.program, percept(e, agent)) for agent in e.agents];
-        for t in zip(e.agents, actions)
-            local agent = t[1];
-            local action = t[2];
-            execute_action(e, agent, action);
-        end
-        exogenous_change(e);
-    end
-end
-
-function run{T <: Environment}(e::T; steps::Int64=1000)
-    for i in range(0, steps)
-        if (is_done(e))
-            break;
-        end
-        step(e);
-    end
-end
-
-function exogenous_change{T <: Environment}(e::T)   #implement this later
-    #comment the following line to reduce verbosity
-    #println("exogenous_change() not yet implemented for ", typeof(e), "!");
-    nothing;
-end
-
-function default_location{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2)   #implement this later
-    return false;
-end
-
-function default_location{T <: EnvironmentObject}(e::TrivialVacuumEnvironment, obj::T)
-    return rand(RandomDeviceInstance, [loc_A, loc_B]);
-end
-
-function default_location{T <: EnvironmentObject}(e::XYEnvironment, obj::T)
-    return (rand(RandomDeviceInstance, range(0, e.width)), rand(RandomDeviceInstance, range(0, e.height)));
-end
-
-function environment_objects{T <: Environment}(e::T)
-    return [];
-end
-
-function environment_objects(e::VacuumEnvironment)
-    #ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, and ModelBasedVacuumAgent
-    #are functions that generate new agents with their respective AgentPrograms
-    return [Wall, Dirt, ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, ModelBasedVacuumAgent];
-end
-
-function environment_objects(e::TrivialVacuumEnvironment)
-    #ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, and ModelBasedVacuumAgent
-    #are functions that generate new agents with their respective AgentPrograms
-    return [Wall, Dirt, ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, ModelBasedVacuumAgent];
-end
-
-function environment_objects(e::WumpusEnvironment)
-    return [Wall, Gold, Pit, Arrow, Wumpus, Explorer];
-end
-
-function execute_action{T1 <: Environment, T2 <: EnvironmentAgent}(e::T1, a::T2, act::Action)   #implement this later
-    println("execute_action() is not implemented yet for ", string(typeof(e)), "!");
-    nothing;
-end
-
-function execute_action(e::XYEnvironment, a::EnvironmentAgent, act::Action)
-    a.bump = false;
-    if (act == "TurnRight")
-        a.heading = utils.turn_heading(a.heading, -1);
-    elseif (act == "TurnLeft")
-        a.heading = utils.turn_heading(a.heading, 1);
-    elseif (act == "Foward")
-        move_to(e, a, utils.vector_add_tuples(a.heading, a.location));
-    elseif (act == "Release")
-        if (length(a.holding) > 0)
-            pop!(a.holding);
-        end
-    end
-    nothing;
-end
-
-function execute_action(e::VacuumEnvironment, a::EnvironmentAgent, act::Action)
-    if (act == "Suck")
-        local dirt_array = get_objects_at(e, a.location, Dirt);
-        if (length(dirt_array) > 0)
-            local dirt = pop!(dirt);
-            delete_object(e, dirt);
-            a.performance = a.performance + 100;
-        end
-    else
-        a.bump = false;
-        if (act == "TurnRight")
-            a.heading = utils.turn_heading(a.heading, -1);
-        elseif (act == "TurnLeft")
-            a.heading = utils.turn_heading(a.heading, 1);
-        elseif (act == "Foward")
-            move_to(e, a, utils.vector_add_tuples(a.heading, a.location));
-        elseif (act == "Release")
-            if (length(a.holding) > 0)
-                pop!(a.holding);
-            end
-        end
-    end
-    if (act != "NoOp")
-        a.performance = a.performance - 1;
-    end
-    nothing;
-end
-
-function execute_action(e::TrivialVacuumEnvironment, a::EnvironmentAgent, act::Action)
-    if (act == "Right")
-        a.location = loc_B;
-        a.performance = a.performance - 1;
-    elseif (act == "Left")
-        a.location = loc_A;
-        a.performance = a.performance - 1;
-    elseif (act == "Suck")
-        if (e.status[a.location] == "Dirty")
-            a.performance = a.performance + 10;
-        end
-        e.status[a.location] = "Clean";
-    end
-    nothing;
-end
-
-function add_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2; location::Union{Void, Tuple{Any, Any}}=nothing)
-    if (!(obj in e.objects))
-        if (!(typeof(location) <: Void))
-            obj.location = location;
-        else
-            obj.location = default_location(e, obj);
-        end
-        push!(e.objects, obj);
-        if (typeof(obj) <: EnvironmentAgent)
-            obj.performance = Float64(0);
-            push!(e.agents, obj);
-        end
-    else
-        println("add_object(): object already exists in environment!");
-    end
-    nothing;
-end
-
-function delete_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2)
-    local i = utils.index(e.objects, obj);
-    if (i > -1)
-        deleteat!(e.objects, i);
-    end
-    i = utils.index(e.agents, obj);
-    if (i > -1)
-        deleteat!(e.agents, i);
-    end
-    nothing;
-end
-
-function add_walls{T <: TwoDimensionalEnvironment}(e::T)
-    for x in range(0, e.width)
-        add_object(Wall(), location=(x, 0));
-        add_object(Wall(), location=(x, e.height - 1));
-    end
-    for y in range(0, e.height)
-        add_object(Wall(), location=(0, y));
-        add_object(Wall(), location=(e.width - 1, 0));
-    end
-    nothing;
-end
-
-"""
-    move_to(e, obj, dest)
-
-Move the EnvironmentObject to the destination given.
-"""
-function move_to{T <: TwoDimensionalEnvironment}(e::T, obj::EnvironmentObject, destination::Tuple{Any, Any})
-    obj.bump = some_objects_at(e, destination, Wall);   #Wall is a subtype of Obstacle, not an alias
-    if (!obj.bump)
-        obj.location = destination;
-    end
-    nothing;
-end
-
-function run_once(e::Environment, AgentGen::Function, step_count::Int)
-    local agent = AgentGen();
-    add_object(e, agent);
-    run(e, steps=step_count);
-    return agent.performance;
-end
-
-"""
-    test_agent(agentgeneratorfunction, steps, envs)
-
-Calculates the average of the scores of running the given Agent in each of the environments.
-"""
-function test_agent{T <: Environment}(AgentGenerator::Function, steps::Int, envs::Array{T, 1})
-    return mean([run_once(envs[i], AgentGenerator, steps) for i in 1:length(envs)]);
-end
-
-"""
-    compare_agents()
-
-Creates an array of 'n' Environments and runs each Agent in each separate copy of the Environment
-array for 'steps' times. Then, return a list of (agent, average_score) tuples.
-"""
-function compare_agents(EnvironmentGenerator::DataType, AgentGenerators::Array{Function, 1}; n::Int64=10, steps::Int64=1000)
-    local envs = [EnvironmentGenerator() for i in range(0, n)];
-    return [(string(typeof(A)), test_agent(A, steps, deepcopy(envs))) for A in AgentGenerators];
+function update_state(state, action, percept, model)
+
+  #Update model with previous state
+  for i=1:4
+    model[i] = state.val[i]
+  end
+
+  loc = percept[1]
+  status = percept[2]
+
+  if (loc == Symbol("loc_A"))
+    model[1] = 1; model[2] = 0
+    model[3] = (status == Symbol("Dirty"))?1:0
+  else
+    model[1] = 0; model[2] = 1
+    model[4] = (status == Symbol("Dirty"))?1:0
+  end
+
+  return VacuumState(model)
 end

@@ -1,19 +1,19 @@
 module aimajulia
 
+include("errors.jl")
 
+#include("utils.jl");
 
-include("utils.jl");
+#using aimajulia.utils;
 
-using aimajulia.utils;
-
-include("logic.jl");
+#include("logic.jl");
 
 include("agents.jl");
 
-include("search.jl");
+#include("search.jl");
 
-include("games.jl");
+#include("games.jl");
 
-include("csp.jl");
+#include("csp.jl");
 
 end;
