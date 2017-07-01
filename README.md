@@ -19,68 +19,68 @@ Index of Algorithms
 
 | **Figure** | **Name (in 3<sup>rd</sup> edition)** | **Name (in repository)** | **File**
 |:--------|:-------------------|:---------|:-----------|
-| 2.1     | Environment        | `Environment` | [`src/agents.jl`][agents] |
-| 2.1     | Agent              | `Agent` | [`src/agents.jl`][agents] |
-| 2.3     | Table-Driven-Vacuum-Agent | `TableDrivenVacuumAgent` | [`src/agents.jl`][agents] |
-| 2.7     | Table-Driven-Agent | `TableDrivenAgentProgram` | [`src/agents.jl`][agents] |
-| 2.8     | Reflex-Vacuum-Agent | `ReflexVacuumAgent` | [`src/agents.jl`][agents] |
-| 2.10    | Simple-Reflex-Agent | `SimpleReflexAgent` | [`src/agents.jl`][agents] |
-| 2.12    | Model-Based-Reflex-Agent | `ModelBasedReflexAgentProgram` | [`src/agents.jl`][agents] |
-| 3       | Problem            | `Problem` | [`src/search.jl`][search] |
-| 3       | Node               | `Node` | [`src/search.jl`][search] |
-| 3       | Queue              | `Queue` | [`src/utils.jl`][utils] |
-| 3.1     | Simple-Problem-Solving-Agent | `SimpleProblemSolvingAgent` | [`src/search.jl`][search] |
-| 3.2     | Romania            | `romania` | [`src/search.jl`][search] |
-| 3.7     | Tree-Search        | `tree_search` | [`src/search.jl`][search] |
-| 3.7     | Graph-Search        | `graph_search` | [`src/search.jl`][search] |
-| 3.11    | Breadth-First-Search        | `breadth_first_search` | [`src/search.jl`][search] |
-| 3.14    | Uniform-Cost-Search        | `uniform_cost_search` | [`src/search.jl`][search] |
-| 3.17    | Depth-Limited-Search | `depth_limited_search` | [`src/search.jl`][search] |
-| 3.18    | Iterative-Deepening-Search | `iterative_deepening_search` | [`src/search.jl`][search] |
-| 3.22    | Best-First-Search  | `best_first_graph_search` | [`src/search.jl`][search] |
-| 3.24    | A\*-Search        | `astar_search` | [`src/search.jl`][search] |
-| 3.26    | Recursive-Best-First-Search | `recursive_best_first_search` | [`src/search.jl`][search] |
-| 4.2     | Hill-Climbing      | `hill_climbing` | [`src/search.jl`][search] |
-| 4.5     | Simulated-Annealing | `simulated_annealing` | [`src/search.jl`][search] |
-| 4.8     | Genetic-Algorithm  | `genetic_algorithm` | [`src/search.jl`][search] |
-| 4.11    | And-Or-Graph-Search | `and_or_graph_search` | [`src/search.jl`][search] |
+| 2.1     | Environment        | `Environment` | [`agents.jl`](src/agents) |
+| 2.1     | Agent              | `Agent` | [`agents.jl`](src/agents) |
+| 2.3     | Table-Driven-Vacuum-Agent | `TableDrivenVacuumAgent` | [`agents.jl`](src/agents) |
+| 2.7     | Table-Driven-Agent | `TableDrivenAgentProgram` | [`agents.jl`](src/agents) |
+| 2.8     | Reflex-Vacuum-Agent | `ReflexVacuumAgent` | [`agents.jl`](src/agents) |
+| 2.10    | Simple-Reflex-Agent | `SimpleReflexAgent` | [`agents.jl`](src/agents) |
+| 2.12    | Model-Based-Reflex-Agent | `ModelBasedReflexAgentProgram` | [`agents.jl`](src/agents) |
+| 3       | Problem            | `Problem` | [`search.jl`](src/search) |
+| 3       | Node               | `Node` | [`search.jl`](src/search) |
+| 3       | Queue              | `Queue` | [`utils.jl`](src/utils) |
+| 3.1     | Simple-Problem-Solving-Agent | `SimpleProblemSolvingAgent` | [`search.jl`](src/search) |
+| 3.2     | Romania            | `romania` | [`search.jl`](src/search) |
+| 3.7     | Tree-Search        | `tree_search` | [`search.jl`](src/search) |
+| 3.7     | Graph-Search        | `graph_search` | [`search.jl`](src/search) |
+| 3.11    | Breadth-First-Search        | `breadth_first_search` | [`search.jl`](src/search) |
+| 3.14    | Uniform-Cost-Search        | `uniform_cost_search` | [`search.jl`](src/search) |
+| 3.17    | Depth-Limited-Search | `depth_limited_search` | [`search.jl`](src/search) |
+| 3.18    | Iterative-Deepening-Search | `iterative_deepening_search` | [`search.jl`](src/search) |
+| 3.22    | Best-First-Search  | `best_first_graph_search` | [`search.jl`](src/search) |
+| 3.24    | A\*-Search        | `astar_search` | [`search.jl`](src/search) |
+| 3.26    | Recursive-Best-First-Search | `recursive_best_first_search` | [`search.jl`](src/search) |
+| 4.2     | Hill-Climbing      | `hill_climbing` | [`search.jl`](src/search) |
+| 4.5     | Simulated-Annealing | `simulated_annealing` | [`search.jl`](src/search) |
+| 4.8     | Genetic-Algorithm  | `genetic_algorithm` | [`search.jl`](src/search) |
+| 4.11    | And-Or-Graph-Search | `and_or_graph_search` | [`search.jl`](src/search) |
 | 4.21    | Online-DFS-Agent   |  |  |
 | 4.24    | LRTA\*-Agent       |  |  |
-| 5.3     | Minimax-Decision   | `minimax_decision` | [`src/games.jl`][games] |
-| 5.7     | Alpha-Beta-Search  | `alphabeta_search` | [`src/games.jl`][games] |
-| 6       | CSP                | `CSP` | [`src/csp.jl`][csp] |
-| 6.3     | AC-3               | `AC3` | [`src/csp.jl`][csp] |
-| 6.5     | Backtracking-Search | `backtracking_search` | [`src/csp.jl`][csp] |
-| 6.8     | Min-Conflicts      | `min_conflicts` | [`src/csp.jl`][csp] |
-| 6.11    | Tree-CSP-Solver    | `tree_csp_solver` | [`src/csp.jl`][csp] |
-| 7       | KB                 | `KnowledgeBase` | [`src/logic.jl`][logic] |
-| 7.1     | KB-Agent           | `KnowledgeBaseAgentProgram` | [`src/logic.jl`][logic] |
-| 7.7     | Propositional Logic Sentence | `Expression` | [`src/logic.jl`][logic] |
-| 7.10    | TT-Entails         | `tt_entails` | [`src/logic.jl`][logic] |
-| 7.12    | PL-Resolution      | `pl_resolution` | [`src/logic.jl`][logic] |
-| 7.14    | Convert to CNF     | `to_conjunctive_normal_form` | [`src/logic.jl`][logic] |
-| 7.15    | PL-FC-Entails?     | `pl_fc_resolution` | [`src/logic.jl`][logic] |
-| 7.17    | DPLL-Satisfiable?  | `dpll_satisfiable` | [`src/logic.jl`][logic] |
-| 7.18    | WalkSAT            | `walksat` | [`src/logic.jl`][logic] |
+| 5.3     | Minimax-Decision   | `minimax_decision` | [`games.jl`](src/games) |
+| 5.7     | Alpha-Beta-Search  | `alphabeta_search` | [`games.jl`](src/games) |
+| 6       | CSP                | `CSP` | [`csp.jl`](src/csp) |
+| 6.3     | AC-3               | `AC3` | [`csp.jl`](src/csp) |
+| 6.5     | Backtracking-Search | `backtracking_search` | [`csp.jl`](src/csp) |
+| 6.8     | Min-Conflicts      | `min_conflicts` | [`csp.jl`](src/csp) |
+| 6.11    | Tree-CSP-Solver    | `tree_csp_solver` | [`csp.jl`](src/csp) |
+| 7       | KB                 | `KnowledgeBase` | [`logic.jl`](src/logic) |
+| 7.1     | KB-Agent           | `KnowledgeBaseAgentProgram` | [`logic.jl`](src/logic) |
+| 7.7     | Propositional Logic Sentence | `Expression` | [`logic.jl`](src/logic) |
+| 7.10    | TT-Entails         | `tt_entails` | [`logic.jl`](src/logic) |
+| 7.12    | PL-Resolution      | `pl_resolution` | [`logic.jl`](src/logic) |
+| 7.14    | Convert to CNF     | `to_conjunctive_normal_form` | [`logic.jl`](src/logic) |
+| 7.15    | PL-FC-Entails?     | `pl_fc_resolution` | [`logic.jl`](src/logic) |
+| 7.17    | DPLL-Satisfiable?  | `dpll_satisfiable` | [`logic.jl`](src/logic) |
+| 7.18    | WalkSAT            | `walksat` | [`logic.jl`](src/logic) |
 | 7.20    | Hybrid-Wumpus-Agent |  |  |
-| 7.22    | SATPlan            | `sat_plan`  | [`src/logic.jl`][logic] |
-| 9       | Subst              | `substitute` | [`src/logic.jl`][logic] |
-| 9.1     | Unify              | `unify` | [`src/logic.jl`][logic] |
-| 9.3     | FOL-FC-Ask         | `fol_fc_ask` | [`src/logic.jl`][logic] |
-| 9.6     | FOL-BC-Ask         | `fol_bc_ask` | [`src/logic.jl`][logic] |
+| 7.22    | SATPlan            | `sat_plan`  | [`logic.jl`](src/logic) |
+| 9       | Subst              | `substitute` | [`logic.jl`](src/logic) |
+| 9.1     | Unify              | `unify` | [`logic.jl`](src/logic) |
+| 9.3     | FOL-FC-Ask         | `fol_fc_ask` | [`logic.jl`](src/logic) |
+| 9.6     | FOL-BC-Ask         | `fol_bc_ask` | [`logic.jl`](src/logic) |
 | 9.8     | Append             |  |  |
-| 10.1    | Air-Cargo-problem  | `air_cargo_pddl` |[`src/planning.jl`][planning]|
-| 10.2    | Spare-Tire-Problem | `spare_tire_pddl` |[`src/planning.jl`][planning]|
-| 10.3    | Three-Block-Tower  | `three_block_tower_pddl` |[`src/planning.jl`][planning]|
-| 10.7    | Cake-Problem       | `have_cake_and_eat_cake_too_pddl` |[`src/planning.jl`][planning]|
-| 10.9    | Graphplan          | `graphplan` | [`src/planning.jl`][planning] |
+| 10.1    | Air-Cargo-problem  | `air_cargo_pddl` |[`planning.jl`](src/planning]|
+| 10.2    | Spare-Tire-Problem | `spare_tire_pddl` |[`planning.jl`](src/planning]|
+| 10.3    | Three-Block-Tower  | `three_block_tower_pddl` |[`planning.jl`](src/planning]|
+| 10.7    | Cake-Problem       | `have_cake_and_eat_cake_too_pddl` |[`planning.jl`](src/planning]|
+| 10.9    | Graphplan          | `graphplan` | [`planning.jl`](src/planning) |
 | 10.13   | Partial-Order-Planner |  |  |
-| 11.1    | Job-Shop-Problem-With-Resources | `job_shop_scheduling_pddl` |[`src/planning.jl`][planning]|
-| 11.5    | Hierarchical-Search | `hierarchical_search` |[`src/planning.jl`][planning]|
+| 11.1    | Job-Shop-Problem-With-Resources | `job_shop_scheduling_pddl` |[`planning.jl`](src/planning]|
+| 11.5    | Hierarchical-Search | `hierarchical_search` |[`planning.jl`](src/planning]|
 | 11.8    | Angelic-Search   |  |  |
-| 11.10   | Doubles-tennis     | `doubles_tennis_pddl` | [`src/planning.jl`][planning] |
-| 13      | Discrete Probability Distribution | `ProbDist` | [`src/probability.jl`][probability] |
-| 13.1    | DT-Agent                    | `DecisionTheoreticAgentProgram` | [`src/probability.jl`][probability] |
+| 11.10   | Doubles-tennis     | `doubles_tennis_pddl` | [`planning.jl`](src/planning) |
+| 13      | Discrete Probability Distribution | `ProbDist` | [`probability.jl`](src/probability) |
+| 13.1    | DT-Agent                    | `DecisionTheoreticAgentProgram` | [`probability.jl`](src/probability) |
 | 14.9    | Enumeration-Ask             |  |  |
 | 14.11   | Elimination-Ask             |  |  |
 | 14.13   | Prior-Sample                |  |  |
