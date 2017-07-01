@@ -121,7 +121,7 @@ Conventions
 
 * 4 spaces, not tabs
 
-* Please try to follow the style conventions of the file your are modifying.
+* Please try to follow the style conventions of the file you are modifying.
 
 We like this [style guide](https://docs.julialang.org/en/release-0.5/manual/style-guide/).
 
