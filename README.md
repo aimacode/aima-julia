@@ -79,7 +79,7 @@ Index of Algorithms
 | 11.5    | Hierarchical-Search | `hierarchical_search` | [`planning.jl`](planning.jl) |
 | 11.8    | Angelic-Search   |  |  |
 | 11.10   | Doubles-tennis     | `doubles_tennis_pddl` | [`planning.jl`](planning.jl) |
-| 13      | Discrete Probability Distribution | `ProbDist` | [`probability.jl`](probability.jl) |
+| 13      | Discrete Probability Distribution | `ProbabilityDist` | [`probability.jl`](probability.jl) |
 | 13.1    | DT-Agent                    | `DecisionTheoreticAgentProgram` | [`probability.jl`](probability.jl) |
 | 14.9    | Enumeration-Ask             |  |  |
 | 14.11   | Elimination-Ask             |  |  |
