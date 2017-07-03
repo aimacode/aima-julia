@@ -70,7 +70,7 @@ function setindex!(pd::ProbabilityDistribution, key, value)
     nothing;
 end
 
-function normalize(pd::ProbabilityDistribution; epsilon::Float64=1e-09)
+function normalize{T <: AbstractProbabilityDistribution}(pd::T; epsilon::Float64=1e-09)
     local total::Float64 = sum(values(pd.probabilities));
     if (!((1.0 - epsilon) < total < (1.0 + epsilon))
         for k in keys(pd.probabilities)
@@ -80,7 +80,7 @@ function normalize(pd::ProbabilityDistribution; epsilon::Float64=1e-09)
     return pd;
 end
 
-function show_approximation(pd::ProbabilityDistribution; number_format::String="%.4g")
+function show_approximation{T <: AbstractProbabilityDistribution}(pd::T; number_format::String="%.4g")
     return join(collect(@sprintf("%s: "*number_format, v, k) for (k, v) in pd.probabilities), ", ");
 end
 
@@ -128,5 +128,26 @@ end
 
 function values(jpd::JointProbabilityDistribution, key)
     return jpd.values(key);
+end
+
+function enumerate_joint{T <: AbstractProbabilityDistribution}(variables::AbstractVector, e::Dict, P::T)
+    if (length(variables) == 0)
+        return P[e];
+    else
+        local Y, rest::AbstractVector = variables[1], variables[2:end];
+        return sum(collect(enumerate_joint(rest, extend(e, Y, y), P) for y in P.values(Y)));
+    end
+end
+
+function enumerate_joint_ask{T <: AbstractProbabilityDistribution}(X::String, e::Dict, P::T)
+    if (X in e)
+        error("enumerate_joint_ask(): The query variable was not distinct from evidence variables.");
+    end
+    local Q::ProbabilityDistribution = ProbabilityDistribution(variable_name=X);
+    local Y::AbstractVector = collect(v for v in P.variables if ((v != X) && !(v in e)));
+    for x_i in P.values(X)
+        Q[x_i] = enumerate_joint(Y, extend(e, X, xi), P)
+    end
+    return normalize(Q);
 end
 
