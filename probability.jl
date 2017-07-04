@@ -151,3 +151,84 @@ function enumerate_joint_ask{T <: AbstractProbabilityDistribution}(X::String, e:
     return normalize(Q);
 end
 
+type BayesianNetworkNode
+    variable::String
+    parents::Array{String, 1}
+    cpt::Dict
+    children::AbstractVector
+
+    function BayesianNetworkNode{T <: Real}(X::String, parents::String, conditional_probability_table::T)
+        local cpt::Dict = Dict([Pair((), conditional_probability_table)]);
+        for (keys, value) in cpt
+            if (!((typeof(keys) <: Tuple) & (length(keys) == length(parents))))
+                error("BayesianNetworkNode(): The length of ", keys, " and ", parents, " do not match!");
+            end
+            if (!(all(typeof(key) <: Bool for key in keys)))
+                error("BayesianNetworkNode(): ", keys, " should only have boolean values!");
+            end
+            if (!(0.0 <= value <= 1.0))
+                error("BayesianNetworkNode(): The given value ", value, " is not a valid probability!");
+            end
+        end
+        return new(X, map(String, split(parents)), cpt, []);;
+    end
+
+    function BayesianNetworkNode(X::String, parents::String, conditional_probability_table::Dict)
+        local cpt::Dict;
+        if ((length(conditional_probability_table) != 0) & (typeof(first(keys(conditional_probability_table))) <: Bool))
+            cpt = Dict(collect(Pair((value,), p) for (value, p) in conditional_probability_table));
+        else
+            cpt = conditional_probability_table;
+        end
+        for (keys, value) in cpt
+            if (!((typeof(keys) <: Tuple) && (length(keys) == length(parents))))
+                error("BayesianNetworkNode(): The length of ", keys, " and ", parents, " do not match!");
+            end
+            if (!(all(typeof(key) <: Bool for key in keys)))
+                error("BayesianNetworkNode(): ", keys, " should only have boolean values!");
+            end
+            if (!(0.0 <= value <= 1.0))
+                error("BayesianNetworkNode(): The given value ", value, " is not a valid probability!");
+            end
+        end
+        return new(X, map(String, split(parents)), cpt, []);;
+    end
+
+    function BayesianNetworkNode{T <: Real}(X::String, parents::Array{String, 1}, conditional_probability_table::T)
+        local cpt::Dict = Dict([Pair((), conditional_probability_table)]);
+        for (keys, value) in cpt
+            if (!((typeof(keys) <: Tuple) & (length(keys) == length(parents))))
+                error("BayesianNetworkNode(): The length of ", keys, " and ", parents, " do not match!");
+            end
+            if (!(all(typeof(key) <: Bool for key in keys)))
+                error("BayesianNetworkNode(): ", keys, " should only have boolean values!");
+            end
+            if (!(0.0 <= value <= 1.0))
+                error("BayesianNetworkNode(): The given value ", value, " is not a valid probability!");
+            end
+        end
+        return new(X, parents, cpt, []);;
+    end
+
+    function BayesianNetworkNode(X::String, parents::Array{String, 1}, conditional_probability_table::Dict)
+        local cpt::Dict;
+        if ((length(conditional_probability_table) != 0) & (typeof(first(keys(conditional_probability_table))) <: Bool))
+            cpt = Dict(collect(Pair((value,), p) for (value, p) in conditional_probability_table));
+        else
+            cpt = conditional_probability_table;
+        end
+        for (keys, value) in cpt
+            if (!((typeof(keys) <: Tuple) && (length(keys) == length(parents))))
+                error("BayesianNetworkNode(): The length of ", keys, " and ", parents, " do not match!");
+            end
+            if (!(all(typeof(key) <: Bool for key in keys)))
+                error("BayesianNetworkNode(): ", keys, " should only have boolean values!");
+            end
+            if (!(0.0 <= value <= 1.0))
+                error("BayesianNetworkNode(): The given value ", value, " is not a valid probability!");
+            end
+        end
+        return new(X, parents, cpt, []);;
+    end
+end
+
