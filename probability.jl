@@ -232,3 +232,64 @@ type BayesianNetworkNode
     end
 end
 
+function probability(bnn::BayesianNetworkNode, value::Bool, event::Dict)
+    local probability_true::Float64 = bnn.cpt[event_values(event, bnn.parents)];
+    if (value)
+        return probability_true;
+    else
+        return 1.0 - probability_true;
+    end
+end
+
+function sample(bnn::BayesianNetworkNode, event::Dict)
+    return rand(RandomDeviceInstance) < probability(bnn, true, event);
+end
+
+type BayesianNetwork
+    variables::AbstractVector
+    nodes::Array{BayesianNetworkNode, 1}
+
+    function BayesianNetwork(;node_specifications::AbstractVector=[])
+        local bn::BayesianNetwork = new([], Array{BayesianNetworkNode, 1}());
+        for node_specification in node_specifications
+            add(bn, node_specification);
+        end
+        return bn;
+    end
+end
+
+function add_node(bn::BayesianNetwork, ns::Tuple)
+    local node::BayesianNetworkNode = BayesianNetworkNode(ns...);
+    if (node.variable in bn.variables)
+        error("add_node(): The node's variable '", node.variable, "'' can't be used, as it already exists in the Bayesian network's variables!");
+    end
+    if (!all((parent in bnn.variables) for parent in node.parents))
+        error("add_node(): Detected a parent node that doesn't exist in the Bayesian network!");
+    end
+    push!(bn.nodes, node);
+    push!(bn.variables, node.variable);
+    for parent in node.parents
+        local var_node::BayesianNetworkNode = variable_node(parent);
+        push!(var_node.children, node);
+    end
+    nothing;
+end
+
+function variable_node(bn::BayesianNetwork, v::String)
+    for node in bn.nodes
+        if (node.variable == v)
+            return node;
+        end
+    end
+    error("variable_node(): Could not find node with variable '", v, "'!");
+end
+
+"""
+    variable_values(bn, variable)
+
+Return the domain (possible variable values) of 'variable'.
+"""
+function variable_values(bn::BayesianNetwork, variable::String)
+    return (true, false);
+end
+
