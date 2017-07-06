@@ -72,7 +72,7 @@ end
 
 function normalize{T <: AbstractProbabilityDistribution}(pd::T; epsilon::Float64=1e-09)
     local total::Float64 = sum(values(pd.probabilities));
-    if (!((1.0 - epsilon) < total < (1.0 + epsilon))
+    if (!((1.0 - epsilon) < total < (1.0 + epsilon)))
         for k in keys(pd.probabilities)
             pd.probabilities[k] = pd.probabilities[k] / total;
         end
@@ -80,8 +80,16 @@ function normalize{T <: AbstractProbabilityDistribution}(pd::T; epsilon::Float64
     return pd;
 end
 
-function show_approximation{T <: AbstractProbabilityDistribution}(pd::T; number_format::String="%.4g")
-    return join(collect(@sprintf("%s: "*number_format, v, k) for (k, v) in pd.probabilities), ", ");
+"""
+    show_approximation(pd)
+
+Return a String representing the sorted approximate values of the probabilities.
+
+Note: The @sprintf macro does not allow string concatenation for its format string.
+The usage of the macro requires the format string to be a static string.
+"""
+function show_approximation{T <: AbstractProbabilityDistribution}(pd::T)
+    return join(collect(@sprintf("%s: %.4g", v, k) for (k, v) in sort(pd.probabilities)), ", ");
 end
 
 function event_values(event::Tuple, variables::AbstractVector)
@@ -127,14 +135,15 @@ function setindex!(jpd::JointProbabilityDistribution, key_values, value)
 end
 
 function values(jpd::JointProbabilityDistribution, key)
-    return jpd.values(key);
+    return jpd.values[key];
 end
 
 function enumerate_joint{T <: AbstractProbabilityDistribution}(variables::AbstractVector, e::Dict, P::T)
     if (length(variables) == 0)
         return P[e];
     else
-        local Y, rest::AbstractVector = variables[1], variables[2:end];
+        local Y = variables[1];
+        local rest::AbstractVector = variables[2:end];
         return sum(collect(enumerate_joint(rest, extend(e, Y, y), P) for y in P.values(Y)));
     end
 end
@@ -158,9 +167,10 @@ type BayesianNetworkNode
     children::AbstractVector
 
     function BayesianNetworkNode{T <: Real}(X::String, parents::String, conditional_probability_table::T)
+        local parents_array::Array{String, 1} = map(String, split(parents));
         local cpt::Dict = Dict([Pair((), conditional_probability_table)]);
         for (keys, value) in cpt
-            if (!((typeof(keys) <: Tuple) & (length(keys) == length(parents))))
+            if (!((typeof(keys) <: Tuple) & (length(keys) == length(parents_array))))
                 error("BayesianNetworkNode(): The length of ", keys, " and ", parents, " do not match!");
             end
             if (!(all(typeof(key) <: Bool for key in keys)))
@@ -170,10 +180,11 @@ type BayesianNetworkNode
                 error("BayesianNetworkNode(): The given value ", value, " is not a valid probability!");
             end
         end
-        return new(X, map(String, split(parents)), cpt, []);;
+        return new(X, parents_array, cpt, []);;
     end
 
     function BayesianNetworkNode(X::String, parents::String, conditional_probability_table::Dict)
+        local parents_array::Array{String, 1} = map(String, split(parents));
         local cpt::Dict;
         if ((length(conditional_probability_table) != 0) & (typeof(first(keys(conditional_probability_table))) <: Bool))
             cpt = Dict(collect(Pair((value,), p) for (value, p) in conditional_probability_table));
@@ -181,7 +192,7 @@ type BayesianNetworkNode
             cpt = conditional_probability_table;
         end
         for (keys, value) in cpt
-            if (!((typeof(keys) <: Tuple) && (length(keys) == length(parents))))
+            if (!((typeof(keys) <: Tuple) && (length(keys) == length(parents_array))))
                 error("BayesianNetworkNode(): The length of ", keys, " and ", parents, " do not match!");
             end
             if (!(all(typeof(key) <: Bool for key in keys)))
@@ -191,7 +202,7 @@ type BayesianNetworkNode
                 error("BayesianNetworkNode(): The given value ", value, " is not a valid probability!");
             end
         end
-        return new(X, map(String, split(parents)), cpt, []);;
+        return new(X, parents_array, cpt, []);;
     end
 
     function BayesianNetworkNode{T <: Real}(X::String, parents::Array{String, 1}, conditional_probability_table::T)
@@ -252,7 +263,7 @@ type BayesianNetwork
     function BayesianNetwork(;node_specifications::AbstractVector=[])
         local bn::BayesianNetwork = new([], Array{BayesianNetworkNode, 1}());
         for node_specification in node_specifications
-            add(bn, node_specification);
+            add_node(bn, node_specification);
         end
         return bn;
     end
@@ -263,13 +274,13 @@ function add_node(bn::BayesianNetwork, ns::Tuple)
     if (node.variable in bn.variables)
         error("add_node(): The node's variable '", node.variable, "'' can't be used, as it already exists in the Bayesian network's variables!");
     end
-    if (!all((parent in bnn.variables) for parent in node.parents))
+    if (!all((parent in bn.variables) for parent in node.parents))
         error("add_node(): Detected a parent node that doesn't exist in the Bayesian network!");
     end
     push!(bn.nodes, node);
     push!(bn.variables, node.variable);
     for parent in node.parents
-        local var_node::BayesianNetworkNode = variable_node(parent);
+        local var_node::BayesianNetworkNode = variable_node(bn, parent);
         push!(var_node.children, node);
     end
     nothing;
@@ -292,4 +303,15 @@ Return the domain (possible variable values) of 'variable'.
 function variable_values(bn::BayesianNetwork, variable::String)
     return (true, false);
 end
+
+# A BayesianNetwork representing the burglary example (Fig. 14.2)
+
+burglary = BayesianNetwork(node_specifications=[("Burglary", "", 0.001),
+                                                ("Earthquake", "", 0.002),
+                                                ("Alarm", "Burglary Earthquake", Dict([Pair((true, true), 0.95),
+                                                                                        Pair((true, false), 0.94),
+                                                                                        Pair((false, true), 0.29),
+                                                                                        Pair((false, false), 0.001)])),
+                                                ("JohnCalls", "Alarm", Dict([Pair(true, 0.90), Pair(false, 0.05)])),
+                                                ("MaryCalls", "Alarm", Dict([Pair(true, 0.70), Pair(false, 0.01)]))]);
 

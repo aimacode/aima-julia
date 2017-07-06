@@ -16,4 +16,6 @@ include("csp.jl");
 
 include("planning.jl");
 
+include("probability.jl");
+
 end;
