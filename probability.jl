@@ -315,3 +315,59 @@ burglary = BayesianNetwork(node_specifications=[("Burglary", "", 0.001),
                                                 ("JohnCalls", "Alarm", Dict([Pair(true, 0.90), Pair(false, 0.05)])),
                                                 ("MaryCalls", "Alarm", Dict([Pair(true, 0.70), Pair(false, 0.01)]))]);
 
+function all_events(variables::AbstractVector, bn::BayesianNetwork, event::Dict)
+    if (length(variables) == 0)
+        return (event,);
+    else
+        local X::String = variables[1];
+        local rest::AbstractVector = variables[2:end];
+        local solution::Tuple = ();
+        for e_1 in all_events(rest, bn, e)
+            for x in variable_values(bn, X)
+                solution = Tuple((solution..., extend(e_1, X, x)));
+            end
+        end
+        return solution;
+    end
+end
+
+# Factors are used in variable elimination when evaluating expression
+# representations of Bayesian networks.
+
+type Factor
+    variables::AbstractVector
+    cpt::Dict
+
+    function Factor(variables::AbstractVector, cpt::Dict)
+        return new(variables, cpt);
+    end
+end
+
+function pointwise_product(f::Factor, other::Factor, bn::BayesianNetwork)
+    local variables::AbstractVector = collect(union(Set(f.variables), Set(other.variables)));
+    local cpt::Dict = Dict(collect(Pair(event_values(e, variables), probability(f, e) * probability(other, e))
+                                    for e in all_events(variables, bn, Dict())));
+    return Factor(variables, cpt);
+end
+
+function sum_out(f::Factor, key::String, bn::BayesianNetwork)
+    local variables::AbstractVector = collect(X for x in f.variables if (X != key));
+    local cpt::Dict = Dict(collect(Pair(event_values(e, variables), sum(probability(f, extend(e, key, value))
+                                                                        for value in variable_values(bn, key)))
+                                    for e in all_events(variables, bn, Dict())));
+    return Factor(variables, cpt);
+end
+
+function normalize(f::Factor)
+    if (length(f.variables) != 1)
+        error("normalize(): The variables of factor", f, " must be length of 1!");
+    end
+    return ProbabilityDistribution(variable_name=f.variables[1],
+                                    frequencies=Dict(collect(Pair(k, v)
+                                                            for ((k,), v) in f.cpt)));
+end
+
+function probability(f::Factor, e::Dict)
+    return f.cpt[event_values(e, f.variables)];
+end
+
