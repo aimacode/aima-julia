@@ -315,6 +315,72 @@ burglary = BayesianNetwork(node_specifications=[("Burglary", "", 0.001),
                                                 ("JohnCalls", "Alarm", Dict([Pair(true, 0.90), Pair(false, 0.05)])),
                                                 ("MaryCalls", "Alarm", Dict([Pair(true, 0.70), Pair(false, 0.01)]))]);
 
+function enumerate_all(variables::AbstractVector, event::Dict, bn::BayesianNetwork)
+    if (length(variables) == 0)
+        return 1.0;
+    end
+    local Y::String = variables[1];
+    local rest::Array{String, 1} = variables[2:end];
+    local Y_node::BayesianNetworkNode = variable_node(bn, Y);
+    if (haskey(event, Y))
+        return (probability(Y_node, event[Y], event) * enumerate_all(rest, event, bn));
+    else
+        return sum(probability(Y_node, y, event) * enumerate_all(rest, extend(event, Y, y), bn)
+                    for y in variable_values(bn, Y));
+    end
+end
+
+"""
+    enumeration_ask(X::String, event::Dict, bn::BayesianNetwork)
+
+Return the conditional probability distribution by applying the enumeration algorithm (Fig. 14.9)
+to the given variable 'X', observed event 'event', and Bayesian network 'bn'.
+"""
+function enumeration_ask(X::String, event::Dict, bn::BayesianNetwork)
+    if (haskey(event, X))
+        error("enumeration_ask(): The query variable was not distinct from evidence variables.");
+    end
+    local Q::ProbabilityDistribution = ProbabilityDistribution(variable_name=X);
+    for x_i in variable_values(bn, X)
+        Q[x_i] = enumerate_all(bn.variables, extend(event, X, x_i), bn);
+    end
+    return normalize(Q);
+end
+
+function sum_out(key::String, factors::AbstractVector, bn::BayesianNetwork)
+    local result::AbstractVector = [];
+    local variable_factors::AbstractVector = [];
+    for f in factors
+        if (key in f.variables)
+            push!(variable_factors, f);
+        else
+            push!(result, f);
+        end
+    end
+    push!(result, sum_out(pointwise_product(variable_factors, bn), key, bn));
+    return result;
+end
+
+"""
+    elimination_ask(X::String, event::Dict, bn::BayesianNetwork)
+
+Return the conditional probability distribution by applying the variable elimination algorithm (Fig. 14.11)
+to the given variable 'X', observed event 'event', and Bayesian network 'bn'.
+"""
+function elimination_ask(X::String, event::Dict, bn::BayesianNetwork)
+    if (haskey(event, X))
+        error("enumeration_ask(): The query variable was not distinct from evidence variables.");
+    end
+    local factors::AbstractVector = [];
+    for key in reverse(bn.variables)
+        push!(factors, make_factor(key, event, bn));
+        if (is_hidden(key, X, event))
+            factors = sum_out(key, factors, bn);
+        end
+    end
+    return normalize(pointwise_product(factors, bn));
+end
+
 function all_events(variables::AbstractVector, bn::BayesianNetwork, event::Dict)
     if (length(variables) == 0)
         return (event,);
@@ -369,5 +435,23 @@ end
 
 function probability(f::Factor, e::Dict)
     return f.cpt[event_values(e, f.variables)];
+end
+
+function is_hidden(key::String, X::String, event::Dict)
+    return ((key != X) & (!haskey(event, key)));
+end
+
+function make_factor(key::String, event::Dict, bn::BayesianNetwork)
+    local node::BayesianNetworkNode = variable_node(bn, var);
+    local variables::AbstractVector = collect(X for X in vcat([key], node.parents) if (!haskey(event, X)));
+    local cpt::Dict = Dict(collect(Pair(event_values(e_1, variables), probability(node, e_1[key], e_1))
+                                    for e_1 in all_events(variables, bn, event)));
+    return Factor(variables, cpt);
+end
+
+function pointwise_product(factors::AbstractVector, bn::BayesianNetwork)
+    return reduce((function(f_1::Factor, f_2::Factor)
+                        return pointwise_product(f_1, f_2, bn);
+                    end), factors);
 end
 
