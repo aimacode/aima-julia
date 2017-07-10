@@ -260,7 +260,11 @@ type BayesianNetwork
     variables::AbstractVector
     nodes::Array{BayesianNetworkNode, 1}
 
-    function BayesianNetwork(;node_specifications::AbstractVector=[])
+    function BayesianNetwork()
+        return new([], Array{BayesianNetworkNode, 1}());
+    end
+
+    function BayesianNetwork(node_specifications::AbstractVector)
         local bn::BayesianNetwork = new([], Array{BayesianNetworkNode, 1}());
         for node_specification in node_specifications
             add_node(bn, node_specification);
@@ -304,16 +308,16 @@ function variable_values(bn::BayesianNetwork, variable::String)
     return (true, false);
 end
 
-# A BayesianNetwork representing the burglary example (Fig. 14.2)
+# A BayesianNetwork representing the burglary network example (Fig. 14.2)
 
-burglary = BayesianNetwork(node_specifications=[("Burglary", "", 0.001),
-                                                ("Earthquake", "", 0.002),
-                                                ("Alarm", "Burglary Earthquake", Dict([Pair((true, true), 0.95),
-                                                                                        Pair((true, false), 0.94),
-                                                                                        Pair((false, true), 0.29),
-                                                                                        Pair((false, false), 0.001)])),
-                                                ("JohnCalls", "Alarm", Dict([Pair(true, 0.90), Pair(false, 0.05)])),
-                                                ("MaryCalls", "Alarm", Dict([Pair(true, 0.70), Pair(false, 0.01)]))]);
+burglary_network = BayesianNetwork([("Burglary", "", 0.001),
+                                    ("Earthquake", "", 0.002),
+                                    ("Alarm", "Burglary Earthquake", Dict([Pair((true, true), 0.95),
+                                                                            Pair((true, false), 0.94),
+                                                                            Pair((false, true), 0.29),
+                                                                            Pair((false, false), 0.001)])),
+                                    ("JohnCalls", "Alarm", Dict([Pair(true, 0.90), Pair(false, 0.05)])),
+                                    ("MaryCalls", "Alarm", Dict([Pair(true, 0.70), Pair(false, 0.01)]))]);
 
 function enumerate_all(variables::AbstractVector, event::Dict, bn::BayesianNetwork)
     if (length(variables) == 0)
@@ -331,18 +335,18 @@ function enumerate_all(variables::AbstractVector, event::Dict, bn::BayesianNetwo
 end
 
 """
-    enumeration_ask(X::String, event::Dict, bn::BayesianNetwork)
+    enumeration_ask(X::String, e::Dict, bn::BayesianNetwork)
 
 Return the conditional probability distribution by applying the enumeration algorithm (Fig. 14.9)
-to the given variable 'X', observed event 'event', and Bayesian network 'bn'.
+to the given variable 'X', observed event 'e', and Bayesian network 'bn'.
 """
-function enumeration_ask(X::String, event::Dict, bn::BayesianNetwork)
-    if (haskey(event, X))
+function enumeration_ask(X::String, e::Dict, bn::BayesianNetwork)
+    if (haskey(e, X))
         error("enumeration_ask(): The query variable was not distinct from evidence variables.");
     end
     local Q::ProbabilityDistribution = ProbabilityDistribution(variable_name=X);
     for x_i in variable_values(bn, X)
-        Q[x_i] = enumerate_all(bn.variables, extend(event, X, x_i), bn);
+        Q[x_i] = enumerate_all(bn.variables, extend(e, X, x_i), bn);
     end
     return normalize(Q);
 end
@@ -362,18 +366,18 @@ function sum_out(key::String, factors::AbstractVector, bn::BayesianNetwork)
 end
 
 """
-    elimination_ask(X::String, event::Dict, bn::BayesianNetwork)
+    elimination_ask(X::String, e::Dict, bn::BayesianNetwork)
 
 Return the conditional probability distribution by applying the variable elimination algorithm (Fig. 14.11)
-to the given variable 'X', observed event 'event', and Bayesian network 'bn'.
+to the given variable 'X', observed event 'e', and Bayesian network 'bn'.
 """
-function elimination_ask(X::String, event::Dict, bn::BayesianNetwork)
+function elimination_ask(X::String, e::Dict, bn::BayesianNetwork)
     if (haskey(event, X))
         error("enumeration_ask(): The query variable was not distinct from evidence variables.");
     end
     local factors::AbstractVector = [];
     for key in reverse(bn.variables)
-        push!(factors, make_factor(key, event, bn));
+        push!(factors, make_factor(key, e, bn));
         if (is_hidden(key, X, event))
             factors = sum_out(key, factors, bn);
         end
@@ -453,5 +457,53 @@ function pointwise_product(factors::AbstractVector, bn::BayesianNetwork)
     return reduce((function(f_1::Factor, f_2::Factor)
                         return pointwise_product(f_1, f_2, bn);
                     end), factors);
+end
+
+# A BayesianNetwork representing the sprinkler network example (Fig. 14.12a)
+
+sprinkler_network = BayesianNetwork([("Cloudy", "", 0.5),
+                                    ("Sprinkler", "Cloudy", Dict([Pair(true, 0.10), Pair(false, 0.50)])),
+                                    ("Rain", "Cloudy", Dict([Pair(true, 0.80), Pair(false, 0.20)])),
+                                    ("WetGrass", "Sprinkler Rain", Dict([Pair((true, true), 0.99),
+                                                                        Pair((true, false), 0.90),
+                                                                        Pair((false, true), 0.90),
+                                                                        Pair((false, false), 0.00)]))]);
+
+"""
+    prior_sample(bn::BayesianNetwork)
+
+Return an event as a Dict of 'variable=>value' pairs generated by a sampling algorithm (Fig. 14.13).
+"""
+function prior_sample(bn::BayesianNetwork)
+    local event::Dict = Dict();
+    for node in bn.nodes
+        event[node.variable] = sample(node, event);
+    end
+    return event;
+end
+
+function consistent_with(event::Dict, evidence::Dict)
+    return all(get(evidence, k, v) == v for (k, v) in event);
+end
+
+"""
+    rejection_sampling(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
+
+Return an estimate of the probability distribution of variable 'X' by using the 
+rejection-sampling algorithm (Fig. 14.14) on the given observed event 'e', Bayesian
+network 'bn', and total number of samples 'N'.
+"""
+function rejection_sampling(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
+    if (N < 0)
+        error("rejection_sampling(): ", N, " is not a valid number of samples!");
+    end
+    local counts::Dict = Dict(collect(Pair(x, 0) for x in variable_values(bn, X)));
+    for j in 1:N
+        local sample::Dict = prior_sample(bn);
+        if (consistent_with(sample, e))
+            counts[sample[X]] = counts[sample[X]] + 1;
+        end
+    end
+    return ProbabilityDistribution(variable_name=X, frequencies=counts);
 end
 
