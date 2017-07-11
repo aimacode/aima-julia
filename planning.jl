@@ -903,11 +903,11 @@ end
 
 #=
 
-    HighLevelPDDL is a high-level Planning Domain Definition Language (PDDL) is used to define a search problem.
+    HighLevelPDDL is a high-level Planning Domain Definition Language (PDDL) and is used to
 
-    The HighLevelPDDL includes job scheduling and resource constraints in addition to the states, action
+    define a search problem. The HighLevelPDDL includes job scheduling and resource constraints
 
-    schemas, and the goal test found in the PDDL datatype.
+    in addition to the states, action schemas, and the goal test found in the PDDL datatype.
 
 =#
 type HighLevelPDDL <: AbstractPDDL 

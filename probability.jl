@@ -256,6 +256,11 @@ function sample(bnn::BayesianNetworkNode, event::Dict)
     return rand(RandomDeviceInstance) < probability(bnn, true, event);
 end
 
+#=
+
+    BayesianNetwork is a Bayesian network that contains only boolean variable nodes.
+
+=#
 type BayesianNetwork
     variables::AbstractVector
     nodes::Array{BayesianNetworkNode, 1}
@@ -372,7 +377,7 @@ Return the conditional probability distribution by applying the variable elimina
 to the given variable 'X', observed event 'e', and Bayesian network 'bn'.
 """
 function elimination_ask(X::String, e::Dict, bn::BayesianNetwork)
-    if (haskey(event, X))
+    if (haskey(e, X))
         error("enumeration_ask(): The query variable was not distinct from evidence variables.");
     end
     local factors::AbstractVector = [];
@@ -491,7 +496,7 @@ end
 
 Return an estimate of the probability distribution of variable 'X' by using the 
 rejection-sampling algorithm (Fig. 14.14) on the given observed event 'e', Bayesian
-network 'bn', and total number of samples 'N'.
+network 'bn', and total number of samples to generate 'N'.
 """
 function rejection_sampling(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
     if (N < 0)
@@ -502,6 +507,92 @@ function rejection_sampling(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
         local sample::Dict = prior_sample(bn);
         if (consistent_with(sample, e))
             counts[sample[X]] = counts[sample[X]] + 1;
+        end
+    end
+    return ProbabilityDistribution(variable_name=X, frequencies=counts);
+end
+
+function weighted_sample(bn::BayesianNetwork, e::Dict)
+    local w::Float64;
+    local event::Dict = copy(e);
+    for node in bn.nodes
+        local X_i::String = node.variable;
+        if (haskey(e, X_i))
+            w = w * probability(node, e[X_i], event);
+        else
+            event[X_i] = sample(node, event);
+        end
+    end
+    return event, w;
+end
+
+"""
+    likelihood_weighting(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
+
+Return an estimate of the probability distribution of variable 'X' by using the
+likelihood-weighting algorithm (Fig. 14.15) on the given observed event 'e',
+Bayesian network 'bn', and the total number of samples to generate 'N'.
+"""
+function likelihood_weighting(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
+    if (N < 0)
+        error("likelihood_weighting(): ", N, " is not a valid number of samples!");
+    end
+    local W::Dict = Dict(collect(Pair(x, 0.0) for x in variable_values(bn, X)));
+    for j in 1:N
+        local sample::Dict;
+        local weight::Float64;
+        sample, weight = weighted_sample(bn, e);
+        W[sample[X]] = W[sample[X]] + weight;
+    end
+    return ProbabilityDistribution(variable_name=X, frequencies=W);
+end
+
+"""
+    markov_blanket_sampling(X::String, e::Dict, bn::BayesianNetwork)
+
+Return a sample from P(X | mb) where 'mb' is the Markov blanket of 'X'.
+
+The Markov blanket of 'X' is composed of its parents, children, and
+children's parents.
+"""
+function markov_blanket_sample(X::String, e::Dict, bn::BayesianNetwork)
+    local X_node::BayesianNetworkNode = variable_node(bn, X);
+    local Q::ProbabilityDistribution = ProbabilityDistribution(variable_name=X);
+    for x_i in variable_values(bn, X)
+        local e_i::Dict = extend(e, X, x_i);
+        # Using Equation 14.12, we calculate x_i's Markov blanket
+        Q[x_i] = probability(X_node, x_i, e) * prod(probability(Y_j, e_i[Y_j.variable], e_i)
+                                                    for Y_j in X_node.children);
+    end
+    # Return a boolean variable's value because BayesianNetwork
+    # contains only boolean variable nodes.
+    return probability(normalize(Q)[true]);
+end
+
+"""
+    gibbs_ask(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
+
+Return an estimate of the probability distribution of variable 'X' by using the
+Gibbs sampling algorithm (Fig. 14.16) on the given observed event 'e',
+Bayesian network 'bn', and the total number of samples to generate 'N'.
+"""
+function gibbs_ask(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
+    if (N < 0)
+        error("likelihood_weighting(): ", N, " is not a valid number of samples!");
+    end
+    if (haskey(e, X))
+        error("gibbs_ask(): The query variable was not distinct from evidence variables.");
+    end
+    local counts::Dict = Dict(collect(Pair(x, 0.0) for x in variable_values(bn, X)));
+    local Z::AbstractVector = collect(k for k in bn.variables if (!haskey(e, k)));
+    local state::Dict = copy(e);
+    for Z_i in Z
+        state[Z_i] = rand(RandomDeviceInstance, variable_values(bn, Z_i));
+    end
+    for j in 1:N
+        for Z_i in Z
+            state[Z_i] = markov_blanket_sample(Z_i, state, bn);
+            counts[state[X]] = counts[state[X]] + 1;
         end
     end
     return ProbabilityDistribution(variable_name=X, frequencies=counts);
