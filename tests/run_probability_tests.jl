@@ -4,7 +4,7 @@ using Base.Test;
 
 using aimajulia;
 
-#The following Planning tests are from the aima-python doctests
+#The following probability tests are from the aima-python doctests
 
 cpt = variable_node(aimajulia.burglary_network, "Alarm");
 event = Dict([Pair("Burglary", true), Pair("Earthquake", true)]);

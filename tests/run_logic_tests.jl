@@ -4,7 +4,7 @@ using Base.Test;
 
 using aimajulia;
 
-#The following Logic tests are from the aima-python doctests
+#The following logic tests are from the aima-python doctests
 
 x = Expression("x");
 

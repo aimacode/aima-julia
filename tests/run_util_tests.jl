@@ -6,7 +6,7 @@ using aimajulia;
 
 using aimajulia.utils;
 
-# The following queue tests are from the aima-python utils.py doctest
+# The following util functions' tests are from the aima-python utils.py doctest
 
 na = [1, 8, 2, 7, 5, 6, -99, 99, 4, 3, 0];
 

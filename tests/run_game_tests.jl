@@ -4,7 +4,7 @@ using Base.Test;
 
 using aimajulia;
 
-#The following Game tests are from the aima-python doctest
+#The following game tests are from the aima-python doctest
 
 @test minimax_decision("A", Figure52Game()) == "A1";
 
