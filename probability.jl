@@ -400,7 +400,7 @@ function elimination_ask(X::String, e::Dict, bn::BayesianNetwork)
     local factors::AbstractVector = [];
     for key in reverse(bn.variables)
         push!(factors, make_factor(key, e, bn));
-        if (is_hidden(key, X, event))
+        if (is_hidden(key, X, e))
             factors = sum_out(key, factors, bn);
         end
     end
@@ -414,7 +414,7 @@ function all_events(variables::AbstractVector, bn::BayesianNetwork, event::Dict)
         local X::String = variables[1];
         local rest::AbstractVector = variables[2:end];
         local solution::Tuple = ();
-        for e_1 in all_events(rest, bn, e)
+        for e_1 in all_events(rest, bn, event)
             for x in variable_values(bn, X)
                 solution = Tuple((solution..., extend(e_1, X, x)));
             end
@@ -443,7 +443,7 @@ function pointwise_product(f::Factor, other::Factor, bn::BayesianNetwork)
 end
 
 function sum_out(f::Factor, key::String, bn::BayesianNetwork)
-    local variables::AbstractVector = collect(X for x in f.variables if (X != key));
+    local variables::AbstractVector = collect(X for X in f.variables if (X != key));
     local cpt::Dict = Dict(collect(Pair(event_values(e, variables), sum(probability(f, extend(e, key, value))
                                                                         for value in variable_values(bn, key)))
                                     for e in all_events(variables, bn, Dict())));
@@ -467,11 +467,11 @@ function is_hidden(key::String, X::String, event::Dict)
     return ((key != X) & (!haskey(event, key)));
 end
 
-function make_factor(key::String, event::Dict, bn::BayesianNetwork)
-    local node::BayesianNetworkNode = variable_node(bn, var);
-    local variables::AbstractVector = collect(X for X in vcat([key], node.parents) if (!haskey(event, X)));
-    local cpt::Dict = Dict(collect(Pair(event_values(e_1, variables), probability(node, e_1[key], e_1))
-                                    for e_1 in all_events(variables, bn, event)));
+function make_factor(key::String, e::Dict, bn::BayesianNetwork)
+    local node::BayesianNetworkNode = variable_node(bn, key);
+    local variables::AbstractVector = collect(X for X in vcat([key], node.parents) if (!haskey(e, X)));
+    local cpt::Dict = Dict(Pair(event_values(e_1, variables), probability(node, e_1[key], e_1))
+                                    for e_1 in all_events(variables, bn, e));
     return Factor(variables, cpt);
 end
 
@@ -692,6 +692,11 @@ function backward(hmm::HiddenMarkovModel, b::AbstractVector, ev::Bool)
     return normalize_probability_distribution((prediction[1] .* hmm.transition_model[1]) .+ (prediction[2] .* hmm.transition_model[2]));
 end
 
+function backward(hmm::HiddenMarkovModel, b::AbstractVector)    # evidence at step 0
+    local prediction::AbstractVector = sensor_distribution(hmm, false) .* b;
+    return normalize_probability_distribution((prediction[1] .* hmm.transition_model[1]) .+ (prediction[2] .* hmm.transition_model[2]));
+end
+
 function forward(hmm::HiddenMarkovModel, fv::AbstractVector, ev::Bool)
     local prediction::AbstractVector = ((fv[1] .* hmm.transition_model[1]) .+ (fv[2] .* hmm.transition_model[2]));
     return normalize_probability_distribution(sensor_distribution(hmm, ev) .* prediction);
@@ -711,17 +716,21 @@ function forward_backward(hmm::HiddenMarkovModel, ev::Array{Bool, 1}, prior::Abs
     # The variable 'bv' contains all of the generated backward messages.
     # 'bv' is not required for this algorithm to run.
     local bv::AbstractVector = [b];
-    local sv::AbstractVector = collect([0.0, 0.0] for i in 1:t);
+    local sv::AbstractVector = collect([0.0, 0.0] for i in 1:(t + 1));
 
     fv[1] = prior;
     for i in 2:(t + 1)
         fv[i] = forward(hmm, fv[i - 1], ev[i - 1]);
     end
-    for i in reverse(1:t)
+    for i in reverse(1:(t + 1))
         sv[i] = normalize_probability_distribution(fv[i] .* b);
-        b = backward(hmm, b, ev[i]);
+        if ((i - 1) > 0)
+            b = backward(hmm, b, ev[i - 1]);
+        else
+            b = backward(hmm, b);
+        end
         push!(bv, b);
     end
-    return reverse(sv);
+    return sv;
 end
 

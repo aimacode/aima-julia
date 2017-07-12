@@ -28,28 +28,6 @@ s = Dict([Pair("A", true),
 
 @test !consistent_with(s, Dict(Pair("D", true)));
 
-# RandomDevice() does not allow seeding.
-
-mt_rng = MersenneTwister(21);
-
-p = rejection_sampling("Earthquake", Dict(), aimajulia.burglary_network, 1000, mt_rng);
-
-@test ((p[true], p[false]) == (0.002, 0.998));
-
-mt_rng = srand(mt_rng, 71);
-
-p = likelihood_weighting("Earthquake", Dict(), aimajulia.burglary_network, 1000, mt_rng);
-
-@test ((p[true], p[false]) == (0.0, 1.0));
-
-mt_rng = srand(mt_rng, 1017);
-
-@test (show_approximation(likelihood_weighting("Burglary",
-                            Dict([Pair("JohnCalls", true), Pair("MaryCalls", true)]),
-                            aimajulia.burglary_network,
-                            10000,
-                            mt_rng)) == "false: 0.718, true: 0.282");
-
 p = ProbabilityDistribution(variable_name="Flip");
 p["H"], p["T"] = 0.25, 0.75;
 
@@ -90,4 +68,59 @@ bn = BayesianNetworkNode("X", "Burglary", Dict([Pair(true, 0.2), Pair(false, 0.6
 @test probability(bn, false, Dict([Pair("Burglary", false), Pair("Earthquake", true)])) == 0.375;
 
 @test probability(BayesianNetworkNode("W", "", 0.75), false, Dict([Pair("Random", true)])) == 0.25;
+
+X = BayesianNetworkNode("X", "Burglary", Dict([Pair(true, 0.2), Pair(false, 0.625)]));
+
+@test (sample(X, Dict([Pair("Burglary", false), Pair("Earthquake", true)])) in (true, false));
+
+Z = BayesianNetworkNode("Z", "P Q", Dict([Pair((true, true), 0.2),
+                                            Pair((true, false), 0.3),
+                                            Pair((false, true), 0.5),
+                                            Pair((false, false), 0.7)]));
+
+@test (sample(Z, Dict([Pair("P", true), Pair("Q", false)])) in (true, false));
+
+@test show_approximation(enumeration_ask("Burglary",
+                                        Dict([Pair("JohnCalls", true), Pair("MaryCalls", true)]),
+                                        aimajulia.burglary_network)) == "false: 0.7158, true: 0.2842";
+
+@test show_approximation(elimination_ask("Burglary",
+                                        Dict([Pair("JohnCalls", true), Pair("MaryCalls", true)]),
+                                        aimajulia.burglary_network)) == "false: 0.7158, true: 0.2842";
+
+# RandomDevice() does not allow seeding.
+
+mt_rng = MersenneTwister(21);
+
+p = rejection_sampling("Earthquake", Dict(), aimajulia.burglary_network, 1000, mt_rng);
+
+@test ((p[true], p[false]) == (0.002, 0.998));
+
+mt_rng = srand(mt_rng, 71);
+
+p = likelihood_weighting("Earthquake", Dict(), aimajulia.burglary_network, 1000, mt_rng);
+
+@test ((p[true], p[false]) == (0.0, 1.0));
+
+mt_rng = srand(mt_rng, 1017);
+
+@test (show_approximation(likelihood_weighting("Burglary",
+                            Dict([Pair("JohnCalls", true), Pair("MaryCalls", true)]),
+                            aimajulia.burglary_network,
+                            10000,
+                            mt_rng)) == "false: 0.718, true: 0.282");
+
+umbrella_prior = [0.5, 0.5];
+umbrella_transition = [[0.7, 0.3], [0.3, 0.7]];
+umbrella_sensor =  [[0.9, 0.2], [0.1, 0.8]];
+umbrella_hmm = HiddenMarkovModel(umbrella_transition, umbrella_sensor);
+umbrella_evidence = [true, true, false, true, true];    # Umbrella observation sequence (Fig. 15.5b)
+
+@test (repr(forward_backward(umbrella_hmm, umbrella_evidence, umbrella_prior)) ==
+        "Array{Float64,1}[[0.646936,0.353064],[0.867339,0.132661],[0.820419,0.179581],[0.307484,0.692516],[0.820419,0.179581],[0.867339,0.132661]]");
+
+umbrella_evidence = [true, false, true, false, true];
+
+@test (repr(forward_backward(umbrella_hmm, umbrella_evidence, umbrella_prior)) ==
+        "Array{Float64,1}[[0.587074,0.412926],[0.717684,0.282316],[0.2324,0.7676],[0.607195,0.392805],[0.2324,0.7676],[0.717684,0.282316]]");
 
