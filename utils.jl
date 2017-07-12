@@ -17,7 +17,8 @@ export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         weighted_sampler, weighted_sample_with_replacement,
         distance, distance2,
         RandomDeviceInstance,
-        isfunction, removeall;
+        isfunction, removeall,
+        normalize_probability_distribution;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -601,6 +602,28 @@ Check if 'var' is callable as a function.
 """
 function isfunction(var)
     return (typeof(var) <: Function);
+end
+
+"""
+    normalize_probability_distribution(d)
+
+Return a collection such that each value is the corresponding value in 'd' divided
+by the sum of all values in 'd'.
+"""
+function normalize_probability_distribution(d::Dict)
+    local total::Float64 = sum(values(d));
+    for key in keys(d)
+        d[key] = d[key] / total;
+        if (!(0.0 <= d[key] <= 1.0))
+            error("normalize(): ", d[key], " is not a valid probability.");
+        end
+    end
+    return dist;
+end
+
+function normalize_probability_distribution(d::AbstractVector)
+    local total::Float64 = sum(d);
+    return collect((i / total) for i in d);
 end
 
 end

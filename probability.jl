@@ -1,7 +1,17 @@
 
-import Base: getindex, setindex!, values;
+import Base: getindex, setindex!, values, normalize;
 
-export getindex, setindex!, values;
+export getindex, setindex!, values,
+        AbstractProbabilityDistribution,
+        ProbabilityDistribution, normalize, show_approximation, event_values,
+        JointProbabilityDistribution, enumerate_joint, enumerate_joint_ask,
+        BayesianNetworkNode, probability, sample,
+        BayesianNetwork, add_node, variable_node, variable_values,
+        enumeration_ask, elimination_ask,
+        Factor, pointwise_product, sum_out,
+        prior_sample, consistent_with, rejection_sampling, likelihood_weighting,
+        gibbs_ask,
+        HiddenMarkovModel, sensor_distribution, forward_backward;
 
 
 #=
@@ -62,9 +72,9 @@ function getindex(pd::ProbabilityDistribution, key)
     end
 end
 
-function setindex!(pd::ProbabilityDistribution, key, value)
+function setindex!(pd::ProbabilityDistribution, value, key)
     if (!(key in pd.values))
-        push!(pd.values, key);
+        push!(pd.values, value);
     end
     pd.probabilities[key] = value;
     nothing;
@@ -89,7 +99,8 @@ Note: The @sprintf macro does not allow string concatenation for its format stri
 The usage of the macro requires the format string to be a static string.
 """
 function show_approximation{T <: AbstractProbabilityDistribution}(pd::T)
-    return join(collect(@sprintf("%s: %.4g", v, k) for (k, v) in sort(pd.probabilities)), ", ");
+    return join(collect(@sprintf("%s: %.4g", key, pd.probabilities[key])
+                        for key in sort(collect(keys(pd.probabilities)))), ", ");
 end
 
 function event_values(event::Tuple, variables::AbstractVector)
@@ -123,11 +134,13 @@ function getindex(jpd::JointProbabilityDistribution, key_values)
     end
 end
 
-function setindex!(jpd::JointProbabilityDistribution, key_values, value)
+function setindex!(jpd::JointProbabilityDistribution, value, key_values)
     local key::Tuple = event_values(key_values, jpd.variables);
     jpd.probabilities[key] = value;
     for (k, v) in zip(jpd.variables, key)
-        if (!(v in jpd.values[k]))
+        if (!haskey(jpd.values, k))
+            jpd.values[k] = [v];
+        elseif (!(v in jpd.values[k]))
             push!(jpd.values[k], v);
         end
     end
@@ -144,18 +157,18 @@ function enumerate_joint{T <: AbstractProbabilityDistribution}(variables::Abstra
     else
         local Y = variables[1];
         local rest::AbstractVector = variables[2:end];
-        return sum(collect(enumerate_joint(rest, extend(e, Y, y), P) for y in P.values(Y)));
+        return sum(collect(enumerate_joint(rest, extend(e, Y, y), P) for y in values(P, Y)));
     end
 end
 
 function enumerate_joint_ask{T <: AbstractProbabilityDistribution}(X::String, e::Dict, P::T)
-    if (X in e)
+    if (haskey(e, X))
         error("enumerate_joint_ask(): The query variable was not distinct from evidence variables.");
     end
     local Q::ProbabilityDistribution = ProbabilityDistribution(variable_name=X);
-    local Y::AbstractVector = collect(v for v in P.variables if ((v != X) && !(v in e)));
-    for x_i in P.values(X)
-        Q[x_i] = enumerate_joint(Y, extend(e, X, xi), P)
+    local Y::AbstractVector = collect(v for v in P.variables if ((v != X) && !(haskey(e, v))));
+    for x_i in values(P, X)
+        Q[x_i] = enumerate_joint(Y, extend(e, X, x_i), P)
     end
     return normalize(Q);
 end
@@ -254,6 +267,10 @@ end
 
 function sample(bnn::BayesianNetworkNode, event::Dict)
     return rand(RandomDeviceInstance) < probability(bnn, true, event);
+end
+
+function sample(bnn::BayesianNetworkNode, event::Dict, mt_rng::MersenneTwister)
+    return rand(mt_rng) < probability(bnn, true, event);
 end
 
 #=
@@ -487,6 +504,14 @@ function prior_sample(bn::BayesianNetwork)
     return event;
 end
 
+function prior_sample(bn::BayesianNetwork, rng::MersenneTwister)
+    local event::Dict = Dict();
+    for node in bn.nodes
+        event[node.variable] = sample(node, event, rng);
+    end
+    return event;
+end
+
 function consistent_with(event::Dict, evidence::Dict)
     return all(get(evidence, k, v) == v for (k, v) in event);
 end
@@ -512,8 +537,22 @@ function rejection_sampling(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
     return ProbabilityDistribution(variable_name=X, frequencies=counts);
 end
 
+function rejection_sampling(X::String, e::Dict, bn::BayesianNetwork, N::Int64, mt_rng::MersenneTwister)
+    if (N < 0)
+        error("rejection_sampling(): ", N, " is not a valid number of samples!");
+    end
+    local counts::Dict = Dict(collect(Pair(x, 0) for x in variable_values(bn, X)));
+    for j in 1:N
+        local sample::Dict = prior_sample(bn, mt_rng);
+        if (consistent_with(sample, e))
+            counts[sample[X]] = counts[sample[X]] + 1;
+        end
+    end
+    return ProbabilityDistribution(variable_name=X, frequencies=counts);
+end
+
 function weighted_sample(bn::BayesianNetwork, e::Dict)
-    local w::Float64;
+    local w::Float64 = 1.0;
     local event::Dict = copy(e);
     for node in bn.nodes
         local X_i::String = node.variable;
@@ -521,6 +560,20 @@ function weighted_sample(bn::BayesianNetwork, e::Dict)
             w = w * probability(node, e[X_i], event);
         else
             event[X_i] = sample(node, event);
+        end
+    end
+    return event, w;
+end
+
+function weighted_sample(bn::BayesianNetwork, e::Dict, mt_rng::MersenneTwister)
+    local w::Float64 = 1.0;
+    local event::Dict = copy(e);
+    for node in bn.nodes
+        local X_i::String = node.variable;
+        if (haskey(e, X_i))
+            w = w * probability(node, e[X_i], event);
+        else
+            event[X_i] = sample(node, event, mt_rng);
         end
     end
     return event, w;
@@ -542,6 +595,20 @@ function likelihood_weighting(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
         local sample::Dict;
         local weight::Float64;
         sample, weight = weighted_sample(bn, e);
+        W[sample[X]] = W[sample[X]] + weight;
+    end
+    return ProbabilityDistribution(variable_name=X, frequencies=W);
+end
+
+function likelihood_weighting(X::String, e::Dict, bn::BayesianNetwork, N::Int64, mt_rng::MersenneTwister)
+    if (N < 0)
+        error("likelihood_weighting(): ", N, " is not a valid number of samples!");
+    end
+    local W::Dict = Dict(collect(Pair(x, 0.0) for x in variable_values(bn, X)));
+    for j in 1:N
+        local sample::Dict;
+        local weight::Float64;
+        sample, weight = weighted_sample(bn, e, mt_rng);
         W[sample[X]] = W[sample[X]] + weight;
     end
     return ProbabilityDistribution(variable_name=X, frequencies=W);
@@ -596,5 +663,65 @@ function gibbs_ask(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
         end
     end
     return ProbabilityDistribution(variable_name=X, frequencies=counts);
+end
+
+type HiddenMarkovModel
+    transition_model::AbstractVector
+    sensor_model::AbstractVector
+    prior::AbstractVector
+
+    function HiddenMarkovModel(transition_model::AbstractVector, sensor_model::AbstractVector)
+        return new(transition_model, sensor_model, [0.5, 0.5]);
+    end
+
+    function HiddenMarkovModel(transition_model::AbstractVector, sensor_model::AbstractVector, prior::AbstractVector)
+        return new(transition_model, sensor_model, prior);
+    end
+end
+
+function sensor_distribution(hmm::HiddenMarkovModel, ev::Bool)
+    if (ev)
+        return hmm.sensor_model[1];
+    else
+        return hmm.sensor_model[2];
+    end
+end
+
+function backward(hmm::HiddenMarkovModel, b::AbstractVector, ev::Bool)
+    local prediction::AbstractVector = sensor_distribution(hmm, ev) .* b;
+    return normalize_probability_distribution((prediction[1] .* hmm.transition_model[1]) .+ (prediction[2] .* hmm.transition_model[2]));
+end
+
+function forward(hmm::HiddenMarkovModel, fv::AbstractVector, ev::Bool)
+    local prediction::AbstractVector = ((fv[1] .* hmm.transition_model[1]) .+ (fv[2] .* hmm.transition_model[2]));
+    return normalize_probability_distribution(sensor_distribution(hmm, ev) .* prediction);
+end
+
+"""
+    forward_backward(hmm::HiddenMarkovModel, ev::Array{Bool, 1}, prior::AbstractVector)
+
+Return a vector of probability distributions given a sequence of observations 'ev'
+and prior distribution on the initial state 'prior' by using the forward-backward
+algorithm (Fig. 15.4).
+"""
+function forward_backward(hmm::HiddenMarkovModel, ev::Array{Bool, 1}, prior::AbstractVector)
+    local t::Int64 = length(ev);
+    local fv::AbstractVector = collect([0.0, 0.0] for i in 1:(t + 1));
+    local b::AbstractVector = [1.0, 1.0];
+    # The variable 'bv' contains all of the generated backward messages.
+    # 'bv' is not required for this algorithm to run.
+    local bv::AbstractVector = [b];
+    local sv::AbstractVector = collect([0.0, 0.0] for i in 1:t);
+
+    fv[1] = prior;
+    for i in 2:(t + 1)
+        fv[i] = forward(hmm, fv[i - 1], ev[i - 1]);
+    end
+    for i in reverse(1:t)
+        sv[i] = normalize_probability_distribution(fv[i] .* b);
+        b = backward(hmm, b, ev[i]);
+        push!(bv, b);
+    end
+    return reverse(sv);
 end
 

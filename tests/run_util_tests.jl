@@ -68,4 +68,5 @@ mabs = MemoizedFunction(abs);		#memoize abs()
 
 @test findfirst(isfunction, [1, 2, 3]) == 0;
 
+@test normalize_probability_distribution([1, 2, 1]) == [0.25, 0.5, 0.25];
 
