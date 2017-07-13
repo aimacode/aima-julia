@@ -124,3 +124,55 @@ umbrella_evidence = [true, false, true, false, true];
 @test (repr(forward_backward(umbrella_hmm, umbrella_evidence, umbrella_prior)) ==
         "Array{Float64,1}[[0.587074,0.412926],[0.717684,0.282316],[0.2324,0.7676],[0.607195,0.392805],[0.2324,0.7676],[0.717684,0.282316]]");
 
+umbrella_prior = [0.5, 0.5];
+umbrella_transition = [[0.7, 0.3], [0.3, 0.7]];
+umbrella_sensor =  [[0.9, 0.2], [0.1, 0.8]];
+umbrella_hmm = HiddenMarkovModel(umbrella_transition, umbrella_sensor);
+umbrella_evidence = [true, false, true, false, true];
+e_t = false;
+t = 4;
+d = 2;
+
+@test (repr(fixed_lag_smoothing(e_t, umbrella_hmm, d, umbrella_evidence; t=t)) == "[0.111111,0.888889]");
+
+d = 5;
+
+@test (fixed_lag_smoothing(e_t, umbrella_hmm, d, umbrella_evidence; t=t) == nothing);
+
+umbrella_evidence = [true, true, false, true, true];
+e_t = true;
+d = 1;
+
+@test (repr(fixed_lag_smoothing(e_t, umbrella_hmm, d, umbrella_evidence; t=t)) == "[0.993865,0.00613497]");
+
+# Probability Distribution Example (p.493)
+p = ProbabilityDistribution(variable_name="Weather");
+p["sunny"] = 0.6;
+p["rain"] = 0.1;
+p["cloudy"] = 0.29;
+p["snow"] = 0.01;
+
+@test p["rain"] == 0.1;
+
+# Joint Probability Distribution Example (Fig. 13.3)
+p = JointProbabilityDistribution(["Toothache", "Cavity", "Catch"]);
+p[(true, true, true)] = 0.108;
+p[(true, true, false)] = 0.012;
+p[(false, true, true)] = 0.072;
+p[(false, true, false)] = 0.008;
+p[(true, false, true)] = 0.016;
+p[(true, false, false)] = 0.064;
+p[(false, false, true)] = 0.144;
+p[(false, false, false)] = 0.576;
+
+@test p[(true, true, true)] == 0.108;
+
+# P(Cavity | Toothache) example from page 500
+probability_cavity = enumerate_joint_ask("Cavity", Dict([Pair("Toothache", true)]), p);
+
+@test show_approximation(probability_cavity) == "false: 0.4, true: 0.6";
+
+@test (0.6 - 0.001 < probability_cavity[true] < 0.6 + 0.001);
+
+@test (0.4 - 0.001 < probability_cavity[false] < 0.4 + 0.001);
+

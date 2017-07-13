@@ -11,7 +11,8 @@ export getindex, setindex!, values,
         Factor, pointwise_product, sum_out,
         prior_sample, consistent_with, rejection_sampling, likelihood_weighting,
         gibbs_ask,
-        HiddenMarkovModel, sensor_distribution, forward_backward;
+        HiddenMarkovModel, sensor_distribution, forward_backward,
+        fixed_lag_smoothing;
 
 
 #=
@@ -732,5 +733,35 @@ function forward_backward(hmm::HiddenMarkovModel, ev::Array{Bool, 1}, prior::Abs
         push!(bv, b);
     end
     return sv;
+end
+
+"""
+    fixed_lag_smoothing(e_t::Bool, hmm::HiddenMarkovModel, d::Int64, ev::AbstractVector)
+
+Use the online smoothing algorithm (Fig. 15.6) given the evidence 'e_t' and number of steps
+to lag for smoothing 'd'. Return a smoothed estimate or 'nothing' if no new time steps were found.
+"""
+function fixed_lag_smoothing(e_t::Bool, hmm::HiddenMarkovModel, d::Int64, ev::AbstractVector; t::Int64=1)
+    local T::Array{Float64, 2} = reduce(hcat, hmm.transition_model).';
+    local f::Array{Float64, 2} = reshape(hmm.prior, (1, length(hmm.prior)));
+    local B::Array{Float64, 2} = [1.0 0.0; 0.0 1.0];
+    local evidence::AbstractVector = [];
+
+    push!(evidence, e_t);
+    local O_t::Array{Float64, 2} = Array{Float64, 2}(Diagonal(sensor_distribution(hmm, e_t)));
+    if (t > d)
+        f = reshape(forward(hmm, vec(f), e_t), (1, length(f)));
+        local O_t_minus_d::Array{Float64, 2} = Array{Float64, 2}(Diagonal(sensor_distribution(hmm, ev[t - d])));
+        B = inv(O_t_minus_d) * inv(T) * B * T * O_t;
+    else
+        B = B * T * O_t;
+    end
+    t = t + 1;
+
+    if (t > d)
+        return normalize_probability_distribution(vec(f * B));
+    else
+        return nothing;
+    end
 end
 
