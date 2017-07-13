@@ -70,26 +70,26 @@ Index of Algorithms
 | 9.6     | FOL-BC-Ask         | `fol_bc_ask` | [`logic.jl`](logic.jl) |
 | 9.8     | Append             |  |  |
 | 10.1    | Air-Cargo-problem  | `air_cargo_pddl` |[`planning.jl`](planning.jl) |
-| 10.2    | Spare-Tire-Problem | `spare_tire_pddl` |[`planning.jl`](planning.jl) |
+| 10.2    | Spare-Tire-problem | `spare_tire_pddl` |[`planning.jl`](planning.jl) |
 | 10.3    | Three-Block-Tower  | `three_block_tower_pddl` |[`planning.jl`](planning.jl) |
-| 10.7    | Cake-Problem       | `have_cake_and_eat_cake_too_pddl` |[`planning.jl`](planning.jl) |
+| 10.7    | Cake-problem       | `have_cake_and_eat_cake_too_pddl` |[`planning.jl`](planning.jl) |
 | 10.9    | Graphplan          | `graphplan` | [`planning.jl`](planning.jl) |
 | 10.13   | Partial-Order-Planner |  |  |
 | 11.1    | Job-Shop-Problem-With-Resources | `job_shop_scheduling_pddl` |[`planning.jl`](planning.jl) |
 | 11.5    | Hierarchical-Search | `hierarchical_search` | [`planning.jl`](planning.jl) |
 | 11.8    | Angelic-Search   |  |  |
-| 11.10   | Doubles-tennis     | `doubles_tennis_pddl` | [`planning.jl`](planning.jl) |
-| 13      | Discrete Probability Distribution | `ProbabilityDist` | [`probability.jl`](probability.jl) |
+| 11.10   | Doubles-Tennis-problem   | `doubles_tennis_pddl` | [`planning.jl`](planning.jl) |
+| 13      | Discrete Probability Distribution | `ProbabilityDistribution` | [`probability.jl`](probability.jl) |
 | 13.1    | DT-Agent                    | `DecisionTheoreticAgentProgram` | [`probability.jl`](probability.jl) |
-| 14.9    | Enumeration-Ask             |  |  |
-| 14.11   | Elimination-Ask             |  |  |
-| 14.13   | Prior-Sample                |  |  |
-| 14.14   | Rejection-Sampling          |  |  |
-| 14.15   | Likelihood-Weighting        |  |  |
-| 14.16   | Gibbs-Ask                   |  |  |
-| 15.4    | Forward-Backward            |  |  |
-| 15.6    | Fixed-Lag-Smoothing         |  |  |
-| 15.17   | Particle-Filtering          |  |  |
+| 14.9    | Enumeration-Ask             | `enumeration_ask` | [`probability.jl`](probability.jl) |
+| 14.11   | Elimination-Ask             | `elimination_ask` | [`probability.jl`](probability.jl) |
+| 14.13   | Prior-Sample                | `prior_sample` | [`probability.jl`](probability.jl) |
+| 14.14   | Rejection-Sampling          | `rejection_sample` | [`probability.jl`](probability.jl) |
+| 14.15   | Likelihood-Weighting        | `likelihood_weighting` | [`probability.jl`](probability.jl) |
+| 14.16   | Gibbs-Ask                   | `gibbs_ask` | [`probability.jl`](probability.jl) |
+| 15.4    | Forward-Backward            | `forward_backward` | [`probability.jl`](probability.jl) |
+| 15.6    | Fixed-Lag-Smoothing         | `fixed_lag_smoothing` | [`probability.jl`](probability.jl) |
+| 15.17   | Particle-Filtering          | `particle_filtering` | [`probability.jl`](probability.jl) |
 | 16.9    | Information-Gathering-Agent |  |  |
 | 17.4    | Value-Iteration             |  |  |
 | 17.7    | Policy-Iteration            |  |  |
