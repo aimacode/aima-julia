@@ -16,6 +16,7 @@ export Problem, InstrumentedProblem,
         astar_search, recursive_best_first_search,
         hill_climbing, exp_schedule, simulated_annealing,
         or_search, and_search, and_or_graph_search,
+        OnlineDFSAgentProgram, update_state, execute, 
         genetic_search, genetic_algorithm,
         NQueensProblem, conflict, conflicted,
         random_boggle, print_boggle, boggle_neighbors, int_sqrt,
@@ -863,6 +864,76 @@ end
 
 function and_or_graph_search{T <: AbstractProblem}(problem::T)
     return or_search(problem, problem.initial, []);
+end
+
+type OnlineDFSAgentProgram <: AgentProgram
+    result::Dict
+    untried::Dict
+    unbacktracked::Dict
+    state::Nullable{String}
+    action::Nullable{String}
+    problem::AbstractProblem
+
+    function OnlineDFSAgentProgram{T <: AbstractProblem}(problem::T)
+        return new(Dict(), Dict(), Dict(), Nullable{String}(), Nullable{String}(), problem);
+    end
+end
+
+function update_state(odfsap::OnlineDFSAgentProgram, percept::String)
+    return percept;
+end
+
+function execute(odfsap::OnlineDFSAgentProgram, percept::String)
+    local s_prime::String = update_state(odfsap, percept);
+    if (goal_test(odfsap.problem, s_prime))
+        odfsap.action = Nullable{String}();
+    else
+        if (!(s_prime in keys(odfsap.untried)))
+            odfsap.untried[s_prime] = actions(odfsap.problem, s_prime);
+        end
+        if (!isnull(odfsap.state))
+            if (haskey(odfsap.result, (odfsap.state, odfsap.action)))
+                if (s_prime != odfsap.result[(odfsap.state, odfsap.action)])
+                    odfsap.result[(odfsap.state, odfsap.action)] = s_prime;
+                    unshift!(odfsap.unbacktracked[s_prime], odfsap.state);
+                end
+            else
+                if (s_prime != [])
+                    odfsap.result[(odfsap.state, odfsap.action)] = s_prime;
+                    unshift!(odfsap.unbacktracked[s_prime], odfsap.state);
+                end
+            end
+        end
+        if (length(odfsap.untried[s_prime]) == 0)
+            if (length(odfsap.unbacktracked[s_prime]) == 0)
+                odfsap.action = Nullable{String}();
+            else
+                first_item = shift!(odfsap.unbacktracked[s_prime]);
+                for (state, b) in keys(odfsap.result)
+                    if (odfsap.result[(state, b)] == first_item)
+                        odfsap.action = b;
+                        break;
+                    end
+                end
+            end
+        else
+            odfsap.action = shift!(odfsap.untried[s_prime]);
+        end
+    end
+    odfsap.state = s_prime;
+    return odfsap.action;
+end
+
+type OnlineSearchProblem <: AbstractProblem
+    initial::String
+    goal::String
+    graph::Graph
+    least_costs::Dict
+    h::Function
+
+    function OnlineSearchProblem(initial::String, goal::String, graph::Graph, least_costs::Dict, h::Function)
+        return new(initial, goal, graph, least_costs, h);
+    end
 end
 
 function genetic_search{T <: AbstractProblem}(problem::T; ngen::Int64=1000, pmut::Float64=0.1, n::Int64=20)
