@@ -145,6 +145,17 @@ d = 1;
 
 @test (repr(fixed_lag_smoothing(e_t, umbrella_hmm, d, umbrella_evidence; t=t)) == "[0.993865,0.00613497]");
 
+N = 10;
+umbrella_evidence = true;
+umbrella_transition = [[0.7, 0.3], [0.3, 0.7]];
+umbrella_sensor = [[0.9, 0.2], [0.1, 0.8]];
+umbrella_hmm = HiddenMarkovModel(umbrella_transition, umbrella_sensor);
+s = particle_filtering(umbrella_evidence, N, umbrella_hmm);
+
+@test length(s) == N;
+
+@test all(state in ("A", "B") for state in s);
+
 # Probability Distribution Example (p.493)
 p = ProbabilityDistribution(variable_name="Weather");
 p["sunny"] = 0.6;

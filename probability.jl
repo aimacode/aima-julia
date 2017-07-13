@@ -12,7 +12,7 @@ export getindex, setindex!, values,
         prior_sample, consistent_with, rejection_sampling, likelihood_weighting,
         gibbs_ask,
         HiddenMarkovModel, sensor_distribution, forward_backward,
-        fixed_lag_smoothing;
+        fixed_lag_smoothing, particle_filtering;
 
 
 #=
@@ -763,5 +763,43 @@ function fixed_lag_smoothing(e_t::Bool, hmm::HiddenMarkovModel, d::Int64, ev::Ab
     else
         return nothing;
     end
+end
+
+"""
+    particle_filtering(e::Bool, N::Int64, hmm::HiddenMarkovModel)
+
+Return a set of samples for the next time step for 2 states variables on
+the incoming evidence 'e' and the total number of samples to generate by
+using the particle filtering algorithm (Fig. 15.7).
+"""
+function particle_filtering(e::Bool, N::Int64, hmm::HiddenMarkovModel)
+    local distribution::Array{Float64, 1} = [0.5, 0.5];
+    local w::Array{Float64, 1} = zeros(N);
+
+    # Step 1
+    distribution = ((distribution[1] .* hmm.transition_model[1]) .+ (distribution[2] .* hmm.transition_model[2]));
+    s = [];
+    for i in 1:N
+        if (rand(RandomDeviceInstance) < distribution[1])
+            push!(s, "A");
+        else
+            push!(s, "B");
+        end
+    end
+
+    # Step 2
+    for i in 1:N
+        if (s[i] == "A")
+            w[i] = sensor_distribution(hmm, e)[1] * distribution[1];
+        elseif (s[i] == "B")
+            w[i] = sensor_distribution(hmm, e)[2] * distribution[2];
+        end
+    end
+    w = normalize_probability_distribution(w);
+
+    # Step 3
+    s = weighted_sample_with_replacement(s, w, N);
+
+    return s;
 end
 
