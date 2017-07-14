@@ -16,7 +16,8 @@ export Problem, InstrumentedProblem,
         astar_search, recursive_best_first_search,
         hill_climbing, exp_schedule, simulated_annealing,
         or_search, and_search, and_or_graph_search,
-        OnlineDFSAgentProgram, update_state, execute, 
+        OnlineDFSAgentProgram, update_state, execute,
+        OnlineSearchProblem, LRTAStarAgentProgram,
         genetic_search, genetic_algorithm,
         NQueensProblem, conflict, conflicted,
         random_boggle, print_boggle, boggle_neighbors, int_sqrt,
@@ -866,6 +867,13 @@ function and_or_graph_search{T <: AbstractProblem}(problem::T)
     return or_search(problem, problem.initial, []);
 end
 
+#=
+
+    OnlineDFSAgentProgram is a online depth first search agent (Fig. 4.21)
+
+    implementation of AgentProgram.
+
+=#
 type OnlineDFSAgentProgram <: AgentProgram
     result::Dict
     untried::Dict
@@ -924,6 +932,13 @@ function execute(odfsap::OnlineDFSAgentProgram, percept::String)
     return odfsap.action;
 end
 
+#=
+
+    OnlineSearchProblem is a AbstractProblem implementation of a online search problem
+
+    that can be solved by a online search agent.
+
+=#
 type OnlineSearchProblem <: AbstractProblem
     initial::String
     goal::String
@@ -931,8 +946,50 @@ type OnlineSearchProblem <: AbstractProblem
     least_costs::Dict
     h::Function
 
-    function OnlineSearchProblem(initial::String, goal::String, graph::Graph, least_costs::Dict, h::Function)
-        return new(initial, goal, graph, least_costs, h);
+    function OnlineSearchProblem(initial::String, goal::String, graph::Graph, least_costs::Dict)
+        return new(initial, goal, graph, least_costs, online_search_least_cost);
+    end
+end
+
+function actions(osp::OnlineSearchProblem, state::String)
+    return collect(keys(osp.graph.dict[state]));
+end
+
+function get_result(osp::OnlineSearchProblem, state::String, action::String)
+    return osp.graph.dict[state][action];
+end
+
+function online_search_least_cost(osp::OnlineSearchProblem, state::String)
+    return osp.least_costs[state];
+end
+
+function path_cost(osp::OnlineSearchProblem, state1::String, action::String, state2::String)
+    return 1.0;
+end
+
+function goal_test(osp::OnlineSearchProblem, state::String)
+    if (state == osp.goal)
+        return true;
+    else
+        return false;
+    end
+end
+
+#=
+
+    LRTAStarAgentProgram is an AgentProgram implementation of LRTA*-Agent (Fig. 4.24).
+
+    The 'result' field is not necessary as the given problem contains the results table.
+
+=#
+type LRTAStarAgentProgram <: AgentProgram
+    H::Dict
+    state::Nullable{String}
+    action::Nullable{String}
+    problem::AbstractProblem
+
+    function LRTAStarAgentProgram{T <: AbstractProblem}(problem::T)
+        return new(Dict(), Nullable{String}(), Nullable{String}(), problem);
     end
 end
 
