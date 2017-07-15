@@ -18,6 +18,7 @@ export Problem, InstrumentedProblem,
         or_search, and_search, and_or_graph_search,
         OnlineDFSAgentProgram, update_state, execute,
         OnlineSearchProblem, LRTAStarAgentProgram,
+        learning_realtime_astar_cost,
         genetic_search, genetic_algorithm,
         NQueensProblem, conflict, conflicted,
         random_boggle, print_boggle, boggle_neighbors, int_sqrt,
@@ -550,6 +551,8 @@ type Graph{N}
         local ng::Graph;
         if ((typeof(dict) <: Void) && (typeof(locations) <: Void))
             ng = new(Dict{Any, Any}(), Dict{Any, Tuple{Any, Any}}(), Bool(directed));
+        elseif (typeof(locations) <: Void)
+            ng = new(Dict{eltype(dict.keys), Any}(dict), Dict{Any, Tuple{Any, Any}}(), Bool(directed));
         else
             ng = new(Dict{eltype(dict.keys), Any}(dict), Dict{eltype(locations.keys), Tuple{Any, Any}}(locations), Bool(directed));
         end
@@ -964,7 +967,7 @@ function online_search_least_cost(osp::OnlineSearchProblem, state::String)
 end
 
 function path_cost(osp::OnlineSearchProblem, state1::String, action::String, state2::String)
-    return 1.0;
+    return 1;
 end
 
 function goal_test(osp::OnlineSearchProblem, state::String)
@@ -990,6 +993,50 @@ type LRTAStarAgentProgram <: AgentProgram
 
     function LRTAStarAgentProgram{T <: AbstractProblem}(problem::T)
         return new(Dict(), Nullable{String}(), Nullable{String}(), problem);
+    end
+end
+
+function learning_realtime_astar_cost(lrtaap::LRTAStarAgentProgram, state::String, action::String, s_prime::String, H::Dict)
+    if (haskey(lrtaap.H, s_prime))
+        return path_cost(lrtaap.problem, state, action, s_prime) + lrtaap.H[s_prime];
+    else
+        return path_cost(lrtaap.problem, state, action, s_prime) + lrtaap.problem.h(lrtaap.problem, s_prime);
+    end
+end
+
+"""
+    execute(lrtaap::LRTAStarAgentProgram, s_prime::String)
+
+Return an action given the percept 's_prime' and by using the LRTA*-Agent
+program (Fig. 4.24). If the current state of the agent is at the goal
+state, return 'nothing'.
+"""
+function execute(lrtaap::LRTAStarAgentProgram, s_prime::String)
+    if (goal_test(lrtaap.problem, s_prime))
+        lrtaap.action = Nullable{String}();
+        return nothing;
+    else
+        if (!haskey(lrtaap.H, s_prime))
+            lrtaap.H[s_prime] = lrtaap.problem.h(lrtaap.problem, s_prime);
+        end
+        if (!isnull(lrtaap.state))
+            lrtaap.H[get(lrtaap.state)] = reduce(min, learning_realtime_astar_cost(lrtaap,
+                                                                        get(lrtaap.state),
+                                                                        b,
+                                                                        get_result(lrtaap.problem, get(lrtaap.state), b),
+                                                                        lrtaap.H)
+                                        for b in actions(lrtaap.problem, get(lrtaap.state)));
+        end
+        lrtaap.action = argmin(actions(lrtaap.problem, s_prime),
+                                (function(b::String)
+                                    return learning_realtime_astar_cost(lrtaap,
+                                                                        s_prime,
+                                                                        b,
+                                                                        get_result(lrtaap.problem, s_prime, b),
+                                                                        lrtaap.H);
+                                end));
+        lrtaap.state = s_prime;
+        return get(lrtaap.action);
     end
 end
 
@@ -1020,6 +1067,7 @@ function genetic_algorithm{T <: AbstractVector}(population::T, fitness::Function
     return argmax(population, fitness);
 end
 
+# Simplified road map of Romania example (Fig. 3.2)
 romania = UndirectedGraph(Dict(
                             Pair("A", Dict("Z"=>75, "S"=>140, "T"=>118)),
                             Pair("B", Dict("U"=>85, "P"=>101, "G"=>90, "F"=>211)),
@@ -1044,6 +1092,26 @@ romania = UndirectedGraph(Dict(
                                 )
                             );
 
+# One-dimensional state space example (Fig. 4.23)
+one_dim_state_space = Graph{String}(dict=Dict{String, Dict{String, String}}([Pair("State_1", Dict([Pair("Right", "State_2")])),
+                                        Pair("State_2", Dict([Pair("Right", "State_3"),
+                                                            Pair("Left", "State_1")])),
+                                        Pair("State_3", Dict([Pair("Right", "State_4"),
+                                                            Pair("Left", "State_2")])),
+                                        Pair("State_4", Dict([Pair("Right", "State_5"),
+                                                            Pair("Left", "State_3")])),
+                                        Pair("State_5", Dict([Pair("Right", "State_6"),
+                                                            Pair("Left", "State_4")])),
+                                        Pair("State_6", Dict([Pair("Left", "State_5")]))]));
+
+one_dim_state_space_least_costs = Dict([Pair("State_1", 8),
+                                        Pair("State_2", 9),
+                                        Pair("State_3", 2),
+                                        Pair("State_4", 2),
+                                        Pair("State_5", 4),
+                                        Pair("State_6", 3)]);
+
+# Principal states and territories of Australia example (Fig. 6.1)
 australia = UndirectedGraph(Dict(
                                 Pair("T",   Dict()),
                                 Pair("SA",  Dict("WA"=>1, "NT"=>1, "Q"=>1, "NSW"=>1, "V"=>1)),

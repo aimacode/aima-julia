@@ -43,3 +43,26 @@ ab = GraphProblem("A", "B", aimajulia.romania);
     "aimajulia.depth_limited_search"          "<  64/  94/ 167/B>"    "< 948/2629/2701/N>"    "<  51/  57/ 153/WA>";
     "aimajulia.recursive_best_first_search"   "<  11/  12/  35/B>"    "<8481/8482/23788/N>"   "<  10/  11/  38/WA>"];
 
+# Initialize LRTAStarAgentProgram with an OnlineSearchProblem.
+
+lrtastar_program = OnlineSearchProblem("State_3", "State_5", aimajulia.one_dim_state_space, aimajulia.one_dim_state_space_least_costs);
+lrtastar_agentprogram = LRTAStarAgentProgram(lrtastar_program);
+
+@test execute(lrtastar_agentprogram, "State_3") == "Right";
+
+@test execute(lrtastar_agentprogram, "State_4") == "Left";
+
+@test execute(lrtastar_agentprogram, "State_3") == "Right";
+
+@test execute(lrtastar_agentprogram, "State_4") == "Right";
+
+@test execute(lrtastar_agentprogram, "State_5") == nothing;
+
+lrtastar_agentprogram = LRTAStarAgentProgram(lrtastar_program);
+
+@test execute(lrtastar_agentprogram, "State_4") == "Left";
+
+lrtastar_agentprogram = LRTAStarAgentProgram(lrtastar_program);
+
+@test execute(lrtastar_agentprogram, "State_5") == nothing;
+

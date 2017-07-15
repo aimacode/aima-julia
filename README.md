@@ -44,8 +44,8 @@ Index of Algorithms
 | 4.5     | Simulated-Annealing | `simulated_annealing` | [`search.jl`](search.jl) |
 | 4.8     | Genetic-Algorithm  | `genetic_algorithm` | [`search.jl`](search.jl) |
 | 4.11    | And-Or-Graph-Search | `and_or_graph_search` | [`search.jl`](search.jl) |
-| 4.21    | Online-DFS-Agent   |  |  |
-| 4.24    | LRTA\*-Agent       |  |  |
+| 4.21    | Online-DFS-Agent   | `OnlineDFSAgentProgram` | [`search.jl`](search.jl) |
+| 4.24    | LRTA\*-Agent       | `LRTAStarAgentProgram` | [`search.jl`](search.jl) |
 | 5.3     | Minimax-Decision   | `minimax_decision` | [`games.jl`](games.jl) |
 | 5.7     | Alpha-Beta-Search  | `alphabeta_search` | [`games.jl`](games.jl) |
 | 6       | CSP                | `CSP` | [`csp.jl`](csp.jl) |
