@@ -18,4 +18,6 @@ include("planning.jl");
 
 include("probability.jl");
 
+include("mdp.jl");
+
 end;
