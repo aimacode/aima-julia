@@ -42,3 +42,5 @@ julia --color=yes run_planning_tests.jl
 
 julia --color=yes run_probability_tests.jl
 
+julia --color=yes run_mdp_tests.jl
+

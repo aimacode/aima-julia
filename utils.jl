@@ -60,7 +60,8 @@ end
 
 function turn_heading(heading::Tuple{Any, Any}, inc::Int64)
     local o = [(1, 0), (0, 1), (-1, 0), (0, -1)];
-    return o[(index(o, heading) + inc) % length(o)];
+    # 4 (for negative increments) - 1 (adjust index) = 3 offset
+    return o[((index(o, heading) + inc + 3) % length(o)) + 1];
 end
 
 function vector_add_tuples(a::Tuple, b::Tuple)
