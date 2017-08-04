@@ -91,8 +91,8 @@ Index of Algorithms
 | 15.6    | Fixed-Lag-Smoothing         | `fixed_lag_smoothing` | [`probability.jl`](probability.jl) |
 | 15.17   | Particle-Filtering          | `particle_filtering` | [`probability.jl`](probability.jl) |
 | 16.9    | Information-Gathering-Agent |  |  |
-| 17.4    | Value-Iteration             |  |  |
-| 17.7    | Policy-Iteration            |  |  |
+| 17.4    | Value-Iteration             | `value_iteration` | [`mdp.jl`](mdp.jl) |
+| 17.7    | Policy-Iteration            | `policy_iteration` | [`mdp.jl`](mdp.jl) |
 | 17.7    | POMDP-Value-Iteration  	    |  |  |
 | 18.5    | Decision-Tree-Learning 	    |  |  |
 | 18.8    | Cross-Validation       	    |  |  |
