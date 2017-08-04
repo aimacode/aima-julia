@@ -21,15 +21,15 @@ abstract AbstractMarkovDecisionProcess;
 
 =#
 type MarkovDecisionProcess{T} <: AbstractMarkovDecisionProcess
-	initial::T
+    initial::T
     states::Set{T}
-	actions::Set{T}
-	terminal_states::Set{T}
-	transitions::Dict
-	gamma::Float64
-	reward::Dict
+    actions::Set{T}
+    terminal_states::Set{T}
+    transitions::Dict
+    gamma::Float64
+    reward::Dict
 
-	function MarkovDecisionProcess{T}(initial::T, actions_list::Set{T}, terminal_states::Set{T}, transitions::Dict, states::Union{Void, Set{T}}, gamma::Float64)
+    function MarkovDecisionProcess{T}(initial::T, actions_list::Set{T}, terminal_states::Set{T}, transitions::Dict, states::Union{Void, Set{T}}, gamma::Float64)
         if (!(0 < gamma <= 1))
             error("MarkovDecisionProcess(): The gamma variable of an MDP must be between 0 and 1, the constructor was given ", gamma, "!");
         end
