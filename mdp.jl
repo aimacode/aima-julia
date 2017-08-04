@@ -229,17 +229,11 @@ function value_iteration(gmdp::GridMarkovDecisionProcess; epsilon::Float64=0.001
     end
 end
 
-#=
 function expected_utility{T <: AbstractMarkovDecisionProcess}(mdp::T, U::Dict, state::Tuple{Int64, Int64}, action::Tuple{Int64, Int64})
     return sum((p * U[state_prime] for (p, state_prime) in transition_model(mdp, state, action)));
 end
-=#
 
-function expected_utility(mdp::AbstractMarkovDecisionProcess, U::Dict, state::Tuple{Int64, Int64}, action::Tuple{Int64, Int64})
-    return sum((p * U[state_prime] for (p, state_prime) in transition_model(mdp, state, action)));
-end
-
-function expected_utility(mdp::AbstractMarkovDecisionProcess, U::Dict, state::Tuple{Int64, Int64}, action::Void)
+function expected_utility{T <: AbstractMarkovDecisionProcess}(mdp::T, U::Dict, state::Tuple{Int64, Int64}, action::Void)
     return sum((p * U[state_prime] for (p, state_prime) in transition_model(mdp, state, action)));
 end
 
