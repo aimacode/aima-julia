@@ -4,11 +4,11 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         hamming_distance;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
-	return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
+    return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
 end
 
 function mean_square_error(X::AbstractVector, Y::AbstractVector)
-	return mean(((x - y)^2) for (x, y) in zip(X, Y));
+    return mean(((x - y)^2) for (x, y) in zip(X, Y));
 end
 
 function root_mean_square_error(X::AbstractVector, Y::AbstractVector)
