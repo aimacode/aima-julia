@@ -87,6 +87,7 @@ end
     of AbstractMarkovDecisionProcess. Obstacles in the environment are represented
 
     by a null.
+
 =#
 type GridMarkovDecisionProcess <: AbstractMarkovDecisionProcess
     initial::Tuple{Int64, Int64}
@@ -108,7 +109,6 @@ type GridMarkovDecisionProcess <: AbstractMarkovDecisionProcess
             new_states = Set{Tuple{Int64, Int64}}();
         end
         local orientations::Set = Set{Tuple{Int64, Int64}}([(1, 0), (0, 1), (-1, 0), (0, -1)]);
-        # (0, 1) will move the agent east.
         local reward::Dict = Dict();
         for i in 1:getindex(size(grid), 1)
             for j in 1:getindex(size(grid, 2))
@@ -160,6 +160,10 @@ function show_grid(gmdp::GridMarkovDecisionProcess, mapping::Dict)
     return grid;
 end
 
+# (0, 1) will move the agent rightward.
+# (-1, 0) will move the agent upward.
+# (0, -1) will move the agent leftward.
+# (1, 0) will move the agent downward.
 function to_arrows(gmdp::GridMarkovDecisionProcess, policy::Dict)
     local arrow_characters::Dict = Dict([Pair((0, 1), ">"),
                                         Pair((-1, 0), "^"),
