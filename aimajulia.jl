@@ -20,4 +20,6 @@ include("probability.jl");
 
 include("mdp.jl");
 
+include("learning.jl");
+
 end;
