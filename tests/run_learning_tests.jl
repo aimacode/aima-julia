@@ -65,9 +65,9 @@ means_dict, deviations_dict = find_means_and_deviations(iris_dataset);
 
 @test (means_dict["virginica"][1] == 6.587999999999999);
 
-@test (deviations["setosa"][1] == 0.3524896872134513);
+@test (deviations_dict["setosa"][1] == 0.3524896872134513);
 
-@test (deviations["versicolor"][1] == 0.5161711470638634);
+@test (deviations_dict["versicolor"][1] == 0.5161711470638634);
 
-@test (deviations["virginica"][1] == 0.6358795932744321);
+@test (deviations_dict["virginica"][1] == 0.6358795932744321);
 
