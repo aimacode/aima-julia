@@ -52,7 +52,22 @@ using aimajulia;
 
 @test (mean_error([0, 0.5], [0, -0.5]) == 0.5);
 
-iris_dataset = DataSet(name="iris", examples="aima-data/iris.csv", exclude=[4]);
+iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv", exclude=[4]);
 
 @test (iris_dataset.inputs == [1, 2, 3]);
+
+iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
+means_dict, deviations_dict = find_means_and_deviations(iris_dataset);
+
+@test (means_dict["setosa"][1] == 5.006);
+
+@test (means_dict["versicolor"][1] == 5.936);
+
+@test (means_dict["virginica"][1] == 6.587999999999999);
+
+@test (deviations["setosa"][1] == 0.3524896872134513);
+
+@test (deviations["versicolor"][1] == 0.5161711470638634);
+
+@test (deviations["virginica"][1] == 0.6358795932744321);
 

@@ -2,7 +2,8 @@
 export euclidean_distance, mean_square_error, root_mean_square_error,
         mean_error, manhattan_distance, mean_boolean_error, hamming_distance,
         DataSet, set_problem, attribute_index, check_dataset_fields,
-        check_example, update_values, add_example, remove_examples, sanitize, summarize;
+        check_example, update_values, add_example, remove_examples, sanitize, summarize,
+        classes_to_numbers, split_values_by_classes, find_means_and_deviations;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -38,7 +39,7 @@ type DataSet
     examples::AbstractMatrix
     attributes::AbstractVector
     attributes_names::AbstractVector
-    values::Nullable{AbstractVector}
+    values::AbstractVector
     exclude::AbstractVector
     distance::Function
     inputs::AbstractVector
@@ -75,15 +76,18 @@ type DataSet
             attributes_names_array = attributes_array;
         end
         local values_is_set::Bool;
+        local new_values::AbstractVector;
         if (typeof(values) <: Void)
             values_is_set = false;
+            new_values = [];
         else
             values_is_set = true;
+            new_values = values;
         end
 
         # Construct new DataSet without 'inputs' and 'target' fields.
         local ds::DataSet = new(name, source, examples_array, attributes_array, attributes_names_array,
-                                Nullable{AbstractVector}(values), exclude, distance);
+                                new_values, exclude, distance);
 
         # Set 'inputs' and 'target' fields of newly constructed DataSet.
         set_problem(ds, target, inputs, exclude);
@@ -97,9 +101,7 @@ function set_problem(ds::DataSet, target::Int64, inputs::Void, exclude::Abstract
     ds.target = attribute_index(ds, target);
     local mapped_exclude::AbstractVector = map(attribute_index, (ds for i in exclude), exclude);
     ds.inputs = collect(a for a in ds.attributes if ((a != ds.target) && (!(a in mapped_exclude))));
-    if (isnull(ds.values))
-        update_values(ds);
-    elseif (length(get(ds.values)) == 0)
+    if (length(ds.values) == 0)
         update_values(ds);
     end
     nothing;
@@ -108,9 +110,7 @@ end
 function set_problem(ds::DataSet, target::Int64, inputs::AbstractVector, exclude::AbstractVector)
     ds.target = attribute_index(ds, target);
     ds.inputs = removeall(inputs, ds.target);
-    if (isnull(ds.values))
-        update_values(ds);
-    elseif (length(get(ds.values)) == 0)
+    if (length(ds.values) == 0)
         update_values(ds);
     end
     nothing;
@@ -172,13 +172,13 @@ function check_example(ds::DataSet, example::AbstractMatrix)
 end
 
 function update_values(ds::DataSet)
-    ds.values = collect(Set(ds.examples[i, :] for i in 1:size(ds.examples)[1]));
+    ds.values = collect(collect(Set(ds.examples[:, i])) for i in 1:size(ds.examples)[2]);
     nothing;
 end
 
 function add_example(ds::DataSet, example::AbstractVector)
     check_example(ds, example);
-    vcat(ds.examples, example);
+    vcat(ds.examples, transpose(example));
     nothing;
 end
 
@@ -231,6 +231,71 @@ function sanitize(ds::DataSet, example::AbstractMatrix)
         end
     end
     return sanitized_example;
+end
+
+function classes_to_numbers(ds::DataSet, classes::Void)
+    local new_classes::AbstractVector = sort(ds.values[ds.target]);
+    for example in (ds.examples[i, :] for i in 1:size(ds.examples)[1])
+        local index_val::Int64 = utils.index(new_classes, example[ds.target]);
+        if (index_val == -1)
+            error("classes_to_numbers(): Could not find ", example[ds.target], " in ", new_classes, "!");
+        end
+        example[ds.target] = index_val;
+    end
+    nothing;
+end
+
+function classes_to_numbers(ds::DataSet, classes::AbstractVector)
+    local new_classes::AbstractVector;
+    if (length(classes) == 0)
+        new_classes = sort(ds.values[ds.target]);
+    else
+        new_classes = classes;
+    end
+    for example in (ds.examples[i, :] for i in 1:size(ds.examples)[1])
+        local index_val::Int64 = utils.index(new_classes, example[ds.target]);
+        if (index_val == -1)
+            error("classes_to_numbers(): Could not find ", example[ds.target], " in ", new_classes, "!");
+        end
+        example[ds.target] = index_val;
+    end
+    nothing;
+end
+
+function split_values_by_classes(ds::DataSet)
+    local buckets::Dict = Dict();
+    local target_names::AbstractVector = ds.values[ds.target];
+
+    for example in (ds.examples[i, :] for i in 1:size(ds.examples)[1])
+        local item::AbstractVector = collect(attribute for attribute in example
+                                            if (!(attribute in target_names)));
+        push!(get!(buckets, example[ds.target], []), item);
+    end
+
+    return buckets;
+end
+
+function find_means_and_deviations(ds::DataSet)
+    local target_names::AbstractVector = ds.values[ds.target];
+    local feature_numbers::Int64 = length(ds.inputs);
+    local item_buckets::Dict = split_values_by_classes(ds);
+    local means::Dict = Dict();
+    local deviations::Dict = Dict();
+    local key_initial_value::AbstractVector = collect(0.0 for i in 1:feature_numbers);
+
+    for target_name in target_names
+        local features = collect(Array{Float64, 1}() for i in 1:feature_numbers);
+        for item in item_buckets[target_name]
+            for i in 1:feature_numbers
+                push!(features[i], item[i]);
+            end
+        end
+        for i in 1:feature_numbers
+            get!(means, target_name, copy(key_initial_value))[i] = mean(features[i]);
+            get!(deviations, target_name, copy(key_initial_value))[i] = std(features[i]);
+        end
+    end
+    return means, deviations;
 end
 
 function summarize(ds::DataSet)
