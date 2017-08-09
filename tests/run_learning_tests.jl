@@ -4,6 +4,8 @@ using Base.Test;
 
 using aimajulia;
 
+using aimajulia.utils;
+
 #The following learning tests are from the aima-python doctests
 
 @test (repr(euclidean_distance([1, 2], [3, 4])) == "2.8284271247461903");
@@ -70,4 +72,14 @@ means_dict, deviations_dict = find_means_and_deviations(iris_dataset);
 @test (deviations_dict["versicolor"][1] == 0.5161711470638634);
 
 @test (deviations_dict["virginica"][1] == 0.6358795932744321);
+
+cpd = CountingProbabilityDistribution();
+
+for i in 1:10000
+    add(cpd, rand(RandomDeviceInstance, ["1", "2", "3", "4", "5", "6"]));
+end
+
+probabilities = collect(cpd[n] for n in ("1", "2", "3", "4", "5", "6"));
+
+@test ((1.0/7.0) <= reduce(min, probabilities) <= reduce(max, probabilities) <= (1.0/5.0));
 
