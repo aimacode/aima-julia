@@ -338,7 +338,7 @@ end
 
 function add(cpd::CountingProbabilityDistribution, observation)
     smooth_for_observation(cpd, observation);
-    cpd.dict[o] = cpd.dict[o] + 1;
+    cpd.dict[observation] = cpd.dict[observation] + 1;
     cpd.number_of_observations = cpd.number_of_observations + 1;
     cpd.sample_function = Nullable{Function}();
     nothing;
@@ -347,7 +347,7 @@ end
 function smooth_for_observation(cpd::CountingProbabilityDistribution, observation)
     if (!(observation in keys(cpd.dict)))
         cpd.dict[observation] = cpd.default;
-        cpd.number_of_observations = cpd.number_of_observations + cdp.default;
+        cpd.number_of_observations = cpd.number_of_observations + cpd.default;
         cpd.sample_function = Nullable{Function}();
     end
     nothing;
