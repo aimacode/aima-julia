@@ -1,9 +1,12 @@
 
+import Base: getindex;
+
 export euclidean_distance, mean_square_error, root_mean_square_error,
         mean_error, manhattan_distance, mean_boolean_error, hamming_distance,
         DataSet, set_problem, attribute_index, check_dataset_fields,
         check_example, update_values, add_example, remove_examples, sanitize, summarize,
-        classes_to_numbers, split_values_by_classes, find_means_and_deviations;
+        classes_to_numbers, split_values_by_classes, find_means_and_deviations,
+        CountingProbabilityDistribution, add, smooth_for_observation, getindex, top, sample;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -33,6 +36,11 @@ function hamming_distance(X::AbstractVector, Y::AbstractVector)
     return sum((x != y) for (x, y) in zip(X, Y));
 end
 
+#=
+
+    DataSet is a data set used by machine learning algorithms.
+
+=#
 type DataSet
     name::String
     source::String
@@ -300,5 +308,87 @@ end
 
 function summarize(ds::DataSet)
     return @sprintf("<DataSet(%s): %d examples, %d attributes>", ds.name, length(ds.examples), length(ds.attributes));
+end
+
+#=
+
+    CountingProbabilityDistribution is a probability distribution for counting
+
+    observations. Unlike the other implementations of AbstractProbabilityDistribution,
+
+    CountingProbabilityDistribution calculates the key's probability when
+
+    accessing the CountingProbabilityDistribution by the given key.
+
+=#
+type CountingProbabilityDistribution
+    dict::Dict
+    number_of_observations::Int64
+    default::Int64
+    sample_function::Nullable{Function}
+
+    function CountingProbabilityDistribution(;observations::AbstractVector=[], default::Int64=0)
+        local cpd::CountingProbabilityDistribution = new(Dict(), 0, default, Nullable{Function}());
+        for observation in observations
+            add(cpd, observation);
+        end
+        return cpd;
+    end
+end
+
+function add(cpd::CountingProbabilityDistribution, observation)
+    smooth_for_observation(cpd, observation);
+    cpd.dict[o] = cpd.dict[o] + 1;
+    cpd.number_of_observations = cpd.number_of_observations + 1;
+    cpd.sample_function = Nullable{Function}();
+    nothing;
+end
+
+function smooth_for_observation(cpd::CountingProbabilityDistribution, observation)
+    if (!(observation in keys(cpd.dict)))
+        cpd.dict[observation] = cpd.default;
+        cpd.number_of_observations = cpd.number_of_observations + cdp.default;
+        cpd.sample_function = Nullable{Function}();
+    end
+    nothing;
+end
+
+"""
+    getindex(cpd::CountingProbabilityDistribution, key)
+
+Return the probability of the given 'key'.
+"""
+function getindex(cpd::CountingProbabilityDistribution, key)
+    smooth_for_observation(cpd, key);
+    return (Float64(cpd.dict[key]) / Float64(cpd.number_of_observations));
+end
+
+"""
+    top(cpd::CountingProbabilityDistribution, n::Int64)
+
+Return an array of (observation_count, observation) tuples such that the array
+does not exceed length 'n'.
+"""
+function top(cpd::CountingProbabilityDistribution, n::Int64)
+    return sort(collect(reverse((i...)) for i in cpd.dict),
+                lt=(function(p1::Tuple{Number, Any}, p2::Tuple{Number, Any})
+                        if (p1[1] < p2[1])
+                            return true;
+                        else
+                            return false;
+                        end
+                    end))[1:n];
+end
+
+"""
+    sample(cpd::CountingProbabilityDistribution)
+
+Return a random sample from the probability distribution 'cpd'.
+"""
+function sample(cpd::CountingProbabilityDistribution)
+    if (isnull(cpd.sample_function))
+        cpd.sample_function = weighted_sampler(collect(keys(cpd.dict)), collect(values(cpd.dict)));
+    end
+    return cpd.sample_function();
 end
 
