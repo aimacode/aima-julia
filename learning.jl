@@ -370,14 +370,19 @@ Return an array of (observation_count, observation) tuples such that the array
 does not exceed length 'n'.
 """
 function top(cpd::CountingProbabilityDistribution, n::Int64)
-    return sort(collect(reverse((i...)) for i in cpd.dict),
-                lt=(function(p1::Tuple{Number, Any}, p2::Tuple{Number, Any})
-                        if (p1[1] < p2[1])
-                            return true;
-                        else
-                            return false;
-                        end
-                    end))[1:n];
+    local observations::AbstractVector = sort(collect(reverse((i...)) for i in cpd.dict),
+                                                lt=(function(p1::Tuple{Number, Any}, p2::Tuple{Number, Any})
+                                                        if (p1[1] < p2[1])
+                                                            return true;
+                                                        else
+                                                            return false;
+                                                        end
+                                                    end));
+    if (length(observations) <= n)
+        return observations;
+    else
+        return observations[1:n];
+    end
 end
 
 """
