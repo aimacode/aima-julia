@@ -9,7 +9,7 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         CountingProbabilityDistribution, add, smooth_for_observation, getindex, top, sample,
         PluralityLearner, predict,
         AbstractNaiveBayesModel, NaiveBayesLearner,
-        NaiveBayesDiscreteModel, NaiveBayesContinuousModel;
+        NaiveBayesDiscreteModel, NaiveBayesContinuousModel, NearestNeighborLearner;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -391,11 +391,7 @@ does not exceed length 'n'.
 function top(cpd::CountingProbabilityDistribution, n::Int64)
     local observations::AbstractVector = sort(collect(reverse((i...)) for i in cpd.dict),
                                                 lt=(function(p1::Tuple{Number, Any}, p2::Tuple{Number, Any})
-                                                        if (p1[1] < p2[1])
-                                                            return true;
-                                                        else
-                                                            return false;
-                                                        end
+                                                        return (p1[1] < p2[1]);
                                                     end));
     if (length(observations) <= n)
         return observations;
@@ -512,5 +508,37 @@ function predict(nbcm::NaiveBayesContinuousModel, example::AbstractVector)
                         end
                         return p;
                     end));
+end
+
+#=
+
+    NearestNeighborLearner uses the k-nearest neighbors lookup for predictions.
+
+=#
+type NearestNeighborLearner
+    dataset::DataSet
+    k::Int64
+
+    function NearestNeighborLearner(ds::DataSet)
+        return new(ds, 1);
+    end
+
+    function NearestNeighborLearner(ds::DataSet, k::Int64)
+        return new(ds, k);
+    end
+end
+
+function nearest_neighbor_predict_isless(t1::Tuple, t2::Tuple)
+    return (t1[1] < t2[1]);
+end
+
+function predict(nnl::NearestNeighborLearner, example::AbstractVector)
+    local best_distances::AbstractVector = sort(collect((nnl.dataset.distance(dataset_example, example), dataset_example)
+                                                        for dataset_example in (nnl.dataset.examples[i, :] for i in 1:size(nnl.dataset.examples)[1])),
+                                                lt=nearest_neighbor_predict_isless);
+    if (length(best_distances) > nnl.k)
+        best_distances = best_distances[1:nnl.k];
+    end
+    return mode(dataset_example[nnl.dataset.target] for (distance, dataset_example) in best_distances);
 end
 

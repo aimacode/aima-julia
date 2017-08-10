@@ -630,11 +630,7 @@ function normalize_probability_distribution(d::AbstractVector)
 end
 
 function mode_reverse_isless(p1::Tuple, p2::Tuple)
-    if (p1[2] > p2[2])
-        return true;
-    else
-        return false;
-    end
+    return (p1[2] > p2[2]);
 end
 
 function mode(v::AbstractVector)

@@ -113,3 +113,13 @@ nbcm = NaiveBayesLearner(iris_dataset, continuous=true);
 
 @test (predict(nbcm, [7, 3, 6.5, 2]) == "virginica");
 
+iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
+
+k_nearest_neighbors = NearestNeighborLearner(iris_dataset, 3);
+
+@test (predict(k_nearest_neighbors, [5, 3, 1, 0.1]) == "setosa");
+
+@test (predict(k_nearest_neighbors, [6, 5, 3, 1.5]) == "versicolor");
+
+@test (predict(k_nearest_neighbors, [7.5, 4, 6, 2]) == "virginica");
+
