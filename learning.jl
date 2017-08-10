@@ -6,7 +6,8 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         DataSet, set_problem, attribute_index, check_dataset_fields,
         check_example, update_values, add_example, remove_examples, sanitize, summarize,
         classes_to_numbers, split_values_by_classes, find_means_and_deviations,
-        CountingProbabilityDistribution, add, smooth_for_observation, getindex, top, sample;
+        CountingProbabilityDistribution, add, smooth_for_observation, getindex, top, sample,
+        PluralityLearner, predict;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -395,5 +396,23 @@ function sample(cpd::CountingProbabilityDistribution)
         cpd.sample_function = weighted_sampler(collect(keys(cpd.dict)), collect(values(cpd.dict)));
     end
     return cpd.sample_function();
+end
+
+type PluralityLearner{T}
+    most_popular::T
+
+    function PluralityLearner{T}(mp::T)
+        return new(mp);
+    end
+end
+
+function PluralityLearner(ds::DataSet)
+    most_popular = mode(example[ds.target]
+                        for example in (ds.examples[i, :] for i in 1:size(ds.examples)[1]));
+    return PluralityLearner{typeof(most_popular)}(most_popular);
+end
+
+function predict(pl::PluralityLearner, example::AbstractVector)
+    return pl.most_popular;
 end
 

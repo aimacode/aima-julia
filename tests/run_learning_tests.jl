@@ -83,3 +83,9 @@ probabilities = collect(cpd[n] for n in ("1", "2", "3", "4", "5", "6"));
 
 @test ((1.0/7.0) <= reduce(min, probabilities) <= reduce(max, probabilities) <= (1.0/5.0));
 
+zoo_dataset = DataSet(name="zoo", examples="./aima-data/zoo.csv");
+
+pl = PluralityLearner(zoo_dataset);
+
+@test (predict(pl, [1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 4, 1, 0, 1]) == "mammal");
+

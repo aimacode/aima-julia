@@ -18,7 +18,8 @@ export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         distance, distance2,
         RandomDeviceInstance,
         isfunction, removeall,
-        normalize_probability_distribution;
+        normalize_probability_distribution,
+        mode;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -626,6 +627,34 @@ end
 function normalize_probability_distribution(d::AbstractVector)
     local total::Float64 = sum(d);
     return collect((i / total) for i in d);
+end
+
+function mode_reverse_isless(p1::Tuple, p2::Tuple)
+    if (p1[2] > p2[2])
+        return true;
+    else
+        return false;
+    end
+end
+
+function mode(v::AbstractVector)
+    local sorted::AbstractVector = sort!(collect((i, count(j->(j == i), v)) for i in Set(v)),
+                                        lt=mode_reverse_isless);
+    if (length(sorted) == 0)
+        error("mode(): There is no mode for an empty array!");
+    else
+        return getindex(getindex(sorted, 1), 1);
+    end
+end
+
+function mode(iter::Base.Generator)
+    local sorted::AbstractVector = sort!(collect((i, count(j->(j == i), iter)) for i in Set(iter)),
+                                        lt=mode_reverse_isless);
+    if (length(sorted) == 0)
+        error("mode(): There is no mode for an empty array!");
+    else
+        return getindex(getindex(sorted, 1), 1);
+    end
 end
 
 end
