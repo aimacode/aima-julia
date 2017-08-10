@@ -54,6 +54,12 @@ using aimajulia.utils;
 
 @test (mean_error([0, 0.5], [0, -0.5]) == 0.5);
 
+@test (gaussian(1,0.5,0.7) == 0.6664492057835993);
+
+@test (gaussian(5,2,4.5) == 0.19333405840142462);
+
+@test (gaussian(3,1,3) == 0.3989422804014327);
+
 iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv", exclude=[4]);
 
 @test (iris_dataset.inputs == [1, 2, 3]);
@@ -88,4 +94,22 @@ zoo_dataset = DataSet(name="zoo", examples="./aima-data/zoo.csv");
 pl = PluralityLearner(zoo_dataset);
 
 @test (predict(pl, [1, 0, 0, 1, 0, 0, 0, 1, 1, 1, 0, 0, 4, 1, 0, 1]) == "mammal");
+
+iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
+
+nbdm = NaiveBayesLearner(iris_dataset, continuous=false);
+
+@test (predict(nbdm, [5, 3, 1, 0.1]) == "setosa");
+
+@test (predict(nbdm, [6, 3, 4, 1.1]) == "versicolor");
+
+@test (predict(nbdm, [7.7, 3, 6, 2]) == "virginica");
+
+nbcm = NaiveBayesLearner(iris_dataset, continuous=true);
+
+@test (predict(nbcm, [5, 3, 1, 0.1]) == "setosa");
+
+@test (predict(nbcm, [6, 5, 3, 1.5]) == "versicolor");
+
+@test (predict(nbcm, [7, 3, 6.5, 2]) == "virginica");
 

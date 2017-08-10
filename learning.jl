@@ -2,12 +2,14 @@
 import Base: getindex;
 
 export euclidean_distance, mean_square_error, root_mean_square_error,
-        mean_error, manhattan_distance, mean_boolean_error, hamming_distance,
+        mean_error, manhattan_distance, mean_boolean_error, hamming_distance, gaussian,
         DataSet, set_problem, attribute_index, check_dataset_fields,
         check_example, update_values, add_example, remove_examples, sanitize, summarize,
         classes_to_numbers, split_values_by_classes, find_means_and_deviations,
         CountingProbabilityDistribution, add, smooth_for_observation, getindex, top, sample,
-        PluralityLearner, predict;
+        PluralityLearner, predict,
+        AbstractNaiveBayesModel, NaiveBayesLearner,
+        NaiveBayesDiscreteModel, NaiveBayesContinuousModel;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -35,6 +37,17 @@ end
 
 function hamming_distance(X::AbstractVector, Y::AbstractVector)
     return sum((x != y) for (x, y) in zip(X, Y));
+end
+
+"""
+    gaussian(mean::Float64, standard_deviation::Float64, x::Number)
+
+Return the probability density of the gaussian distribution for variable 'x' given
+the mean 'mean' and standard deviation 'standard_deviation'.
+"""
+function gaussian(mean::Number, standard_deviation::Number, x::Number)
+    return ((Float64(1)/(sqrt(2 * pi) * Float64(standard_deviation))) *
+            (e^(-0.5*((Float64(x) - Float64(mean))/Float64(standard_deviation))^2)));
 end
 
 #=
@@ -328,11 +341,16 @@ type CountingProbabilityDistribution
     default::Int64
     sample_function::Nullable{Function}
 
-    function CountingProbabilityDistribution(;observations::AbstractVector=[], default::Int64=0)
+    function CountingProbabilityDistribution(observations::AbstractVector; default::Int64=0)
         local cpd::CountingProbabilityDistribution = new(Dict(), 0, default, Nullable{Function}());
         for observation in observations
             add(cpd, observation);
         end
+        return cpd;
+    end
+
+    function CountingProbabilityDistribution(; default::Int64=0)
+        local cpd::CountingProbabilityDistribution = new(Dict(), 0, default, Nullable{Function}());
         return cpd;
     end
 end
@@ -414,5 +432,85 @@ end
 
 function predict(pl::PluralityLearner, example::AbstractVector)
     return pl.most_popular;
+end
+
+abstract AbstractNaiveBayesModel;
+
+type NaiveBayesLearner
+    model::AbstractNaiveBayesModel
+
+    function NaiveBayesLearner(ds::DataSet; continuous::Bool=true)
+        if (continuous)
+            return new(NaiveBayesContinuousModel(ds));
+        else
+            return new(NaiveBayesDiscreteModel(ds));
+        end
+    end
+end
+
+function predict(nbl::NaiveBayesLearner, example::AbstractVector)
+    return predict(nbl.model, example);
+end
+
+type NaiveBayesDiscreteModel <: AbstractNaiveBayesModel
+    dataset::DataSet
+    target_values::AbstractVector
+    target_distribution::CountingProbabilityDistribution
+    attributes_distributions::Dict
+
+    function NaiveBayesDiscreteModel(ds::DataSet)
+        local nbdm::NaiveBayesDiscreteModel = new(ds,
+                                                ds.values[ds.target],
+                                                CountingProbabilityDistribution(ds.values[ds.target]));
+        nbdm.attributes_distributions = Dict(Pair((val, attribute), CountingProbabilityDistribution(ds.values[attribute]))
+                                            for val in nbdm.target_values
+                                            for attribute in ds.inputs);
+        for example in (ds.examples[i, :] for i in 1:size(ds.examples)[1])
+            target_value = example[ds.target];
+            add(nbdm.target_distribution, target_value);
+            for attribute in ds.inputs
+                add(nbdm.attributes_distributions[(target_value, attribute)], example[attribute]);
+            end
+        end
+        return nbdm;
+    end
+end
+
+function predict(nbdm::NaiveBayesDiscreteModel, example::AbstractVector)
+    return argmax(nbdm.target_values,
+                    (function(target_value)
+                        return (nbdm.target_distribution[target_value] *
+                                prod(nbdm.attributes_distributions[(target_value, attribute)][example[attribute]]
+                                    for attribute in nbdm.dataset.inputs));
+                    end));
+end
+
+type NaiveBayesContinuousModel <: AbstractNaiveBayesModel
+    dataset::DataSet
+    target_values::AbstractVector
+    target_distribution::CountingProbabilityDistribution
+    means::Dict
+    deviations::Dict
+
+    function NaiveBayesContinuousModel(ds::DataSet)
+        local nbcm::NaiveBayesContinuousModel = new(ds,
+                                                    ds.values[ds.target],
+                                                    CountingProbabilityDistribution(ds.values[ds.target]));
+        nbcm.means, nbcm.deviations = find_means_and_deviations(ds);
+        return nbcm;
+    end
+end
+
+function predict(nbcm::NaiveBayesContinuousModel, example::AbstractVector)
+    return argmax(nbcm.target_values,
+                    (function(target_value)
+                        local p::Float64 = nbcm.target_distribution[target_value];
+                        for attribute in nbcm.dataset.inputs
+                            p = p * gaussian(nbcm.means[target_value][attribute],
+                                            nbcm.deviations[target_value][attribute],
+                                            example[attribute]);
+                        end
+                        return p;
+                    end));
 end
 
