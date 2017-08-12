@@ -9,7 +9,8 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         CountingProbabilityDistribution, add, smooth_for_observation, getindex, top, sample,
         PluralityLearner, predict,
         AbstractNaiveBayesModel, NaiveBayesLearner,
-        NaiveBayesDiscreteModel, NaiveBayesContinuousModel, NearestNeighborLearner;
+        NaiveBayesDiscreteModel, NaiveBayesContinuousModel, NearestNeighborLearner,
+        DecisionLeafNode, DecisionForkNode, classify;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -540,5 +541,54 @@ function predict(nnl::NearestNeighborLearner, example::AbstractVector)
         best_distances = best_distances[1:nnl.k];
     end
     return mode(dataset_example[nnl.dataset.target] for (distance, dataset_example) in best_distances);
+end
+
+type DecisionLeafNode{T}
+    result::T
+
+    function DecisionLeafNode{T}(result::T)
+        return new(result);
+    end
+end
+
+function classify(dl::DecisionLeafNode, example::AbstractVector)
+    return dl.result;
+end
+
+DecisionLeafNode(result) = DecisionLeafNode{typeof(result)}(result);
+
+type DecisionForkNode
+    attribute::Int64
+    attribute_name::Nullable
+    default_child::Nullable{DecisionLeafNode}
+    branches::Dict
+
+    function DecisionForkNode(attribute::Int64;
+                        attribute_name::Union{String, Void}=nothing,
+                        default_child::Union{DecisionLeafNode, Void}=nothing,
+                        branches::Union{Dict, Void}=nothing)
+        local new_attribute_name::Nullable;
+        local new_branches::Dict;
+        if (typeof(attribute_name) <: Void)
+            new_attribute_name = Nullable{Int64}(attribute);
+        else
+            new_attribute_name = Nullable{String}(attribute_name);
+        end
+        if (typeof(branches) <: Void)
+            new_branches = Dict();
+        else
+            new_branches = branches;
+        end
+        return new(attribute, new_attribute_name, Nullable{DecisionLeafNode}(default_child), new_branches);
+    end
+end
+
+function classify(df::DecisionForkNode, example::AbstractVector)
+    local attribute_value::Float64 = example[df.attribute];
+    if (haskey(df.branches, attribute_value))
+        return classify(df.branches[attribute_value], example);
+    else
+        return classify(df.default_child, example);
+    end
 end
 
