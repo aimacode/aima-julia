@@ -592,3 +592,12 @@ function classify(df::DecisionForkNode, example::AbstractVector)
     end
 end
 
+function add(dfn::DecisionForkNode, key::Int64, subtree)
+    dfn.branches[key] = subtree;
+    nothing;
+end
+
+function summarize(dfn::DecisionForkNode)
+    return @sprintf("DecisionForkNode(%s, %s, %s)", repr(dfn.attribute), repr(dfn.attribute_name), repr(dfn.branches));
+end
+
