@@ -546,11 +546,12 @@ end
 function argmin_random_tie{T <: AbstractVector}(seq::T, fn::Function)
     local best_score = fn(seq[1]);
     local n::Int64 = 0;
-    local best_element;
+    local best_element = seq[1];
     for element in seq
         element_score = fn(element);
         if (element_score < best_score)
             best_element = element;
+            best_score = element_score;
         elseif (element_score == best_score)
             n = n + 1;
             if (rand(RandomDeviceInstance, 1:n) == 1)
@@ -583,11 +584,12 @@ end
 function argmax_random_tie{T <: AbstractVector}(seq::T, fn::Function)
     local best_score = fn(seq[1]);
     local n::Int64 = 1;
-    local best_element;
+    local best_element = seq[1];
     for element in seq
         element_score = fn(element);
         if (element_score > best_score)
             best_element = element;
+            best_score = element_score;
         elseif (element_score == best_score)
             n = n + 1;
             if (rand(RandomDeviceInstance, 1:n) == 1)

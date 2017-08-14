@@ -10,7 +10,8 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         PluralityLearner, predict,
         AbstractNaiveBayesModel, NaiveBayesLearner,
         NaiveBayesDiscreteModel, NaiveBayesContinuousModel, NearestNeighborLearner,
-        DecisionLeafNode, DecisionForkNode, classify;
+        AbstractDecisionTreeNode, DecisionLeafNode, DecisionForkNode, classify,
+        DecisionTreeLearner, plurality_value;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -543,7 +544,9 @@ function predict(nnl::NearestNeighborLearner, example::AbstractVector)
     return mode(dataset_example[nnl.dataset.target] for (distance, dataset_example) in best_distances);
 end
 
-type DecisionLeafNode{T}
+abstract AbstractDecisionTreeNode;
+
+type DecisionLeafNode{T} <: AbstractDecisionTreeNode
     result::T
 
     function DecisionLeafNode{T}(result::T)
@@ -557,22 +560,22 @@ end
 
 DecisionLeafNode(result) = DecisionLeafNode{typeof(result)}(result);
 
-type DecisionForkNode
+type DecisionForkNode <: AbstractDecisionTreeNode
     attribute::Int64
-    attribute_name::Nullable
+    attribute_name::Int64
     default_child::Nullable{DecisionLeafNode}
     branches::Dict
 
     function DecisionForkNode(attribute::Int64;
-                        attribute_name::Union{String, Void}=nothing,
+                        attribute_name::Union{Int64, Void}=nothing,
                         default_child::Union{DecisionLeafNode, Void}=nothing,
                         branches::Union{Dict, Void}=nothing)
-        local new_attribute_name::Nullable;
+        local new_attribute_name::Int64;
         local new_branches::Dict;
         if (typeof(attribute_name) <: Void)
-            new_attribute_name = Nullable{Int64}(attribute);
+            new_attribute_name = attribute;
         else
-            new_attribute_name = Nullable{String}(attribute_name);
+            new_attribute_name = attribute_name;
         end
         if (typeof(branches) <: Void)
             new_branches = Dict();
@@ -588,16 +591,133 @@ function classify(df::DecisionForkNode, example::AbstractVector)
     if (haskey(df.branches, attribute_value))
         return classify(df.branches[attribute_value], example);
     else
-        return classify(df.default_child, example);
+        return classify(get(df.default_child), example);
     end
 end
 
-function add(dfn::DecisionForkNode, key::Int64, subtree)
+function add(dfn::DecisionForkNode, key::Real, subtree)
     dfn.branches[key] = subtree;
     nothing;
 end
 
 function summarize(dfn::DecisionForkNode)
     return @sprintf("DecisionForkNode(%s, %s, %s)", repr(dfn.attribute), repr(dfn.attribute_name), repr(dfn.branches));
+end
+
+"""
+    information_content(values::AbstractVector)
+
+Return the number of bits that represent the probability distribution of non-zero values in 'values'.
+"""
+function information_content(values::AbstractVector)
+    local probabilities::Array{Float64, 1} = normalize(removeall(values, 0));
+    if (length(probabilities) == 0)
+        return Float64(0);
+    else
+        return sum((-p * log2(p)) for p in probabilities);
+    end
+end
+
+function information_gain_content(dataset::DataSet, examples::AbstractMatrix)
+    return information_content(collect(count((function(example)
+                                            return (example[dataset.target] == value);
+                                        end), (examples[i,:] for i in 1:size(examples)[1]))
+                                    for value in dataset.values[dataset.target]));
+end
+
+"""
+    matrix_vcat(args::Vararg)
+
+Returns an empty matrix when vcat() returns an empty vector, otherwise return vcat(args).
+"""
+function matrix_vcat(args::Vararg)
+    if (length(args) == 0)
+        return Array{Any, 2}();
+    else
+        return vcat(args...);
+    end
+end
+
+"""
+    filter_examples_by_attribute(dataset::DataSet, attribute::Int64, examples::AbstractMatrix)
+
+Return a Base.Generator of (value_i, examples_i) tuples for each value of 'attribute'.
+"""
+function filter_examples_by_attribute(dataset::DataSet, attribute::Int64, examples::AbstractMatrix)
+    return ((value, matrix_vcat((reshape(ex_i, (1, length(ex_i)))
+                                                    for ex_i in (examples[i,:] for i in 1:size(examples)[1])
+                                                    if (ex_i[attribute] == value))...))
+            for value in dataset.values[attribute]);
+end
+
+"""
+    information_gain(dataset::DataSet, attribute::Int64, examples::AbstractMatrix)
+
+Return the expected reduction in entropy from testing the attribute 'attribute' given
+the dataset 'dataset' and matrix 'examples'.
+"""
+function information_gain(dataset::DataSet, attribute::Int64, examples::AbstractMatrix)
+    local N::Float64 = Float64(size(examples)[1]);
+    local remainder::Float64 = Float64(sum(((size(examples_i)[1]/N)
+                                            * information_gain_content(dataset, examples_i)
+                                            for (value, examples_i) in filter_examples_by_attribute(dataset, attribute, examples))));
+    return (Float64(information_gain_content(dataset, examples)) - remainder);
+end
+
+"""
+    plurality_value(dataset::DataSet, examples::AbstractMatrix)
+
+Return a DecisionLeafNode with the result field set to the most common output value
+in the given matrix 'examples' (using argmax_random_tie()). 
+"""
+function plurality_value(dataset::DataSet, examples::AbstractMatrix)
+    return DecisionLeafNode(argmax_random_tie(dataset.values[dataset.target],
+                                            (function(value)
+                                                return count((function(example::AbstractVector)
+                                                                return (example[dataset.target] == value);
+                                                            end), (examples[i,:] for i in 1:size(examples)[1]));
+                                            end)));
+end
+
+"""
+    decision_tree_learning(dataset::DataSet, examples::AbstractMatrix, attributes::AbstractVector; parent_examples::AbstractMatrix=Array{Any, 2}())
+
+Return a decision tree as a DecisionLeafNode or a DecisionForkNode by applying the decision-tree
+learning algorithm (Fig. 18.5) on the given dataset 'dataset', example matrix 'example', attributes
+vector 'attributes', and parent examples 'parent_examples'.
+"""
+function decision_tree_learning(dataset::DataSet, examples::AbstractMatrix, attributes::AbstractVector; parent_examples::AbstractMatrix=Array{Any, 2}())
+    # examples is empty
+    if (size(examples)[1] == 0)
+        return plurality_value(dataset, parent_examples);
+    # examples have the same classification
+    elseif (all((example[dataset.target] == examples[1, dataset.target])
+                for example in (examples[i, :] for i in 1:size(examples)[1])))
+        return DecisionLeafNode(examples[1, dataset.target]);
+    # attributes is empty
+    elseif (length(attributes) == 0)
+        return plurality_value(dataset, parent_examples);
+    else
+        local A::Int64 = argmax_random_tie(attributes,
+                                            (function(attribute)
+                                                return information_gain(dataset, attribute, examples);
+                                            end));
+        local tree::DecisionForkNode = DecisionForkNode(A,
+                                                    attribute_name=dataset.attributes_names[A],
+                                                    default_child=plurality_value(dataset, examples));
+        for (v_k, exs) in filter_examples_by_attribute(dataset, A, examples)
+            local subtree::AbstractDecisionTreeNode = decision_tree_learning(dataset, exs, removeall(attributes, A), parent_examples=examples);
+            add(tree, v_k, subtree);
+        end
+        return tree;
+    end
+end
+
+function DecisionTreeLearner(dataset::DataSet)
+    return decision_tree_learning(dataset, dataset.examples, dataset.inputs);
+end
+
+function predict(dtl::AbstractDecisionTreeNode, example::AbstractVector)
+    return classify(dtl, example);
 end
 

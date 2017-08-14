@@ -123,3 +123,13 @@ k_nearest_neighbors = NearestNeighborLearner(iris_dataset, 3);
 
 @test (predict(k_nearest_neighbors, [7.5, 4, 6, 2]) == "virginica");
 
+iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
+
+dtl = DecisionTreeLearner(iris_dataset);
+
+@test (predict(dtl, [5, 3, 1, 0.1]) == "setosa");
+
+@test (predict(dtl, [6, 5, 3, 1.5]) == "versicolor");
+
+@test (predict(dtl, [7.5, 4, 6, 2]) == "virginica");
+
