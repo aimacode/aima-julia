@@ -11,7 +11,8 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         AbstractNaiveBayesModel, NaiveBayesLearner,
         NaiveBayesDiscreteModel, NaiveBayesContinuousModel, NearestNeighborLearner,
         AbstractDecisionTreeNode, DecisionLeafNode, DecisionForkNode, classify,
-        DecisionTreeLearner, plurality_value;
+        DecisionTreeLearner, plurality_value,
+        RandomForest, data_bagging, feature_bagging;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -71,7 +72,7 @@ type DataSet
 
     function DataSet(;name::String="", source::String="", attributes::Union{Void, AbstractVector}=nothing,
                     attributes_names::Union{Void, String, AbstractVector}=nothing,
-                    examples::Union{Void, String, AbstractVector}=nothing,
+                    examples::Union{Void, String, AbstractMatrix}=nothing,
                     values::Union{Void, AbstractVector}=nothing,
                     inputs::Union{Void, String, AbstractVector}=nothing, target::Int64=-1,
                     exclude::AbstractVector=[], distance::Function=mean_boolean_error)
@@ -719,5 +720,48 @@ end
 
 function predict(dtl::AbstractDecisionTreeNode, example::AbstractVector)
     return classify(dtl, example);
+end
+
+function data_bagging(dataset::DataSet)
+    local n::Int64 = size(dataset.examples)[1];
+    local sampled_examples::AbstractVector = weighted_sample_with_replacement(collect(dataset.examples[i, :]
+                                                                                    for i in 1:size(dataset.examples)[1]), ones(n), n);
+    return reduce(vcat, (reshape(sample_example, (1, length(sample_example)))
+                        for sample_example in sampled_examples));
+end
+
+function data_bagging(dataset::DataSet, m::Int64)
+    local n::Int64 = size(dataset.examples)[1];
+    local sampled_examples::AbstractVector = weighted_sample_with_replacement(collect(dataset.examples[i, :]
+                                                                                    for i in 1:size(dataset.examples)[1]), ones(n), m);
+    return reduce(vcat, (reshape(sample_example, (1, length(sample_example)))
+                        for sample_example in sampled_examples));
+end
+
+function feature_bagging(dataset::DataSet; p::Float64=0.7)
+    local inputs::AbstractVector = collect(i for i in dataset.inputs if (rand(RandomDeviceInstance) < p));
+    if (length(inputs) == 0)
+        return dataset.inputs;
+    else
+        return inputs;
+    end
+end
+
+type RandomForest
+    predictors::Array{AbstractDecisionTreeNode, 1}
+
+    function RandomForest(dataset::DataSet; n::Int64=5)
+        local predictors::Array{AbstractDecisionTreeNode, 1} = collect(DecisionTreeLearner(DataSet(examples=data_bagging(dataset),
+                                                                                                    attributes=dataset.attributes,
+                                                                                                    attributes_names=dataset.attributes_names,
+                                                                                                    target=dataset.target,
+                                                                                                    inputs=feature_bagging(dataset)))
+                                                                        for i in 1:n);
+        return new(predictors);
+    end
+end
+
+function predict(rf::RandomForest, example::AbstractVector)
+    return mode(predict(predictor, example) for predictor in rf.predictors);
 end
 

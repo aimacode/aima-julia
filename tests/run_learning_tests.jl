@@ -133,3 +133,46 @@ dtl = DecisionTreeLearner(iris_dataset);
 
 @test (predict(dtl, [7.5, 4, 6, 2]) == "virginica");
 
+function test_rf_predictions(ex1_results::AbstractVector, ex2_results::AbstractVector, ex3_results::AbstractVector)
+    local rf::RandomForest = RandomForest(iris_dataset);
+    push!(ex1_results, (predict(rf, [5, 3, 1, 0.1]) == "setosa"));
+    push!(ex2_results, (predict(rf, [6, 5, 3, 1]) == "versicolor"));
+    push!(ex3_results, (predict(rf, [7.5, 4, 6, 2]) == "virginica"));
+    nothing;
+end
+
+setosa_results = Array{Bool, 1}();
+versicolor_results = Array{Bool, 1}();
+virginica_results = Array{Bool, 1}();
+# Run test_rf_predictions() 1000 times.
+println("@time for i in 1:1000\n\ttest_rf_predictions(setosa_results, versicolor_results, virginica_results);\nend");
+@time for i in 1:1000
+    test_rf_predictions(setosa_results, versicolor_results, virginica_results);
+end
+
+setosa_results_count = count((function(b::Bool)
+                                    return b;
+                                end), setosa_results);
+versicolor_results_count = count((function(b::Bool)
+                                    return b;
+                                end), versicolor_results);
+virginica_results_count = count((function(b::Bool)
+                                    return b;
+                                end), virginica_results);
+
+# lowest setosa_results_count result previously obtained was 973
+@test (setosa_results_count > 970);
+
+# lowest versicolor_results_count result previously obtained was 959
+@test (versicolor_results_count > 950);
+
+# lowest virginica_results_count result previously obtained was 996
+@test (virginica_results_count > 990);
+
+println("setosa assert count (out of 1000): ", setosa_results_count);
+println("setosa assertion failure rate: approximately ", Float64(1000 - setosa_results_count)/10.0, "%");
+println("versicolor assert count (out of 1000): ", versicolor_results_count);
+println("versicolor assertion failure rate: approximately ", Float64(1000 - versicolor_results_count)/10.0, "%");
+println("virginica assert count (out of 1000): ", virginica_results_count);
+println("virginica assertion failure rate: approximately ", Float64(1000 - virginica_results_count)/10.0, "%");
+
