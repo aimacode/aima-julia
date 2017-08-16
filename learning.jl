@@ -12,7 +12,8 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         NaiveBayesDiscreteModel, NaiveBayesContinuousModel, NearestNeighborLearner,
         AbstractDecisionTreeNode, DecisionLeafNode, DecisionForkNode, classify,
         DecisionTreeLearner, plurality_value,
-        RandomForest, data_bagging, feature_bagging;
+        RandomForest, data_bagging, feature_bagging,
+        DecisionListLearner, decision_list_learning;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -763,5 +764,49 @@ end
 
 function predict(rf::RandomForest, example::AbstractVector)
     return mode(predict(predictor, example) for predictor in rf.predictors);
+end
+
+function find_test_outcomes_from_examples(ds::DataSet, examples::Set)
+    println("find_test_outcomes_from_examples() is not yet implemented!");
+    nothing;
+end
+
+"""
+    decision_list_learning(ds::DataSet, examples::Set)
+
+Return an array of (test::Function, outcome) tuples by using the decision list learning
+algorithm (Fig. 18.11) on the given dataset 'ds' and a set of examples 'examples'.
+"""
+function decision_list_learning(ds::DataSet, examples::Set)
+    if (length(examples) == 0)
+        return [((function(examples::AbstractVector)
+                        return true;
+                    end), false)];
+    end
+    local t::Function;
+    local examples_t::Set;
+    t, output, examples_t = find_test_outcomes_from_examples(ds, examples);
+    if (typeof(t) <: Void)
+        error("decision_list_learning(): Could not find valid test 't'!");
+    end
+    return append!([(t, output)], decision_list_learning(ds, setdiff(examples, examples_t));
+end
+
+type DecisionListLearner
+    decision_list::AbstractVector
+
+    function DecisionListLearner(dataset::DataSet)
+        return new(decision_list_learning(dataset, Set(dataset.examples[i, :]
+                                                        for i in 1:size(dataset.examples)[1])));
+    end
+end
+
+function predict(dll::DecisionListLearner, examples::AbstractVector)
+    for (test, outcome) in dll.decision_list
+        if (test(examples))
+            return outcome;
+        end
+    end
+    error("predict(): All tests in the generated decision list failed for ", examples, "!");
 end
 
