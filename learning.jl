@@ -789,7 +789,7 @@ function decision_list_learning(ds::DataSet, examples::Set)
     if (typeof(t) <: Void)
         error("decision_list_learning(): Could not find valid test 't'!");
     end
-    return append!([(t, output)], decision_list_learning(ds, setdiff(examples, examples_t));
+    return append!([(t, output)], decision_list_learning(ds, setdiff(examples, examples_t)));
 end
 
 type DecisionListLearner
