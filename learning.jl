@@ -810,7 +810,7 @@ function predict(dll::DecisionListLearner, examples::AbstractVector)
     error("predict(): All tests in the generated decision list failed for ", examples, "!");
 end
 
-function NeuralNetworkUnit
+type NeuralNetworkUnit
     weights::AbstractVector
     inputs::AbstractVector
     value::Nullable
