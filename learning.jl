@@ -810,3 +810,18 @@ function predict(dll::DecisionListLearner, examples::AbstractVector)
     error("predict(): All tests in the generated decision list failed for ", examples, "!");
 end
 
+function NeuralNetworkUnit
+    weights::AbstractVector
+    inputs::AbstractVector
+    value::Nullable
+    activation::Function
+
+    function NeuralNetworkUnit()
+        return new([], [], Nullable(nothing), sigmoid);
+    end
+
+    function NeuralNetworkUnit(weights::AbstractVector, inputs::AbstractVector)
+        return new(weights, inputs, Nullable(nothing), sigmoid);
+    end
+end
+

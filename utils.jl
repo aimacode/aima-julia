@@ -19,7 +19,7 @@ export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         RandomDeviceInstance,
         isfunction, removeall,
         normalize_probability_distribution,
-        mode;
+        mode, sigmoid, sigmoid_derivative;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -653,6 +653,24 @@ function mode(iter::Base.Generator)
     else
         return getindex(getindex(sorted, 1), 1);
     end
+end
+
+"""
+    sigmoid(x::Number)
+
+Return the activation value of 'x' by using a sigmoid function 'S(x)' as the activation function.
+"""
+function sigmoid(x::Number)
+    return (Float64(1)/(Float64 + exp(-x)));
+end
+
+"""
+    sigmoid_derivative(val::Number)
+
+Return the derivative of the sigmoid function 'S(x)', where x = 'val'.
+"""
+function sigmoid_derivate(val::Number)
+    return (Float64(val) * (Float64(1) - Float64(val)));
 end
 
 end
