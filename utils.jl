@@ -669,7 +669,7 @@ end
 
 Return the derivative of the sigmoid function 'S(x)', where x = 'val'.
 """
-function sigmoid_derivate(val::Number)
+function sigmoid_derivative(val::Number)
     return (Float64(val) * (Float64(1) - Float64(val)));
 end
 
