@@ -13,7 +13,9 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         AbstractDecisionTreeNode, DecisionLeafNode, DecisionForkNode, classify,
         DecisionTreeLearner, plurality_value,
         RandomForest, data_bagging, feature_bagging,
-        DecisionListLearner, decision_list_learning;
+        DecisionListLearner, decision_list_learning,
+        NeuralNetworkUnit, NeuralNetworkLearner, neural_network,
+        back_propagation_learning, random_weights;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -259,14 +261,20 @@ function sanitize(ds::DataSet, example::AbstractMatrix)
     return sanitized_example;
 end
 
+"""
+    classes_to_numbers(ds::DataSet, classes::Void)
+    classes_to_numbers(ds::DataSet, classes::AbstractVector)
+
+Set the classifications of each example in ds.examples as numbers based on the given 'classes'.
+"""
 function classes_to_numbers(ds::DataSet, classes::Void)
     local new_classes::AbstractVector = sort(ds.values[ds.target]);
-    for example in (ds.examples[i, :] for i in 1:size(ds.examples)[1])
-        local index_val::Int64 = utils.index(new_classes, example[ds.target]);
+    for i in 1:size(ds.examples)[1]
+        local index_val::Int64 = utils.index(new_classes, ds.examples[i, ds.target]);
         if (index_val == -1)
-            error("classes_to_numbers(): Could not find ", example[ds.target], " in ", new_classes, "!");
+            error("classes_to_numbers(): Could not find ", ds.examples[i, ds.target], " in ", new_classes, "!");
         end
-        example[ds.target] = index_val;
+        ds.examples[i, ds.target] = index_val;
     end
     nothing;
 end
@@ -278,12 +286,12 @@ function classes_to_numbers(ds::DataSet, classes::AbstractVector)
     else
         new_classes = classes;
     end
-    for example in (ds.examples[i, :] for i in 1:size(ds.examples)[1])
-        local index_val::Int64 = utils.index(new_classes, example[ds.target]);
+    for i in 1:size(ds.examples)[1]
+        local index_val::Int64 = utils.index(new_classes, ds.examples[i, ds.target]);
         if (index_val == -1)
-            error("classes_to_numbers(): Could not find ", example[ds.target], " in ", new_classes, "!");
+            error("classes_to_numbers(): Could not find ", ds.examples[i, ds.target], " in ", new_classes, "!");
         end
-        example[ds.target] = index_val;
+        ds.examples[i, ds.target] = index_val;
     end
     nothing;
 end
@@ -810,6 +818,11 @@ function predict(dll::DecisionListLearner, examples::AbstractVector)
     error("predict(): All tests in the generated decision list failed for ", examples, "!");
 end
 
+#=
+
+    NeuralNetworkUnit is an unit (node) in a multilayer neural network.
+
+=#
 type NeuralNetworkUnit
     weights::AbstractVector
     inputs::AbstractVector
@@ -823,5 +836,240 @@ type NeuralNetworkUnit
     function NeuralNetworkUnit(weights::AbstractVector, inputs::AbstractVector)
         return new(weights, inputs, Nullable(nothing), sigmoid);
     end
+end
+
+"""
+    neural_network(input_units::Int64, hidden_layers_sizes::Array{Int64, 1}, output_units::Int64)
+
+Return an untrained neural network by using the given the number of input units 'input_units', the
+hidden layer sizes (the hidden layers should not include the input and output layers) in
+'hidden_layer_sizes', and the number of output units 'output_units'.
+"""
+function neural_network(input_units::Int64, hidden_layers_sizes::Array{Int64, 1}, output_units::Int64)
+    local layers_sizes::AbstractVector = Array{Int64, 1}();
+    if (length(hidden_layers_sizes) == 0)
+        push!(layers_sizes, input_units);
+        push!(layers_sizes, output_units);
+    else
+        push!(layers_sizes, input_units);
+        append!(layers_sizes, hidden_layers_sizes);
+        push!(layers_sizes, output_units);
+    end
+    local network::AbstractVector = collect(collect(NeuralNetworkUnit()
+                                                    for node in 1:layer_size)
+                                            for layer_size in layers_sizes);
+    for i in 2:length(network)
+        for n in network[i]
+            for k in network[i - 1]
+                push!(n.inputs, k);
+                push!(n.weights, 0.0);
+            end
+        end
+    end
+    return network;
+end
+
+function back_propagation_initialize_examples(examples::AbstractMatrix, idx_i::AbstractVector, idx_t::Int64, o_units::Int64)
+    local inputs::Dict = Dict();
+    local targets::Dict = Dict();
+
+    for i in 1:size(examples)[1]
+        local example::AbstractVector = examples[i, :];
+        inputs[i] = collect(example[idx] for idx in idx_i);
+        if (o_units > 1)
+            local t::AbstractVector = collect(0.0 for j in 1:o_units);
+            t[example[idx_t]] = 1.0;
+            targets[i] = t;
+        else
+            targets[i] = [example[idx_t]];
+        end
+    end
+    return inputs, targets;
+end
+
+"""
+    random_weights(bound_1::Real, bound_2::Real, num_weights::Int64)
+
+Return an array of 'num_weights' weights that are randomly generated with the
+bounds 'bound_1' and 'bound_2'.
+"""
+function random_weights(bound_1::Real, bound_2::Real, num_weights::Int64)
+    local minimum_value::Real = min(bound_1, bound_2);
+    return collect((minimum_value + (rand(RandomDeviceInstance) * abs(bound_1 - bound_2)))
+                    for i in 1:num_weights);
+end
+
+"""
+    back_propagation_learning!(dataset::DataSet, network::AbstractVector, learning_rate::Float64, epochs::Int64)
+
+Return the trained neural network by applying the back-propagation algorithm (Fig. 18.24) on the
+given multilayer neural network 'network', dataset 'dataset', learning rate 'learning_rate', and
+the number of epochs 'epochs'.
+"""
+function back_propagation_learning!(dataset::DataSet, network::AbstractVector, learning_rate::Float64, epochs::Int64)
+    for layer in network
+        for unit in layer
+            unit.weights = random_weights(-0.5, 0.5, length(unit.weights));
+        end
+    end
+    local output_units::AbstractVector = network[end];
+    local input_units::AbstractVector = network[1];
+    local num_output_units::Int64 = length(output_units);
+    local inputs::Dict;
+    local targets::Dict;
+    local layer::AbstractVector;
+
+    inputs, targets = back_propagation_initialize_examples(dataset.examples, dataset.inputs, dataset.target, num_output_units);
+
+    for epoch in 1:epochs
+        for x in 1:size(dataset.examples)[1]
+            local input_value::AbstractVector = inputs[x];
+            local target_value::AbstractVector = targets[x];
+
+            # Activate the input layer.
+            for (v, u) in zip(input_value, input_units)
+                u.value = Nullable(v);
+            end
+
+            # Propagate the inputs forward.
+            for layer in network[2:end]
+                for unit in layer
+                    local in_j::Real = dot(collect(get(unit_input.value)
+                                            for unit_input in unit.inputs),
+                                            unit.weights);
+                    unit.value = Nullable(unit.activation(in_j));
+                end
+            end
+
+            # Initialize deltas array with empty vectors.
+            local delta::AbstractVector = collect([] for i in 1:length(network));
+
+            # Compute the errors of the mean squared error function.
+            local errors::AbstractVector = collect((target_value[i] - get(output_units[i].value))
+                                                for i in 1:num_output_units);
+            delta[end] = collect((sigmoid_derivative(get(output_units[i].value)) * errors[i])
+                                for i in 1:num_output_units);
+
+            # Propagate the deltas backward from ouput layer to input layer.
+            local num_hidden_layers::Int64 = length(network) - 2;
+            for i in reverse(2:(num_hidden_layers + 1))
+                layer = network[i];
+                local num_hidden_units::Int64 = length(layer);
+                local next_layer::AbstractVector = network[i + 1];
+                w = collect(collect(unit.weights[j]
+                                    for unit in next_layer)
+                            for j in 1:num_hidden_units);
+
+                delta[i] = collect((sigmoid_derivative(get(layer[j].value)) * dot(w[j], delta[i + 1]))
+                                    for j in 1:num_hidden_units);
+            end
+
+            # Update every weight in network by using the deltas.
+            for i in 2:length(network)
+                layer = network[i];
+                local previous_layer_values::AbstractVector = collect(get(unit.value) for unit in network[i - 1]);
+                local num_units::Int64 = length(layer);
+                for j in 1:num_units
+                    layer[j].weights = (layer[j].weights + ((learning_rate * delta[i][j]) * previous_layer_values));
+                end
+            end
+        end
+    end
+    return network;
+end
+
+#=
+
+    NeuralNetworkLearner contains a multilayer feed-forward neural network that is
+
+    trained by the back-propagation algorithm with the dataset 'dataset', learning rate
+
+    'learning_rate', and number of epochs (our criterion for stopping training) 'epochs'.
+
+=#
+type NeuralNetworkLearner
+    network::AbstractVector
+
+    function NeuralNetworkLearner(dataset::DataSet;
+                                hidden_layers_sizes::AbstractVector=[3],
+                                learning_rate::Float64=0.01,
+                                epochs::Int64=100)
+        local num_input_units::Int64 = length(dataset.inputs);
+        local num_output_units::Int64 = length(dataset.values[dataset.target]);
+        local nnl::NeuralNetworkLearner = new(neural_network(num_input_units, hidden_layers_sizes, num_output_units));
+        nnl.network = back_propagation_learning!(dataset, nnl.network, learning_rate, epochs);
+        return nnl;
+    end
+end
+
+function predict(nnl::NeuralNetworkLearner, example::AbstractVector)
+    local input_units::AbstractVector = nnl.network[1];
+
+    for (v, u) in zip(example, input_units)
+        u.value = Nullable(v);
+    end
+
+    for layer in nnl.network[2:end]
+        for unit in layer
+            local in_j::Real = dot(collect(get(unit_input.value)
+                                    for unit_input in unit.inputs),
+                                    unit.weights);
+            unit.value = Nullable(unit.activation(in_j));
+        end
+    end
+
+    local prediction::Int64 = utils.index(nnl.network[end], argmax(nnl.network[end],
+                                                                    (function(unit::NeuralNetworkUnit)
+                                                                        return get(unit.value);
+                                                                    end)));
+    if (prediction < 0)
+        error("predict(): NeuralNetworkLearner returned invalid array index '", prediction, "'!");
+    else
+        return prediction;
+    end
+end
+
+"""
+    grade_learner(learner, tests::AbstractVector)
+
+Return a score for the given learner 'learner' and the tests 'tests' (an array of (example, output)).
+"""
+function grade_learner(learner, tests::AbstractVector)
+    return mean(Float64(predict(learner, X) == y) for (X, y) in tests);
+end
+
+"""
+    error_ratio(learner, dataset::DataSet, examples::Union{Void, AbstractMatrix}=nothing, verbose::Int64=0)
+
+Return the proportion of examples that were not correctly predicted.
+
+If 'verbose' is set to 0, this function will not print extra messages.
+If 'verbose' is set to 1, this function will print messages when a prediction fails.
+If 'verbose' is set to 2 or more, this function will print messages for each prediction made.
+"""
+function error_ratio(learner, dataset::DataSet, examples::Union{Void, AbstractMatrix}=nothing, verbose::Int64=0)
+    local new_examples::AbstractMatrix;
+    if (typeof(examples) <: Void)
+        new_examples = dataset.examples;
+    else
+        new_examples = examples;
+    end
+    if (size(new_examples)[1] == 0)
+        return 0.0;
+    end
+    local correct::Float64 = 0.0;
+    for example in (new_examples[i, :] for i in 1:size(new_examples)[1])
+        desired = example[dataset.target];
+        output = predict(learner, sanitize(dataset, example));
+        if (output == desired)
+            correct = correct + 1;
+            if (verbose >= 2)
+                println("   OK:  Got ", desired, " for ", example, "!");
+            end
+        elseif (verbose > 0)
+            println("WRONG: Got ", output, ", expected ", desired, " for ", example, "!");
+        end
+    end
+    return 1.0 - (correct / size(new_examples)[1]);
 end
 

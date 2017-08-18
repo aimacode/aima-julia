@@ -169,10 +169,42 @@ virginica_results_count = count((function(b::Bool)
 # lowest virginica_results_count result previously obtained was 996
 @test (virginica_results_count >= 990);
 
+println();
 println("setosa assert count (out of 1000): ", setosa_results_count);
 println("setosa assertion failure rate: approximately ", Float64(1000 - setosa_results_count)/10.0, "%");
 println("versicolor assert count (out of 1000): ", versicolor_results_count);
 println("versicolor assertion failure rate: approximately ", Float64(1000 - versicolor_results_count)/10.0, "%");
 println("virginica assert count (out of 1000): ", virginica_results_count);
 println("virginica assertion failure rate: approximately ", Float64(1000 - virginica_results_count)/10.0, "%");
+println();
+
+iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
+
+# The DataType of the example classification must match the eltype of the classes array.
+
+classes = map(SubString{String}, ["setosa", "versicolor", "virginica"]);
+
+classes_to_numbers(iris_dataset, classes);
+
+nnl = NeuralNetworkLearner(iris_dataset, hidden_layers_sizes=[5], learning_rate=0.15, epochs=75);
+
+neural_network_learner_score = aimajulia.grade_learner(nnl,
+                                                        [([5, 3, 1, 0.1], 1),
+                                                        ([5, 3.5, 1, 0], 1),
+                                                        ([6, 3, 4, 1.1], 2),
+                                                        ([6, 2, 3.5, 1], 2),
+                                                        ([7.5, 4, 6, 2], 3),
+                                                        ([7, 3, 6, 2.5], 3)]);
+
+println("neural network learner score (out of 1.0): ", neural_network_learner_score);
+
+# Allow up to 2 failed tests.
+@test (neural_network_learner_score >= (2/3));
+
+neural_network_learner_error_ratio = aimajulia.error_ratio(nnl, iris_dataset);
+
+println("neural network learner error ratio: ", (neural_network_learner_error_ratio * 100), "%");
+println();
+
+@test (neural_network_learner_error_ratio < 0.15);
 

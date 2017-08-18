@@ -661,7 +661,7 @@ end
 Return the activation value of 'x' by using a sigmoid function 'S(x)' as the activation function.
 """
 function sigmoid(x::Number)
-    return (Float64(1)/(Float64 + exp(-x)));
+    return (Float64(1)/(Float64(1) + exp(-x)));
 end
 
 """
