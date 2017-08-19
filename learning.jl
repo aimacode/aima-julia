@@ -989,13 +989,21 @@ type NeuralNetworkLearner
     end
 end
 
+"""
+    predict(nnl::NeuralNetworkLearner, example::AbstractVector)
+
+Return a prediction for the given 'example' by using the logistic regression hypothesis on the
+values of 'example' and the weights of each respective unit in the neural network 'nnl.network'.
+"""
 function predict(nnl::NeuralNetworkLearner, example::AbstractVector)
     local input_units::AbstractVector = nnl.network[1];
 
+    # Set the values of the input units to the values of example.
     for (v, u) in zip(example, input_units)
         u.value = Nullable(v);
     end
 
+    # Propagate the example values forward.
     for layer in nnl.network[2:end]
         for unit in layer
             local in_j::Real = dot(collect(get(unit_input.value)
@@ -1016,6 +1024,15 @@ function predict(nnl::NeuralNetworkLearner, example::AbstractVector)
     end
 end
 
+#=
+
+    PerceptronLearner contains a neural network where hidden layers are not used.
+
+    The neural network is trained by the back-propagation algorithm with the given
+
+    dataset 'dataset'.
+
+=#
 type PerceptronLearner
     network::AbstractVector
 
@@ -1031,9 +1048,16 @@ type PerceptronLearner
     end
 end
 
+"""
+    predict(pl::PerceptronLearner, example::AbstractVector)
+
+Return a prediction for the given 'example' by using the logistic regression hypothesis on the
+values of 'example' and the weights of each respective unit in the neural network 'pl.network'.
+"""
 function predict(pl::PerceptronLearner, example::AbstractVector)
     local output_units::AbstractVector = pl.network[end];
 
+    # Propagate the example values forward.
     for unit in output_units
         unit.value = Nullable(unit.activation(dot(example, unit.weights)));
     end
@@ -1047,6 +1071,53 @@ function predict(pl::PerceptronLearner, example::AbstractVector)
     else
         return prediction;
     end
+end
+
+#=
+
+    LinearRegressionLearner creates a linear model by applying multivariate
+
+    linear regression to the given dataset. The regressands are assumed to be
+
+    real numbers.
+
+=#
+type LinearRegressionLearner
+    dataset::DataSet
+    weights::AbstractVector
+
+    function LinearRegressionLearner(dataset::DataSet;
+                                    learning_rate::Float64=0.01,
+                                    epochs::Int64=100)
+        # Initialize random weights
+        local lrl::LinearRegressionLearner = new(dataset, random_weights(-0.5, 0.5, length(dataset.inputs) + 1));
+
+        # Initialize an array of x_i (vectors) such that the first component of each vector is 1.0.
+        local X::AbstractVector = collect(vcat(1.0, dataset.values[i]) for i in dataset.inputs);
+
+        for i in 1:epochs
+            local error::AbstractVector = Array{Float64, 1}();
+            for example in (dataset.examples[i, :] for i in 1:size(dataset.examples)[1])
+                # The target attribute will be ignored in the evaluation of h_w(x).
+                local x::AbstractVector = vcat(1, sanitize(dataset, example));
+                local h_x::Float64 = dot(lrl.weights, x);
+                # The error component is the square of the difference between the regressand y and h_w(x).
+                local y::Float64 = examples[dataset.target];
+                push!(error, t - y);
+            end
+
+            # Use the least mean squares algorithm for stochastic gradient descent.
+            for i in 1:length(lrl.weights)
+                lrl.weights[i] = lrl.weights[i] + ((learning_rate * dot(error, X))/size(dataset.examples)[1]);
+            end
+        end
+
+        return lrl;
+    end
+end
+
+function predict(lrl::LinearRegressionLearner, example::AbstractVector)
+    return dot(lrl.weights, vcat(1.0, sanitize(lrl.dataset, example)));
 end
 
 """
