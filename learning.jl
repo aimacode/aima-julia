@@ -15,7 +15,8 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         RandomForest, data_bagging, feature_bagging,
         DecisionListLearner, decision_list_learning,
         NeuralNetworkUnit, NeuralNetworkLearner, neural_network,
-        back_propagation_learning, random_weights;
+        back_propagation_learning, random_weights,
+        PerceptronLearner;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -235,27 +236,13 @@ end
 """
     sanitize(ds::DataSet, example::AbstractVector)
 
-Return a copy of the given array 'example', such that non-input attributes are replaced with 'nothing'.
+Return a copy of the given array 'example', such that non-input attributes are removed.
 """
 function sanitize(ds::DataSet, example::AbstractVector)
     local sanitized_example::AbstractVector = [];
     for (i, example_item) in enumerate(example)
         if (i in ds.inputs)
-            push!(sanitized_example, example_item)
-        else
-            push!(sanitized_example, nothing);
-        end
-    end
-    return sanitized_example;
-end
-
-function sanitize(ds::DataSet, example::AbstractMatrix)
-    local sanitized_example::AbstractMatrix = copy(example);
-    for i in size(example)[1]
-        for j in size(example)[2]
-            if (!(example[i, j] in ds.inputs))
-                example[i, j] = nothing;
-            end
+            push!(sanitized_example, example_item);
         end
     end
     return sanitized_example;
@@ -842,8 +829,8 @@ end
     neural_network(input_units::Int64, hidden_layers_sizes::Array{Int64, 1}, output_units::Int64)
 
 Return an untrained neural network by using the given the number of input units 'input_units', the
-hidden layer sizes (the hidden layers should not include the input and output layers) in
-'hidden_layer_sizes', and the number of output units 'output_units'.
+hidden layers' sizes (the hidden layers should not include the input and output layers) in
+'hidden_layers_sizes', and the number of output units 'output_units'.
 """
 function neural_network(input_units::Int64, hidden_layers_sizes::Array{Int64, 1}, output_units::Int64)
     local layers_sizes::AbstractVector = Array{Int64, 1}();
@@ -1024,6 +1011,39 @@ function predict(nnl::NeuralNetworkLearner, example::AbstractVector)
                                                                     end)));
     if (prediction < 0)
         error("predict(): NeuralNetworkLearner returned invalid array index '", prediction, "'!");
+    else
+        return prediction;
+    end
+end
+
+type PerceptronLearner
+    network::AbstractVector
+
+    function PerceptronLearner(dataset::DataSet;
+                                learning_rate::Float64=0.01,
+                                epochs::Int64=100)
+        local num_input_units::Int64 = length(dataset.inputs);
+        local num_output_units::Int64 = length(dataset.values[dataset.target]);
+        local hidden_layers_sizes::AbstractVector = Array{Int64, 1}();
+        local pl::PerceptronLearner = new(neural_network(num_input_units, hidden_layers_sizes, num_output_units));
+        pl.network = back_propagation_learning!(dataset, pl.network, learning_rate, epochs);
+        return pl;
+    end
+end
+
+function predict(pl::PerceptronLearner, example::AbstractVector)
+    local output_units::AbstractVector = pl.network[end];
+
+    for unit in output_units
+        unit.value = Nullable(unit.activation(dot(example, unit.weights)));
+    end
+
+    local prediction::Int64 = utils.index(pl.network[end], argmax(pl.network[end],
+                                                                (function(unit::NeuralNetworkUnit)
+                                                                    return get(unit.value);
+                                                                end)));
+    if (prediction < 0)
+        error("predict(): PerceptronLearner returned invalid array index '", prediction, "'!");
     else
         return prediction;
     end

@@ -178,6 +178,12 @@ println("virginica assert count (out of 1000): ", virginica_results_count);
 println("virginica assertion failure rate: approximately ", Float64(1000 - virginica_results_count)/10.0, "%");
 println();
 
+weights = random_weights(-0.5, 0.5, 10);
+
+@test (length(weights) == 10);
+
+@test (all(((weight >= -0.5) && (weight <= 0.5)) for weight in weights));
+
 iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
 
 # The DataType of the example classification must match the eltype of the classes array.
@@ -207,4 +213,30 @@ println("neural network learner error ratio: ", (neural_network_learner_error_ra
 println();
 
 @test (neural_network_learner_error_ratio < 0.15);
+
+iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
+
+classes_to_numbers(iris_dataset, nothing);
+
+pl = PerceptronLearner(iris_dataset);
+
+perceptron_learner_score = aimajulia.grade_learner(pl,
+                                                    [([5, 3, 1, 0.1], 1),
+                                                    ([5, 3.5, 1, 0], 1),
+                                                    ([6, 3, 4, 1.1], 2),
+                                                    ([6, 2, 3.5, 1], 2),
+                                                    ([7.5, 4, 6, 2], 3),
+                                                    ([7, 3, 6, 2.5], 3)]);
+
+println("perceptron learner score (out of 1.0): ", perceptron_learner_score);
+
+# Allow up to 3 failed tests.
+@test (perceptron_learner_score >= (1/2));
+
+perceptron_learner_error_ratio = aimajulia.error_ratio(pl, iris_dataset);
+
+println("perceptron learner error ratio: ", (perceptron_learner_error_ratio * 100), "%");
+println();
+
+@test (perceptron_learner_error_ratio < 0.40);
 
