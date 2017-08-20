@@ -240,3 +240,7 @@ println();
 
 @test (perceptron_learner_error_ratio < 0.40);
 
+@test (weighted_mode("abbaa", [1, 2, 3, 1, 2]) == "b");
+
+@test (weighted_mode(["a", "b", "b", "a", "a"], [1, 2, 3, 1, 2]) == "b");
+
