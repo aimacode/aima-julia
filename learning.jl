@@ -751,10 +751,10 @@ function feature_bagging(dataset::DataSet; p::Float64=0.7)
 end
 
 type RandomForest <: AbstractLearner
-    predictors::Array{AbstractDecisionTreeNode, 1}
+    predictors::Array{DecisionTreeLearner, 1}
 
     function RandomForest(dataset::DataSet; n::Int64=5)
-        local predictors::Array{AbstractDecisionTreeNode, 1} = collect(DecisionTreeLearner(DataSet(examples=data_bagging(dataset),
+        local predictors::Array{DecisionTreeLearner, 1} = collect(DecisionTreeLearner(DataSet(examples=data_bagging(dataset),
                                                                                                     attributes=dataset.attributes,
                                                                                                     attributes_names=dataset.attributes_names,
                                                                                                     target=dataset.target,
