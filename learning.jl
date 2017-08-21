@@ -610,7 +610,7 @@ end
 Return the number of bits that represent the probability distribution of non-zero values in 'values'.
 """
 function information_content(values::AbstractVector)
-    local probabilities::Array{Float64, 1} = normalize(removeall(values, 0));
+    local probabilities::Array{Float64, 1} = normalize(removeall(values, 0), 1);
     if (length(probabilities) == 0)
         return Float64(0);
     else
@@ -1221,10 +1221,12 @@ function weighted_replicate(seq::AbstractVector, weights::AbstractVector, n::Int
     if (length(seq) != length(weights))
         error("weighted_replicate(): The length of 'seq' and 'weights' must match!");
     end
-    local normalized_weights::Array{Float64, 1} = normalize(weights);
+
+    local normalized_weights::Array{Float64, 1} = normalize(weights, 1);
     local integer_multiples::Array{Int64, 1} = collect(Int64(floor(weight * n))
-                                                        for weight in weights);
-    local fractions::Array{Float64, 1} = collect(((weight * n) % 1) for weight in weights);
+                                                        for weight in normalized_weights);
+    local fractions::Array{Float64, 1} = collect(((weight * n) % 1) for weight in normalized_weights);
+
     return append!(reduce(vcat, [], collect(fill(x, num_x)
                                             for (x, num_x) in zip(seq, integer_multiples))),
                     weighted_sample_with_replacement(seq, fractions, (n - sum(integer_multiples))));
@@ -1234,26 +1236,24 @@ function weighted_replicate(seq::AbstractMatrix, weights::AbstractVector, n::Int
     if (size(seq)[1] != length(weights))
         error("weighted_replicate(): The length of 'seq' and 'weights' must match!");
     end
-    local normalized_weights::Array{Float64, 1} = normalize(weights);
+
+    local normalized_weights::Array{Float64, 1} = normalize(weights, 1);
     local integer_multiples::Array{Int64, 1} = collect(Int64(floor(weight * n))
-                                                        for weight in weights);
-    local fractions::Array{Float64, 1} = collect(((weight * n) % 1) for weight in weights);
+                                                        for weight in normalized_weights);
+    local fractions::Array{Float64, 1} = collect(((weight * n) % 1) for weight in normalized_weights);
 
     local integer_weighted::AbstractMatrix = vcat(vcat((transpose(x) for i in 1:num_x)...)
                                                 for (x, num_x) in zip((seq[i, :]
                                                                         for i in 1:size(seq)[1]),
                                                                         integer_multiples)...);
-
     local fraction_weighted::AbstractMatrix = vcat(map(transpose,
                                                         weighted_sample_with_replacement(
                                                             collect(seq[i, :] for i in 1:size(seq)[1]),
                                                             fractions,
-                                                            (n - sum(integer_multiples))))...)
+                                                            (n - sum(integer_multiples))))...);
 
     return vcat(integer_weighted, fraction_weighted);
 end
-
-# weighted_replicate() for abstract matrix fill(x, nx) append! (transposed)
 
 #=
 
@@ -1304,7 +1304,7 @@ function adaboost!(abl::AdaBoostLearner, dataset::DataSet, L::DataType, K::Int64
                 w[j] = w[j] * error;
             end
         end
-        w = normalize(w);
+        w = normalize(w, 1);
         push!(abl.z, log((1.0 - error)/error));
     end
     return weighted_majority(abl.h, abl.k);

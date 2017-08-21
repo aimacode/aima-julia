@@ -620,7 +620,7 @@ function normalize_probability_distribution(d::Dict)
     for key in keys(d)
         d[key] = d[key] / total;
         if (!(0.0 <= d[key] <= 1.0))
-            error("normalize(): ", d[key], " is not a valid probability.");
+            error("normalize_probability_distribution(): ", d[key], " is not a valid probability.");
         end
     end
     return dist;
