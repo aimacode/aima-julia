@@ -244,3 +244,5 @@ println();
 
 @test (weighted_mode(["a", "b", "b", "a", "a"], [1, 2, 3, 1, 2]) == "b");
 
+@test (weighted_replicate(["A", "B", "C"], [1, 2, 1], 4) == ["A", "B", "B", "C"]);
+
