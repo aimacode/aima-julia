@@ -212,7 +212,7 @@ neural_network_learner_error_ratio = aimajulia.error_ratio(nnl, iris_dataset);
 println("neural network learner error ratio: ", (neural_network_learner_error_ratio * 100), "%");
 println();
 
-@test (neural_network_learner_error_ratio < 0.15);
+@test (neural_network_learner_error_ratio < 0.20);
 
 iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
 
