@@ -1,10 +1,10 @@
 
-import Base: getindex;
+import Base: getindex, copy;
 
 export euclidean_distance, mean_square_error, root_mean_square_error,
         mean_error, manhattan_distance, mean_boolean_error, hamming_distance, gaussian,
         DataSet, set_problem, attribute_index, check_dataset_fields,
-        check_example, update_values, add_example, remove_examples, sanitize, summarize,
+        check_example, update_values, add_example, remove_examples, sanitize, summarize, copy,
         classes_to_numbers, split_values_by_classes, find_means_and_deviations,
         CountingProbabilityDistribution, add, smooth_for_observation, getindex, top, sample,
         AbstractLearner, PluralityLearner, predict,
@@ -124,6 +124,19 @@ type DataSet
         check_dataset_fields(ds, values_is_set);
 
         return ds;
+    end
+
+    function DataSet(name::String,
+                    source::String,
+                    examples::AbstractMatrix,
+                    attributes::AbstractVector,
+                    attributes_names::AbstractVector,
+                    values::AbstractVector,
+                    exclude::AbstractVector,
+                    distance::Function,
+                    inputs::AbstractVector,
+                    target::Int64)
+        return new(name, source, examples, attributes, attributes_names, values, exclude, distance, inputs, target);
     end
 end
 
@@ -323,6 +336,17 @@ end
 function summarize(ds::DataSet)
     return @sprintf("<DataSet(%s): %d examples, %d attributes>", ds.name, length(ds.examples), length(ds.attributes));
 end
+
+copy(ds::DataSet) = DataSet(identity(ds.name),
+                            identity(ds.source),
+                            copy(ds.examples),
+                            copy(ds.attributes),
+                            copy(ds.attributes_names),
+                            copy(ds.values),
+                            copy(ds.exclude),
+                            ds.distance,
+                            copy(ds.inputs),
+                            identity(ds.target));
 
 #=
 
@@ -1242,18 +1266,38 @@ function weighted_replicate(seq::AbstractMatrix, weights::AbstractVector, n::Int
                                                         for weight in normalized_weights);
     local fractions::Array{Float64, 1} = collect(((weight * n) % 1) for weight in normalized_weights);
 
-    local integer_weighted::AbstractMatrix = vcat(vcat((transpose(x) for i in 1:num_x)...)
+    local integer_weighted::AbstractMatrix = vcat(collect(vcat((reshape(x, 1, length(x))
+                                                                for i in 1:num_x)...)
                                                 for (x, num_x) in zip((seq[i, :]
                                                                         for i in 1:size(seq)[1]),
-                                                                        integer_multiples)...);
-    local fraction_weighted::AbstractMatrix = vcat(map(transpose,
-                                                        weighted_sample_with_replacement(
-                                                            collect(seq[i, :] for i in 1:size(seq)[1]),
-                                                            fractions,
-                                                            (n - sum(integer_multiples))))...);
+                                                                        integer_multiples)
+                                                if (num_x > 0))...);
+    if ((n - sum(integer_multiples)) > 0)
+        local fraction_weighted::AbstractMatrix = vcat(collect(reshape(sample, 1, length(sample))
+                                                                for sample in weighted_sample_with_replacement(
+                                                                    collect(seq[i, :] for i in 1:size(seq)[1]),
+                                                                    fractions,
+                                                                    (n - sum(integer_multiples))))...);
 
-    return vcat(integer_weighted, fraction_weighted);
+        return vcat(integer_weighted, fraction_weighted);
+    else
+        return integer_weighted;
+    end
 end
+
+function reweighted_dataset(dataset::DataSet, weights::AbstractVector, n::Int64)
+    local dataset_copy::DataSet = copy(dataset);
+    dataset_copy.examples = weighted_replicate(dataset_copy.examples, weights, n);
+    return dataset_copy;
+end
+
+function reweighted_dataset(dataset::DataSet, weights::AbstractVector)
+    local n::Int64 = size(dataset.examples)[1];
+    local dataset_copy::DataSet = copy(dataset);
+    dataset_copy.examples = weighted_replicate(dataset_copy.examples, weights, n);
+    return dataset_copy;
+end
+
 
 #=
 
@@ -1292,8 +1336,7 @@ of 'K' hypothesis weights.
 function adaboost!(abl::AdaBoostLearner, dataset::DataSet, L::DataType, K::Int64)
     local w::AbstractVector = fill((1/size(dataset.examples)[1]), size(dataset.examples)[1]);
     for k in 1:K
-        # local h_k::AbstractLearner = L(reweighted_dataset(dataset, w));
-        local h_k::AbstractLearner =  L(dataset, w);
+        local h_k::AbstractLearner = L(reweighted_dataset(dataset, w));
         push!(abl.h, h_k);
         local error::Float64 = sum(weight
                                     for (example, weight) in zip((dataset.examples[i, :]
