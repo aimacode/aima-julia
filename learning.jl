@@ -1397,3 +1397,18 @@ function error_ratio(learner::AbstractLearner, dataset::DataSet, examples::Union
     return 1.0 - (correct / size(new_examples)[1]);
 end
 
+"""
+    partition_dataset(dataset::DataSet, start_index::Real, end_index::Real)
+
+Partition the examples of the given dataset 'dataset' into a set of examples for training
+and a separate set of examples for validation.
+"""
+function partition_dataset(dataset::DataSet, start_index::Real, end_index::Real)
+    local int_start::Int64 = Int64(floor(start_index));
+    local int_end::Int64 = Int64(floor(end_index));
+    local training_set::AbstractMatrix = vcat(dataset.examples[1:(int_start - 1), :],
+                                                dataset.examples[int_end:end, :]);
+    local validation_set::AbstractMatrix = dataset.examples[int_start:(int_end - 1), :];
+    return training_set, validation_set;
+end
+
