@@ -17,7 +17,8 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         NeuralNetworkUnit, NeuralNetworkLearner, neural_network,
         back_propagation_learning, random_weights,
         PerceptronLearner, EnsembleLearner,
-        weighted_mode, AdaBoostLearner, adaboost!, weighted_replicate;
+        weighted_mode, AdaBoostLearner, adaboost!, weighted_replicate,
+        partition_dataset, cross_validation, cross_validation_wrapper;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -743,6 +744,14 @@ type DecisionTreeLearner <: AbstractLearner
     function DecisionTreeLearner(dataset::DataSet)
         return new(decision_tree_learning(dataset, dataset.examples, dataset.inputs));
     end
+
+    # The following constructor method for DecisionTreeLearner to be used with
+    # cross_validation() for a decision tree constructed in a breadth-first fashion.
+    #
+    # The breadth-first decision_tree_learning() method is not implemented yet.
+    function DecisionTreeLearner(dataset::DataSet, node_count::Int64)
+        return new(decision_tree_learning(dataset, dataset.examples, dataset.inputs, node_count));
+    end
 end
 
 function predict(dtl::DecisionTreeLearner, example::AbstractVector)
@@ -1410,5 +1419,83 @@ function partition_dataset(dataset::DataSet, start_index::Real, end_index::Real)
                                                 dataset.examples[int_end:end, :]);
     local validation_set::AbstractMatrix = dataset.examples[int_start:(int_end - 1), :];
     return training_set, validation_set;
+end
+
+function cross_validation(learner::DataType, size::Int64, k::Int64, dataset::DataSet, trials::Int64)
+    local error_T::AbstractVector = [];
+    local error_V::AbstractVector = [];
+    for i in 1:trials
+        new_error_T, new_error_V = cross_validation(learner, size, k, dataset);
+        push!(error_T, new_error_T);
+        push!(error_V, new_error_V);
+    end
+    return mean(error_T), mean(error_V);
+end
+
+function cross_validation(learner::DataType, size::Int64, k::Int64, dataset::DataSet)
+    local fold_errT::Float64 = 0.0;
+    local fold_errV::Float64 = 0.0;
+    local num_examples::Int64 = size(dataset.examples)[1];
+    for fold in 1:k
+        local original_set::AbstractMatrix = dataset.examples;
+        local training_set::AbstractMatrix;
+        local validation_set::AbstractMatrix;
+        training_set, validation_set = partition_dataset(dataset,
+                                                        ((fold * n)/k),
+                                                        (((fold * n) + n)/k));
+        dataset.examples = training_set;
+
+        # Section 18.4.1 (Model selection: Complexity vs goodness of fit) suggests using
+        # 'size' as the number of nodes to use in a breadth-first decision tree created
+        # by a decision-tree learning algorithm.
+        #
+        # Currently, decision_tree_learning() traverses the decision tree depth-first.
+        local h::AbstractLearner = learner(dataset, size);
+        fold_errT = fold_errT + error_ratio(h, dataset, training_set);
+        fold_errV = fold_errV + error_ratio(h, dataset, validation_set);
+        dataset.examples = original_set;
+    end
+    return (fold_errT/k), (fold_errV/k);
+end
+
+"""
+    cross_validation_wrapper(learner::DataType, dataset::DataSet; trials::Int64=1, k::Int64=10)
+
+Apply the cross validation algorithm (Fig. 18.8) on the given learning algorithm 'learner',
+the number of equal subsets to make from splitting the dataset 'k', the dataset 'dataset',
+and the number of trials to make for a specific size 'trials'.
+
+Return a trained learner if the errors from the training sets converge, otherwise raise an error
+for reaching the max Int64 value before integer overflow.
+"""
+function cross_validation_wrapper(learner::DataType, dataset::DataSet; trials::Int64=1, k::Int64=10)
+    local error_training::Array{Float64, 1} = Array{Float64}();
+    local error_validation::Array{Float64, 1} = Array{Float64}();
+    local size::Int64 = 1;
+    while (true)
+        local errT::Float64;
+        local errV::Float64;
+
+        errT, errV = cross_validation(learner, size, k, dataset, trials);
+
+        if (length(error_training) != 0)
+            if (abs(error_training[end] - errT) <= (0.000001 * max(abs(error_training[end]), abs(errT))))
+                local best_size::Int64 = -1;
+                local minimum_error::Float64 = Inf64;
+                for i in 1:size
+                    if (error_validation[i] < minimum_error)
+                        minimum_error = error_validation[i];
+                        best_size = i;
+                    end
+                end
+                return learner(dataset, best_size);
+            end
+        end
+
+        if (size == typemax(Int64))
+            error("cross_validation(): The 'size' variable will integer overflow!");
+        end
+        size = size + 1;
+    end
 end
 
