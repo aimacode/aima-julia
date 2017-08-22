@@ -745,7 +745,7 @@ type DecisionTreeLearner <: AbstractLearner
         return new(decision_tree_learning(dataset, dataset.examples, dataset.inputs));
     end
 
-    # The following constructor method for DecisionTreeLearner to be used with
+    # The following constructor method for DecisionTreeLearner is to be used with
     # cross_validation() for a decision tree constructed in a breadth-first fashion.
     #
     # The breadth-first decision_tree_learning() method is not implemented yet.
