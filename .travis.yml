@@ -1,8 +1,8 @@
 language: julia
 sudo: false
 
-before_script:
-	- git submodule update --init
+before_install:
+    - git submodule update --init
 
 os:
     - linux
