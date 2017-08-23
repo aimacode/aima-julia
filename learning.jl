@@ -80,7 +80,7 @@ type DataSet
                     attributes_names::Union{Void, String, AbstractVector}=nothing,
                     examples::Union{Void, String, AbstractMatrix}=nothing,
                     values::Union{Void, AbstractVector}=nothing,
-                    inputs::Union{Void, String, AbstractVector}=nothing, target::Int64=-1,
+                    inputs::Union{Void, String, AbstractVector}=nothing, target::Union{Int64, String}=-1,
                     exclude::AbstractVector=[], distance::Function=mean_boolean_error)
         # Use a matrix instead of array of arrays
         local examples_array::AbstractMatrix;
@@ -160,8 +160,27 @@ function set_problem(ds::DataSet, target::Int64, inputs::AbstractVector, exclude
     nothing;
 end
 
+function set_problem(ds::DataSet, target::String, inputs::Void, exclude::AbstractVector)
+    ds.target = attribute_index(ds, target);
+    local mapped_exclude::AbstractVector = map(attribute_index, (ds for i in exclude), exclude);
+    ds.inputs = collect(a for a in ds.attributes if ((a != ds.target) && (!(a in mapped_exclude))));
+    if (length(ds.values) == 0)
+        update_values(ds);
+    end
+    nothing;
+end
+
+function set_problem(ds::DataSet, target::String, inputs::AbstractVector, exclude::AbstractVector)
+    ds.target = attribute_index(ds, target);
+    ds.inputs = removeall(inputs, ds.target);
+    if (length(ds.values) == 0)
+        update_values(ds);
+    end
+    nothing;
+end
+
 function attribute_index(ds::DataSet, attribute::String)
-    return utils.index(ds.attributes, attribute);
+    return utils.index(ds.attributes_names, attribute);
 end
 
 function attribute_index(ds::DataSet, attribute::Int64)
@@ -1537,4 +1556,15 @@ function learning_curve(learner::DataType, dataset::DataSet; trials::Int64=10, s
     dataset.examples = original_set;
     return data_points;
 end
+
+# The following variables are DataSets read from the aima-data repository.
+orings_dataset = DataSet(name="orings", examples="./aima-data/orings.csv", target="Distressed",
+                        attributes_names="Rings Distressed Temperature Pressure Flightnumber");
+
+zoo_dataset = DataSet(name="zoo", examples="./aima-data/zoo.csv", target="type", exclude=["name"],
+                    attributes_names=["name", "hair", "feathers", "eggs", "milk", "airborne",
+                                    "aquatic", "predator", "toothed", "backbone", "breathes",
+                                    "venomous", "fins", "legs", "tail", "domestic", "catsize", "type"]);
+
+iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
 
