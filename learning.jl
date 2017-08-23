@@ -1461,7 +1461,7 @@ end
 """
     cross_validation_wrapper(learner::DataType, dataset::DataSet; trials::Int64=1, k::Int64=10)
 
-Apply the cross validation algorithm (Fig. 18.8) on the given learning algorithm 'learner',
+Apply the cross-validation algorithm (Fig. 18.8) on the given learning algorithm 'learner',
 the number of equal subsets to make from splitting the dataset 'k', the dataset 'dataset',
 and the number of trials to make for a specific size 'trials'.
 
@@ -1497,5 +1497,44 @@ function cross_validation_wrapper(learner::DataType, dataset::DataSet; trials::I
         end
         size = size + 1;
     end
+end
+
+"""
+    leave_one_out_cross_validation(learner::DataType, dataset::DataSet)
+
+Apply the leave-one-out cross-validation algorithm (LOOCV) on the given learning algorithm 'learner'
+and the dataset 'dataset'. The number of equal subsets to make from splitting the dataset, 'k', is
+set to the number of examples in the dataset.
+"""
+function leave_one_out_cross_validation(learner::DataType, dataset::DataSet)
+    return cross_validation_wrapper(learner, dataset, k=size(dataset.examples)[1]);
+end
+
+"""
+    learning_curve(learner::DataType, dataset::DataSet; trials::Int64=10, sizes::AbstractVector=[])
+
+Return an array of (size, score) tuples which represent the data points of our learning curve.
+"""
+function learning_curve(learner::DataType, dataset::DataSet; trials::Int64=10, sizes::AbstractVector=[])
+    if (length(sizes) == 0)
+        sizes = collect(2:2:(size(dataset.examples)[1] - 2));
+    end
+
+    local original_set::AbstractMatrix = dataset.examples;
+
+    # Randomly shuffle the examples between trials.
+    local learning_curve_score::Function = (function(size::Int64)
+                                                dataset.examples = reduce(vcat, shuffle!(RandomDeviceInstance,
+                                                                                        collect(dataset.examples[i, :]
+                                                                                                for i in 1:size(dataset.examples)[1])));
+                                                local training_set::AbstractMatrix = getindex(partition_dataset(dataset, 0, size), 1);
+                                                return (1.0 - error_ratio(learner(dataset), dataset, training_set));
+                                            end);
+
+
+    local data_points::AbstractVector = collect((size, mean(learning_curve_score(size) for i in 1:trials))
+                                                for size in sizes);
+    dataset.examples = original_set;
+    return data_points;
 end
 
