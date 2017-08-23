@@ -1,6 +1,9 @@
 language: julia
 sudo: false
 
+before_install:
+	- git submodule update --init
+
 os:
     - linux
     - osx
