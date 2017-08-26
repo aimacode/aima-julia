@@ -606,20 +606,20 @@ DecisionLeafNode(result) = DecisionLeafNode{typeof(result)}(result);
 
 type DecisionForkNode <: AbstractDecisionTreeNode
     attribute::Int64
-    attribute_name::Int64
+    attribute_name::Nullable
     default_child::Nullable{DecisionLeafNode}
     branches::Dict
 
     function DecisionForkNode(attribute::Int64;
-                        attribute_name::Union{Int64, Void}=nothing,
+                        attribute_name::Union{Int64, String, Void}=nothing,
                         default_child::Union{DecisionLeafNode, Void}=nothing,
                         branches::Union{Dict, Void}=nothing)
-        local new_attribute_name::Int64;
+        local new_attribute_name::Nullable;
         local new_branches::Dict;
         if (typeof(attribute_name) <: Void)
-            new_attribute_name = attribute;
+            new_attribute_name = Nullable(attribute);
         else
-            new_attribute_name = attribute_name;
+            new_attribute_name = Nullable(attribute_name);
         end
         if (typeof(branches) <: Void)
             new_branches = Dict();
@@ -1587,4 +1587,33 @@ function RestaurantDataSet(;examples::Union{Void, String, AbstractMatrix}=nothin
 end
 
 restaurant_dataset = RestaurantDataSet();
+
+# The decision tree for deciding whether to wait for a table (Fig. 18.2).
+waiting_decision_tree = DecisionForkNode(attribute_index(restaurant_dataset, "Patrons"),
+                                    attribute_name="Patrons",
+                                    branches=Dict([Pair("None", DecisionLeafNode("No")),
+                                                    Pair("Some", DecisionLeafNode("Yes")),
+                                                    Pair("Full", DecisionForkNode(attribute_index(restaurant_dataset, "WaitEstimate"),
+                                                                            attribute_name="WaitEstimate",
+                                                                            branches=Dict([Pair(">60", DecisionLeafNode("No")),
+                                                                                            Pair("0-10", DecisionLeafNode("Yes")),
+                                                                                            Pair("30-60", DecisionForkNode(attribute_index(restaurant_dataset, "Alternate"),
+                                                                                                                        attribute_name="Alternate",
+                                                                                                                        branches=Dict([Pair("No", DecisionForkNode(attribute_index(restaurant_dataset, "Reservation"),
+                                                                                                                                                                attribute_name="Reservation",
+                                                                                                                                                                branches=Dict([Pair("Yes", DecisionLeafNode("Yes")),
+                                                                                                                                                                            Pair("No", DecisionForkNode(attribute_index(restaurant_dataset, "Bar"),
+                                                                                                                                                                                                    attribute_name="Bar",
+                                                                                                                                                                                                    branches=Dict([Pair("No", DecisionLeafNode("No")),
+                                                                                                                                                                                                                    Pair("Yes", DecisionLeafNode("Yes"))])))])))]))),
+                                                                                            Pair("10-30", DecisionForkNode(attribute_index(restaurant_dataset, "Hungry"),
+                                                                                                                        attribute_name="Hungry",
+                                                                                                                        branches=Dict([Pair("No", DecisionLeafNode("Yes")),
+                                                                                                                                        Pair("Yes", DecisionForkNode(attribute_index(restaurant_dataset, "Alternate"),
+                                                                                                                                                                attribute_name="Alternate",
+                                                                                                                                                                branches=Dict([Pair("No", DecisionLeafNode("Yes")),
+                                                                                                                                                                                Pair("Yes", DecisionForkNode(attribute_index(restaurant_dataset, "Raining"),
+                                                                                                                                                                                                        attribute_name="Raining",
+                                                                                                                                                                                                        branches=Dict([Pair("No", DecisionLeafNode("No")),
+                                                                                                                                                                                                                        Pair("Yes", DecisionLeafNode("Yes"))])))])))])))])))]));
 
