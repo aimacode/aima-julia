@@ -92,6 +92,14 @@ type DataSet
         else
             examples_array = examples;
         end
+        examples_array = map((function(element)
+                                if (typeof(element) <: AbstractString)
+                                    return strip(element);
+                                else
+                                    return element;
+                                end
+                            end),
+                            examples_array);
         local attributes_array::AbstractVector;
         if (typeof(attributes) <: Void)
             attributes_array = collect(1:getindex(size(examples_array), 2));
