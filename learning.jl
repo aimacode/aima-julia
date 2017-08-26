@@ -18,7 +18,8 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         back_propagation_learning, random_weights,
         PerceptronLearner, EnsembleLearner,
         weighted_mode, AdaBoostLearner, adaboost!, weighted_replicate,
-        partition_dataset, cross_validation, cross_validation_wrapper;
+        partition_dataset, cross_validation, cross_validation_wrapper,
+        RestaurantDataSet, SyntheticRestaurantDataSet;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -639,7 +640,7 @@ type DecisionForkNode <: AbstractDecisionTreeNode
 end
 
 function classify(df::DecisionForkNode, example::AbstractVector)
-    local attribute_value::Float64 = example[df.attribute];
+    attribute_value = example[df.attribute];
     if (haskey(df.branches, attribute_value))
         return classify(df.branches[attribute_value], example);
     else
@@ -1613,7 +1614,11 @@ waiting_decision_tree = DecisionForkNode(attribute_index(restaurant_dataset, "Pa
                                                                                                                                                                             Pair("No", DecisionForkNode(attribute_index(restaurant_dataset, "Bar"),
                                                                                                                                                                                                     attribute_name="Bar",
                                                                                                                                                                                                     branches=Dict([Pair("No", DecisionLeafNode("No")),
-                                                                                                                                                                                                                    Pair("Yes", DecisionLeafNode("Yes"))])))])))]))),
+                                                                                                                                                                                                                    Pair("Yes", DecisionLeafNode("Yes"))])))]))),
+                                                                                                                                        Pair("Yes", DecisionForkNode(attribute_index(restaurant_dataset, "Fri/Sat"),
+                                                                                                                                                                    attribute_name="Fri/Sat",
+                                                                                                                                                                    branches=Dict([Pair("No", DecisionLeafNode("No")),
+                                                                                                                                                                                    Pair("Yes", DecisionLeafNode("Yes"))])))]))),
                                                                                             Pair("10-30", DecisionForkNode(attribute_index(restaurant_dataset, "Hungry"),
                                                                                                                         attribute_name="Hungry",
                                                                                                                         branches=Dict([Pair("No", DecisionLeafNode("Yes")),
@@ -1624,4 +1629,37 @@ waiting_decision_tree = DecisionForkNode(attribute_index(restaurant_dataset, "Pa
                                                                                                                                                                                                         attribute_name="Raining",
                                                                                                                                                                                                         branches=Dict([Pair("No", DecisionLeafNode("No")),
                                                                                                                                                                                                                         Pair("Yes", DecisionLeafNode("Yes"))])))])))])))])))]));
+
+"""
+    SyntheticRestaurantDataSet(n::Int64)
+    SyntheticRestaurantDataSet()
+
+Return a new restaurant dataset with 'n' examples (generates 20 examples when not
+given a specific value).
+"""
+function SyntheticRestaurantDataSet(n::Int64)
+    local examples_array::AbstractVector = [];
+    for i in 1:n
+        local new_example::AbstractVector = Array{Any, 1}(map((function(col::AbstractVector)
+                                                                    return rand(RandomDeviceInstance, col);
+                                                                end),
+                                                                restaurant_dataset.values));
+        new_example[restaurant_dataset.target] = classify(waiting_decision_tree, new_example);
+        push!(examples_array, reshape(new_example, (1, length(new_example))));
+    end
+    return RestaurantDataSet(examples=Array{Any, 2}(matrix_vcat(examples_array...)));
+end
+
+function SyntheticRestaurantDataSet()
+    local examples_array::AbstractVector = [];
+    for i in 1:20
+        local new_example::AbstractVector = Array{Any, 1}(map((function(col::AbstractVector)
+                                                                    return rand(RandomDeviceInstance, col);
+                                                                end),
+                                                                restaurant_dataset.values));
+        new_example[restaurant_dataset.target] = classify(waiting_decision_tree, new_example);
+        push!(examples_array, reshape(new_example, (1, length(new_example))));
+    end
+    return RestaurantDataSet(examples=Array{Any, 2}(matrix_vcat(examples_array...)));
+end
 
