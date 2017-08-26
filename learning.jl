@@ -1568,3 +1568,23 @@ zoo_dataset = DataSet(name="zoo", examples="./aima-data/zoo.csv", target="type",
 
 iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
 
+"""
+    RestaurantDataSet(;examples::Union{Void, String, AbstractMatrix}=nothing)
+
+Return a new DataSet based on the restaurant waiting examples (Fig. 18.3).
+"""
+function RestaurantDataSet(;examples::Union{Void, String, AbstractMatrix}=nothing)
+    if (typeof(examples) <: Void)
+        return DataSet(name="restaurant", target="Wait", examples="./aima-data/restaurant.csv",
+                        attributes_names=["Alternate", "Bar", "Fri/Sat", "Hungry", "Patrons", "Price",
+                                        "Raining", "Reservation", "Type", "WaitEstimate", "Wait"]);
+    else
+
+        return DataSet(name="restaurant", target="Wait", examples=examples,
+                        attributes_names=["Alternate", "Bar", "Fri/Sat", "Hungry", "Patrons", "Price",
+                                        "Raining", "Reservation", "Type", "WaitEstimate", "Wait"]);
+    end
+end
+
+restaurant_dataset = RestaurantDataSet();
+
