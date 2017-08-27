@@ -45,6 +45,13 @@ end
 
 abstract AbstractProbabilityDistribution;
 
+#=
+
+    ProbabilityDistribution is a discrete probability distribution for the given
+
+    variable 'variable_name'.
+
+=#
 type ProbabilityDistribution <: AbstractProbabilityDistribution
     variable_name::String
     probabilities::Dict
@@ -116,6 +123,13 @@ function event_values(event::Dict, variables::AbstractVector)
     return Tuple((collect(event[v] for v in variables)...));
 end
 
+#=
+
+    JointProbabilityDistribution is a discrete probability distribution for the given
+
+    variables in 'variables'.
+
+=#
 type JointProbabilityDistribution <: AbstractProbabilityDistribution
     variables::AbstractVector
     probabilities::Dict
@@ -162,7 +176,13 @@ function enumerate_joint{T <: AbstractProbabilityDistribution}(variables::Abstra
     end
 end
 
-function enumerate_joint_ask{T <: AbstractProbabilityDistribution}(X::String, e::Dict, P::T)
+"""
+    enumerate_joint_ask(X::String, e::Dict, P::JointProbabilityDistribution)
+
+Return a probability distribution for the variable 'X' given the observations 'e' and the
+joint probability distribution 'P'.
+"""
+function enumerate_joint_ask(X::String, e::Dict, P::JointProbabilityDistribution)
     if (haskey(e, X))
         error("enumerate_joint_ask(): The query variable was not distinct from evidence variables.");
     end
@@ -174,6 +194,13 @@ function enumerate_joint_ask{T <: AbstractProbabilityDistribution}(X::String, e:
     return normalize(Q);
 end
 
+#=
+
+    BayesianNetworkNode is a boolean variable node in a Bayesian network that contains
+
+    the conditional probability distribution 'cpt' for the variable 'variable'.
+
+=#
 type BayesianNetworkNode
     variable::String
     parents::Array{String, 1}
