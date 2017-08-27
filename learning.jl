@@ -19,7 +19,8 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         PerceptronLearner, EnsembleLearner,
         weighted_mode, AdaBoostLearner, adaboost!, weighted_replicate,
         partition_dataset, cross_validation, cross_validation_wrapper,
-        RestaurantDataSet, SyntheticRestaurantDataSet;
+        RestaurantDataSet, SyntheticRestaurantDataSet,
+        MajorityDataSet, ParityDataSet, XorDataSet, ContinuousXorDataSet;
 
 function euclidean_distance(X::AbstractVector, Y::AbstractVector)
     return sqrt(sum(((x - y)^2) for (x, y) in zip(X, Y)));
@@ -1661,5 +1662,74 @@ function SyntheticRestaurantDataSet()
         push!(examples_array, reshape(new_example, (1, length(new_example))));
     end
     return RestaurantDataSet(examples=Array{Any, 2}(matrix_vcat(examples_array...)));
+end
+
+# The following artificial DataSets are generated randomly.
+"""
+    MajorityDataSet(k::Int64, n::Int64)
+
+Return a DataSet of n k-bit examples for a majority problem. 'k' random bits are generated
+randomly for each example. The target attribute is 1 if more than half the 'k' bits are 1,
+otherwise the target attribute is 0.
+"""
+function MajorityDataSet(k::Int64, n::Int64)
+    local examples_array::AbstractVector = [];
+    for i in 1:n
+        local bit_domain::AbstractVector = [0, 1];
+        local bits::AbstractVector = collect(rand(RandomDeviceInstance, bit_domain) for i in 1:k);
+        push!(bits, Int64(sum(bits)>(k/2)));
+        push!(examples_array, reshape(bits, (1, length(bits))));
+    end
+    return DataSet(name="majority", examples=Array{Any, 2}(matrix_vcat(examples_array...)));
+end
+
+"""
+    ParityDataSet(k::Int64, n::Int64; name::String="parity")
+
+Return a DataSet of n k-bit examples for a parity problem. 'k' random bits are generated
+randomly for each example. The target attribute is 1 if an odd amount of 'k' bits are 1,
+otherwise the target attribute is 0.
+"""
+function ParityDataSet(k::Int64, n::Int64; name::String="parity")
+    local examples_array::AbstractVector = [];
+    for i in 1:n
+        local bit_domain::AbstractVector = [0, 1];
+        local bits::AbstractVector = collect(rand(RandomDeviceInstance, bit_domain) for i in 1:k);
+        push!(bits, Int64(sum(bits) % 2));
+        push!(examples_array, reshape(bits, (1, length(bits))));
+    end
+    return DataSet(name=name, examples=Array{Any, 2}(matrix_vcat(examples_array...)));
+end
+
+"""
+    XorDataSet(n::Int64)
+
+Return a DataSet of n 2-bit examples where 2 random bits are generated randomly for each
+example. The target attribute is 1 only if 1 of the randomly generated bits is 1, otherwise
+the target attribute is 0.
+"""
+function XorDataSet(n::Int64)
+    return ParityDataSet(2, n, name="xor");
+end
+
+"""
+    ContinuousXorDataSet(n::Int64)
+
+Return a DataSet where each example consists of 2 random floats that are uniformly generated
+in [0, 2). The target attribute is the xor of the floor of floats casted as integers.
+"""
+function ContinuousXorDataSet(n::Int64)
+    local examples_array::AbstractVector = [];
+    for i in 1:n
+        local x::Float64;
+        local y::Float64;
+        x, y = (rand(RandomDeviceInstance) * 2, rand(RandomDeviceInstance) * 2);
+        local example::AbstractVector = Array{Any, 1}();
+        push!(example, x);
+        push!(example, y);
+        push!(example, (Int64(floor(x)) != Int64(floor(y))));
+        push!(examples_array, reshape(example, (1, length(example))));
+    end
+    return DataSet(name="continuous xor", examples=Array{Any, 2}(matrix_vcat(examples_array...)));
 end
 
