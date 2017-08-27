@@ -94,11 +94,11 @@ Index of Algorithms
 | 17.4    | Value-Iteration             | `value_iteration` | [`mdp.jl`](mdp.jl) |
 | 17.7    | Policy-Iteration            | `policy_iteration` | [`mdp.jl`](mdp.jl) |
 | 17.7    | POMDP-Value-Iteration  	    |  |  |
-| 18.5    | Decision-Tree-Learning 	    | `decision_tree_learning` | ['learning.jl'](learning.jl) |
-| 18.8    | Cross-Validation       	    | `cross_validation` | ['learning.jl'](learning.jl) |
-| 18.11   | Decision-List-Learning 	    | `decision_list_learning` | ['learning.jl'](learning.jl) |
-| 18.24   | Back-Prop-Learning     	    | `back_propagation_learning!` | ['learning.jl'](learning.jl) |
-| 18.34   | AdaBoost               	    | `adaboost!` | ['learning.jl'](learning.jl) |
+| 18.5    | Decision-Tree-Learning 	    | `decision_tree_learning` | [`learning.jl`](learning.jl) |
+| 18.8    | Cross-Validation       	    | `cross_validation` | [`learning.jl`](learning.jl) |
+| 18.11   | Decision-List-Learning 	    | `decision_list_learning` | [`learning.jl`](learning.jl) |
+| 18.24   | Back-Prop-Learning     	    | `back_propagation_learning!` | [`learning.jl`](learning.jl) |
+| 18.34   | AdaBoost               	    | `adaboost!` | [`learning.jl`](learning.jl) |
 | 19.2    | Current-Best-Learning  	    |  |  |
 | 19.3    | Version-Space-Learning 	    |  |  |
 | 19.8    | Minimal-Consistent-Det 	    |  |  |
