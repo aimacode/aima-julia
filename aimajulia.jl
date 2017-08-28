@@ -22,4 +22,6 @@ include("mdp.jl");
 
 include("learning.jl");
 
+include("kl.jl");
+
 end;
