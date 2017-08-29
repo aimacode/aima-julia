@@ -46,3 +46,5 @@ julia --color=yes run_mdp_tests.jl
 
 julia --color=yes run_learning_tests.jl
 
+julia --color=yes run_kl_tests.jl
+

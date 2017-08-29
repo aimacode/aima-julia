@@ -1,7 +1,7 @@
 
 # Learning with knowledge
 
-export generate_powerset, current_best_learning;
+export guess_example_value, generate_powerset, current_best_learning;
 
 function disjunction_value(e::Dict, d::Dict)
     for (k, v) in d
@@ -20,6 +20,11 @@ function disjunction_value(e::Dict, d::Dict)
     return true;
 end
 
+"""
+    guess_example_value(e::Dict, h::AbstractVector)
+
+Return a guess for the logical value of the given example 'e' based on the given hypothesis 'h'.
+"""
 function guess_example_value(e::Dict, h::AbstractVector)
     for d in h
         if (disjunction_value(e, d))
@@ -29,7 +34,7 @@ function guess_example_value(e::Dict, h::AbstractVector)
     return false;
 end
 
-function is_consistent(e::Dict, h::AbstractVector)
+function example_is_consistent(e::Dict, h::AbstractVector)
     return (e["GOAL"] == guess_example_value(e, h));
 end
 
@@ -53,7 +58,7 @@ end
 
 function check_all_consistency(examples::AbstractVector, h::AbstractVector)
     for example in examples
-        if (!(is_consistent(example, h)))
+        if (!(example_is_consistent(example, h)))
             return false;
         end
     end
@@ -65,7 +70,7 @@ function specializations(prior_examples::AbstractVector, h::AbstractVector)
     for (i, disjunction) in enumerate(h)
         for example in prior_examples
             for (k, v) in example
-                if ((k in disjunction) || k == "GOAL")
+                if ((haskey(disjunction, k)) || k == "GOAL")
                     continue;
                 end
 
@@ -89,7 +94,7 @@ function check_negative_consistency(examples::AbstractVector, h::Dict)
         if (example["GOAL"])
             continue;
         end
-        if (!is_consistent(example, [h]))
+        if (!example_is_consistent(example, [h]))
             return false;
         end
     end
@@ -106,8 +111,8 @@ function generate_powerset(array::AbstractVector)
     return Set{Tuple}(result);
 end
 
-function and_or_examples(prior_examples::AbstractVector, h::AbstractVector)
-    local result::AbstractVector;
+function add_or_examples(prior_examples::AbstractVector, h::AbstractVector)
+    local result::AbstractVector = [];
     local example::Dict = prior_examples[end];
     local attributes::Dict = Dict((k, v) for (k, v) in example if (k != "GOAL"));
     local attribute_powerset = setdiff!(generate_powerset(collect(keys(attributes))), Set([()]));
@@ -133,7 +138,7 @@ function generalizations(prior_examples::AbstractVector, h::AbstractVector)
     local disjunctions_powerset::Set = setdiff!(generate_powerset(collect(1:length(h))), Set([()]));
     for disjunctions in disjunctions_powerset
         h_prime = copy(h);
-        deleteat!(h2, disjunctions);
+        deleteat!(h_prime, disjunctions);
 
         if (check_all_consistency(prior_examples, h_prime))
             append!(hypotheses, h_prime);
