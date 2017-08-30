@@ -66,7 +66,7 @@ version_space = version_space_learning(party);
                     end
                 end
                 return false;
-            end), party, repeated(version_space)) == [true, true, false])
+            end), party, repeated(version_space)) == [true, true, false]);
 
-@test ([Dict([Pair("Pizza", "Yes")])] in V);
+@test ([Dict([Pair("Pizza", "Yes")])] in version_space);
 
