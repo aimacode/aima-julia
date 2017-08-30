@@ -53,3 +53,20 @@ h = current_best_learning(party, initial_h);
 
 @test (map(guess_example_value, party, repeated(h)) == [true, true, false]);
 
+party = [Dict([("Pizza", "Yes"), ("Soda", "No"), ("GOAL", true)]),
+        Dict([("Pizza", "Yes"), ("Soda", "Yes"), ("GOAL", true)]),
+        Dict([("Pizza", "No"), ("Soda", "No"), ("GOAL", false)])];
+
+version_space = version_space_learning(party);
+
+@test (map((function(e::Dict, V::AbstractVector)
+                for h in V
+                    if (guess_example_value(e, h))
+                        return true;
+                    end
+                end
+                return false;
+            end), party, repeated(version_space)) == [true, true, false])
+
+@test ([Dict([Pair("Pizza", "Yes")])] in V);
+

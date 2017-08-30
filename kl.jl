@@ -1,7 +1,8 @@
 
 # Learning with knowledge
 
-export guess_example_value, generate_powerset, current_best_learning;
+export guess_example_value, generate_powerset, current_best_learning,
+        version_space_learning;
 
 function disjunction_value(e::Dict, d::Dict)
     for (k, v) in d
@@ -208,4 +209,93 @@ function current_best_learning(examples::AbstractVector, h::AbstractVector)
     return current_best_learning(examples, h, []);
 end
 
+function version_space_update(V::AbstractVector, e::Dict)
+    return collect(h for h in V if (example_is_consistent(e, h)));
+end
+
+function values_table(examples::AbstractVector)
+    local values::Dict = Dict();
+    for example in examples
+        for (k, v) in example
+            if (k == "GOAL")
+                continue
+            end
+            local modifier::String = "!";
+            if (example["GOAL"])
+                modifier = "";
+            end
+
+            local modified_value::String = modifier * v;
+            if (!(modified_value in get!(values, k, [])))
+                push!(get!(values, k, []), modified_value);
+            end
+        end
+    end
+    return values;
+end
+
+function build_attribute_combinations(subset::Tuple, values::Dict)
+    local h::AbstractVector = [];
+    if (length(subset) == 1)
+        k = values[subset[1]]
+        h = collect([Dict([Pair(subset[1], v)])] for v in values[subset[1]]);
+        return h;
+    end
+    for (i, attribute) in enumerate(subset)
+        local rest::AbstractVector = build_attribute_combinations(subset[2:end], values);
+        for value in values[attribute]
+            local combination::Dict = Dict([Pair(attribute, value)]);
+            for rest_item in rest
+                local combination_prime::Dict = copy(combination);
+                for dictionary in rest_item
+                    merge!(combination_prime, dictionary);
+                end
+                push!(h, [combination_prime]);
+            end
+        end
+    end
+    return h;
+end
+
+function build_h_combinations(hypotheses::AbstractVector)
+    local h::AbstractVector = [];
+    local h_powerset::Set = setdiff!(generate_powerset(collect(1:length(hypotheses))), Set([()]));
+
+    for subset in h_powerset
+        local combination::AbstractVector = [];
+        for index in subset
+            append!(combination, hypotheses[index]);
+        end
+        push!(h, combination);
+    end
+
+    return h;
+end
+
+function all_hypotheses(examples::AbstractVector)
+    local values::Dict = values_table(examples);
+    local h_powerset::Set = setdiff!(generate_powerset(collect(keys(values))), Set([()]));
+    local hypotheses::AbstractVector = [];
+    for subset in h_powerset
+        append!(hypotheses, build_attribute_combinations(subset, values));
+    end
+    append!(hypotheses, build_h_combinations(hypotheses));
+    return hypotheses;
+end
+
+"""
+    version_space_learning(examples::AbstractVector)
+
+Return a version space for the given 'examples' by using the version space learning
+algorithm (Fig. 19.3).
+"""
+function version_space_learning(examples::AbstractVector)
+    local V::AbstractVector = all_hypotheses(examples);
+    for example in examples
+        if (length(V) != 0)
+            V = version_space_update(V, example);
+        end
+    end
+    return V;
+end
 
