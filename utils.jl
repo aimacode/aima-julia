@@ -7,7 +7,8 @@ import Base.push!,
         Base.next,
         Base.done,
         Base.length,
-        Base.delete!;
+        Base.delete!,
+        Base.combinations;
 
 export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         start, next, done, length,
@@ -19,7 +20,8 @@ export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         RandomDeviceInstance,
         isfunction, removeall,
         normalize_probability_distribution,
-        mode, sigmoid, sigmoid_derivative;
+        mode, sigmoid, sigmoid_derivative,
+        combinations;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -671,6 +673,107 @@ Return the derivative of the sigmoid function 'S(x)', where x = 'val'.
 """
 function sigmoid_derivative(val::Number)
     return (Float64(val) * (Float64(1) - Float64(val)));
+end
+
+# The combinations() function below was adapted from
+# https://github.com/JuliaMath/Combinatorics.jl/blob/master/src/combinations.jl
+
+"""
+    combinations(array::AbstractVector, l::Integer)
+    combinations(tuple::Tuple, l::Integer)
+    combinations(set::Set, l::Integer)
+
+Return the 'l' length subsequences of the elements in the given collection of items.
+"""
+function combinations(array::AbstractVector, l::Integer)
+    local indices::AbstractVector = collect(1:l);
+    local visited::Tuple = ();
+    local current_combination::AbstractVector;
+    if (l == 0)
+        return ([],);
+    end
+
+    if (binomial(length(array), l) > 0)
+        while (indices[1] <= length(array) - l + 1)
+            current_combination = collect(array[subseq_i] for subseq_i in indices);
+            visited = (visited..., current_combination);
+            indices = copy(indices);
+            for i in reverse(1:length(indices))
+                indices[i] = indices[i] + 1;
+                if (indices[i] > (length(array) - (length(indices) - i)))
+                    continue;
+                end
+                for j in (i + 1):endof(indices)
+                    indices[j] = indices[j - 1] + 1;
+                end
+                break;
+            end
+        end
+        return visited;
+    else
+        return visited;
+    end
+end
+
+function combinations(tuple::Tuple, l::Integer)
+    local indices::AbstractVector = collect(1:l);
+    local visited::Tuple = ();
+    local current_combination::AbstractVector;
+    if (l == 0)
+        return ([],);
+    end
+
+    if (binomial(length(tuple), l) > 0)
+        while (indices[1] <= length(tuple) - l + 1)
+            current_combination = collect(tuple[subseq_i] for subseq_i in indices);
+            visited = (visited..., current_combination);
+            indices = copy(indices);
+            for i in reverse(1:length(indices))
+                indices[i] = indices[i] + 1;
+                if (indices[i] > (length(tuple) - (length(indices) - i)))
+                    continue;
+                end
+                for j in (i + 1):endof(indices)
+                    indices[j] = indices[j - 1] + 1;
+                end
+                break;
+            end
+        end
+        return visited;
+    else
+        return visited;
+    end
+end
+
+function combinations(set::Set, l::Integer)
+    local array::AbstractVector = collect(set);
+    local indices::AbstractVector = collect(1:l);
+    local visited::Tuple = ();
+    local current_combination::AbstractVector;
+    if (l == 0)
+        return ([],);
+    end
+
+    if (binomial(length(array), l) > 0)
+        while (indices[1] <= length(array) - l + 1)
+            current_combination = collect(array[subseq_i] for subseq_i in indices);
+            visited = (visited..., current_combination);
+            indices = copy(indices);
+            for i in reverse(1:length(indices))
+                indices[i] = indices[i] + 1;
+                if (indices[i] > (length(array) - (length(indices) - i)))
+                    continue;
+                end
+                for j in (i + 1):endof(indices)
+                    indices[j] = indices[j - 1] + 1;
+                end
+                break;
+            end
+        end
+        return visited;
+    else
+        return visited;
+    end
 end
 
 end

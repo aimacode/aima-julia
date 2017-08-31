@@ -70,3 +70,36 @@ version_space = version_space_learning(party);
 
 @test ([Dict([Pair("Pizza", "Yes")])] in version_space);
 
+party = [Dict([("Pizza", "Yes"), ("Soda", "No"), ("GOAL", true)]),
+        Dict([("Pizza", "Yes"), ("Soda", "Yes"), ("GOAL", true)]),
+        Dict([("Pizza", "No"), ("Soda", "No"), ("GOAL", false)])];
+
+animal_umbrellas = [Dict([("Species", "Cat"), ("Rain", "Yes"), ("Coat", "No"), ("GOAL", true)]),
+                    Dict([("Species", "Cat"), ("Rain", "Yes"), ("Coat", "Yes"), ("GOAL", true)]),
+                    Dict([("Species", "Dog"), ("Rain", "Yes"), ("Coat", "Yes"), ("GOAL", true)]),
+                    Dict([("Species", "Dog"), ("Rain", "Yes"), ("Coat", "No"), ("GOAL", false)]),
+                    Dict([("Species", "Dog"), ("Rain", "No"), ("Coat", "No"), ("GOAL", false)]),
+                    Dict([("Species", "Cat"), ("Rain", "No"), ("Coat", "No"), ("GOAL", false)]),
+                    Dict([("Species", "Cat"), ("Rain", "No"), ("Coat", "Yes"), ("GOAL", true)])];
+
+conductance_attribute_names = ("Sample", "Mass", "Temperature", "Material", "Size", "GOAL");
+conductance = [Dict(collect(zip(conductance_attribute_names, ("S1", 12, 26, "Cu", 3, 0.59)))),
+                Dict(collect(zip(conductance_attribute_names, ("S1", 12, 100, "Cu", 3, 0.57)))),
+                Dict(collect(zip(conductance_attribute_names, ("S2", 24, 26, "Cu", 6, 0.59)))),
+                Dict(collect(zip(conductance_attribute_names, ("S3", 12, 26, "Pb", 2, 0.05)))),
+                Dict(collect(zip(conductance_attribute_names, ("S3", 12, 100, "Pb", 2, 0.04)))),
+                Dict(collect(zip(conductance_attribute_names, ("S4", 18, 100, "Pb", 3, 0.04)))),
+                Dict(collect(zip(conductance_attribute_names, ("S4", 18, 100, "Pb", 3, 0.04)))),
+                Dict(collect(zip(conductance_attribute_names, ("S5", 24, 100, "Pb", 4, 0.04)))),
+                Dict(collect(zip(conductance_attribute_names, ("S6", 36, 26, "Pb", 6, 0.05))))];
+
+@test (minimal_consistent_determination(party, Set(["Pizza", "Soda"])) == Set(["Pizza"]));
+
+@test (minimal_consistent_determination(party[1:2], Set(["Pizza", "Soda"])) == Set());
+
+@test (minimal_consistent_determination(animal_umbrellas, Set(["Species", "Rain", "Coat"])) == Set(["Species", "Rain", "Coat"]));
+
+@test (minimal_consistent_determination(conductance, Set(["Mass", "Temperature", "Material", "Size"])) == Set(["Temperature", "Material"]));
+
+@test (minimal_consistent_determination(conductance, Set(["Mass", "Temperature", "Size"])) == Set(["Mass", "Temperature", "Size"]));
+

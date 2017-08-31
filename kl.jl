@@ -2,7 +2,8 @@
 # Learning with knowledge
 
 export guess_example_value, generate_powerset, current_best_learning,
-        version_space_learning;
+        version_space_learning,
+        is_consistent_determination, minimal_consistent_determination;
 
 function disjunction_value(e::Dict, d::Dict)
     for (k, v) in d
@@ -297,5 +298,39 @@ function version_space_learning(examples::AbstractVector)
         end
     end
     return V;
+end
+
+function is_consistent_determination(A::AbstractVector, E::AbstractVector)
+    local H::Dict = Dict();
+
+    for example in E
+        local attribute_values::Tuple = Tuple((collect(example[attribute] for attribute in A)...));
+        if (haskey(H, attribute_values))
+            if (H[attribute_values] != example["GOAL"])
+                return false;
+            end
+        end
+        H[attribute_values] = example["GOAL"];
+    end
+
+    return true;
+end
+
+"""
+    minimal_consistent_determination(E::AbstractVector, A::Set)
+
+Return a set of attributes by using the algorithm for finding a minimal consistent
+determination (Fig. 19.8).
+"""
+function minimal_consistent_determination(E::AbstractVector, A::Set)
+    local n::Int64 = length(A);
+    for i in 0:n
+        for A_i in combinations(A, i);
+            if (is_consistent_determination(A_i, E))
+                return Set(A_i);
+            end
+        end
+    end
+    return nothing;
 end
 
