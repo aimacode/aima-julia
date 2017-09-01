@@ -1518,6 +1518,7 @@ function parenthesize_arguments(tokens::AbstractVector)
             end
         end
 
+        # Update indices after previous insertions.
         comma_indices = Array{Int64, 1}();
         for index in 1:length(tokens)
             if (tokens[index] == ",")
@@ -1543,7 +1544,6 @@ function parenthesize_arguments(tokens::AbstractVector)
                     if (no_parentheses)
                         insert!(tokens, comma_indices[i], ")");
                         insert!(tokens, (index + 1), "(");
-                        comma_indices[i] = comma_indices[i] + 1;
                     end
                     break;
                 end
@@ -1559,7 +1559,6 @@ function parenthesize_arguments(tokens::AbstractVector)
                 if (no_parentheses)
                     insert!(tokens, comma_indices[i], ")");
                     insert!(tokens, index, "(");
-                    comma_indices[i] = comma_indices[i] + 1;
                 end
                 break;
             end
