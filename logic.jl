@@ -22,7 +22,8 @@ export hash, ==, show,
         standardize_variables, fol_fc_ask,
         FirstOrderLogicKnowledgeBase, fetch_rules_for_goal,
         fol_bc_ask,
-        is_number, differentiate, simplify, differentiate_simplify;
+        is_number, differentiate, simplify, differentiate_simplify,
+        constant_symbols, predicate_symbols;
 
 abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
 
@@ -1467,7 +1468,7 @@ end
 #Parenthesize any arguments that are not enclosed by parentheses
 function parenthesize_arguments(tokens::AbstractVector) 
     local existing_parenthesis::Int64 = 0;
-    local comma_indices::Array{Int64, 1} = Array{Int64, 1}([]);
+    local comma_indices::Array{Int64, 1} = Array{Int64, 1}();
     #keep track of opening and closing parentheses indices
     #keep track of comma indices at the same tree level
     #this function runs after parenthesize_tokens()
@@ -1476,23 +1477,24 @@ function parenthesize_arguments(tokens::AbstractVector)
             push!(comma_indices, index);
         end
     end
-    for comma_index in reverse(comma_indices)
-        ####println("index to modify: ", comma_index, " token: ", tokens[comma_index],
+    #for comma_index in reverse(comma_indices)
+    for i in reverse(1:length(comma_indices))
+        ####println("index to modify: ", comma_indices[i], " token: ", tokens[comma_indices[i]],
         ####        " comma indices: ", comma_indices, " tokens: ", tokens...);
         no_parentheses = false; #boolean indicating if the current argument is enclosed in parentheses
-        #,=>    #the order of indices to search rightward
+        # ,=>    #the order of indices to search rightward
         existing_parenthesis = 0;
-        for index in (comma_index + 1):length(tokens)
+        for index in (comma_indices[i] + 1):length(tokens)
             if (tokens[index] == "(")
                 existing_parenthesis = existing_parenthesis + 1;
             elseif (tokens[index] == ")")
                 existing_parenthesis = existing_parenthesis - 1;
-                if (index == (comma_index + 1))
+                if (index == (comma_indices[i] + 1))
                     error("ConstructExpressionTreeError: Found ')', expected argument!");
                 end
             elseif (tokens[index] == ",")
                 if (existing_parenthesis == 0)  #found following comma in same tree level
-                    #Add parentheses
+                    # Add parentheses
                     if (no_parentheses)
                         insert!(tokens, index, ")");
                         insert!(tokens, (comma_index + 1), "(");
@@ -1507,31 +1509,41 @@ function parenthesize_arguments(tokens::AbstractVector)
 
             if (existing_parenthesis == -1) #found end of arguments for infix function
                 ####println("index: ", index, " token: ", tokens[index], " no_parentheses: ", no_parentheses);
-                #Add parentheses
+                # Add parentheses
                 if (no_parentheses)
                     insert!(tokens, index, ")");
-                    insert!(tokens, (comma_index + 1), "(");
+                    insert!(tokens, (comma_indices[i] + 1), "(");
                 end
                 break;
             end
         end
+
+        comma_indices = Array{Int64, 1}();
+        for index in 1:length(tokens)
+            if (tokens[index] == ",")
+                push!(comma_indices, index);
+            end
+        end
+
         no_parentheses = false; #boolean indicating if the current argument is enclosed in parentheses
-        #<=,    #reverse the order of indices to search leftward
+        #<=,    # reverse the order of indices to search leftward
         existing_parenthesis = 0;
-        for index in reverse(1:(comma_index - 1))
+        ####println("comma indices: ", comma_indices, " tokens: ", tokens...);
+        for index in reverse(1:(comma_indices[i] - 1))
             if (tokens[index] == "(")
                 existing_parenthesis = existing_parenthesis + 1;
-                if (index == (comma_index - 1))
+                if (index == (comma_indices[i] - 1))
                     error("ConstructExpressionTreeError: Found '(', expected argument!");
                 end
             elseif (tokens[index] == ")")
                 existing_parenthesis = existing_parenthesis - 1;
             elseif (tokens[index] == ",")
                 if (existing_parenthesis == 0)  #found following comma in same tree level
-                    #Add parentheses
+                    # Add parentheses
                     if (no_parentheses)
-                        insert!(tokens, comma_index, ")");
+                        insert!(tokens, comma_indices[i], ")");
                         insert!(tokens, (index + 1), "(");
+                        comma_indices[i] = comma_indices[i] + 1;
                     end
                     break;
                 end
@@ -1543,10 +1555,11 @@ function parenthesize_arguments(tokens::AbstractVector)
 
             if (existing_parenthesis == 1) #found end of arguments for infix function
                 ####println("index: ", index, " token: ", tokens[index], " no_parentheses: ", no_parentheses);
-                #Add parentheses
+                # Add parentheses
                 if (no_parentheses)
-                    insert!(tokens, comma_index, ")");
+                    insert!(tokens, comma_indices[i], ")");
                     insert!(tokens, index, "(");
+                    comma_indices[i] = comma_indices[i] + 1;
                 end
                 break;
             end
@@ -1835,5 +1848,39 @@ function pretty_set(s::Set{Expression})
                                         lt=(function(e1::Expression, e2::Expression)
                                                 return isless(e1.operator, e2.operator);
                                             end))));
+end
+
+function constant_symbols(e::Expression)
+    if (is_logic_proposition_symbol(e.operator) && (length(e.arguments) == 0))
+        return Set([e]);
+    else
+        local arguments_constants_array::AbstractVector = [];
+        for argument in e.arguments
+            for symbol in constant_symbols(argument)
+                push!(arguments_constants_array, symbol);
+            end
+        end
+        return Set(arguments_constants_array);
+    end
+end
+
+function predicate_symbols(e::Expression)
+    if (length(e.arguments) == 0)
+        return Set();
+    end
+    local predicate_set::Set;
+    if (is_logic_proposition_symbol(e.operator))
+        predicate_set = Set([(e.operator, length(e.arguments))]);
+    else
+        predicate_set = Set();
+    end
+    local arguments_symbols_array::AbstractVector = [];
+    for argument in e.arguments
+        for symbol in predicate_symbols(argument)
+            push!(arguments_symbols_array, symbol);
+        end
+    end
+    predicate_set = union(predicate_set, Set(arguments_symbols_array));
+    return predicate_set;
 end
 
