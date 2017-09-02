@@ -21,7 +21,7 @@ export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         isfunction, removeall,
         normalize_probability_distribution,
         mode, sigmoid, sigmoid_derivative,
-        combinations;
+        combinations, iterable_cartesian_product;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -774,6 +774,61 @@ function combinations(set::Set, l::Integer)
     else
         return visited;
     end
+end
+
+function iterable_cartesian_product(iterable_items::AbstractVector, current_index::Int64, current_permutation::AbstractVector, product_array::AbstractVector)
+    if (current_index == length(iterable_items))
+        push!(product_array, current_permutation);
+    elseif (current_index > length(iterable_items))
+        error("iterable_cartesian_product(): The current index ", current_index, " exceeds the length of the given array!");
+    else
+        if ((typeof(iterable_items[current_index + 1]) <: AbstractVector) || (typeof(iterable_items[current_index + 1]) <: Tuple))
+            for item in iterable_items[current_index + 1]
+                iterable_cartesian_product(iterable_items, (current_index + 1), vcat(current_permutation, item), product_array);
+            end
+        else
+            error("iterable_cartesian_product(): iterable_items[", current_index, "] is not iterable!");
+        end
+    end
+end
+
+function iterable_cartesian_product(iterable_items::Tuple, current_index::Int64, current_permutation::AbstractVector, product_array::AbstractVector)
+    if (current_index == length(iterable_items))
+        push!(product_array, current_permutation);
+    elseif (current_index > length(iterable_items))
+        error("iterable_cartesian_product(): The current index ", current_index, " exceeds the length of the given array!");
+    else
+        if ((typeof(iterable_items[current_index + 1]) <: AbstractVector) || (typeof(iterable_items[current_index + 1]) <: Tuple))
+            for item in iterable_items[current_index + 1]
+                iterable_cartesian_product(iterable_items, (current_index + 1), vcat(current_permutation, item), product_array);
+            end
+        else
+            error("iterable_cartesian_product(): iterable_items[", current_index, "] is not iterable!");
+        end
+    end
+end
+
+"""
+    iterable_cartesian_product(iterable_items)
+
+Return the cartesian product of given items in 'iterable_items' as an array.
+"""
+function iterable_cartesian_product(iterable_items::AbstractVector)
+    local product_array::AbstractVector = [];
+    iterable_cartesian_product(iterable_items, 0, [], product_array);
+    return product_array;
+end
+
+function iterable_cartesian_product(iterable_items::Tuple)
+    local product_array::AbstractVector = [];
+    iterable_cartesian_product(iterable_items, 0, [], product_array);
+    return product_array;
+end
+
+function iterable_cartesian_product(iterable_items::Set)
+    local product_array::AbstractVector = [];
+    iterable_cartesian_product((iterable_items...), 0, [], product_array);
+    return product_array;
 end
 
 end
