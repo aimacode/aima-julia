@@ -782,12 +782,14 @@ function iterable_cartesian_product(iterable_items::AbstractVector, current_inde
     elseif (current_index > length(iterable_items))
         error("iterable_cartesian_product(): The current index ", current_index, " exceeds the length of the given array!");
     else
-        if ((typeof(iterable_items[current_index + 1]) <: AbstractVector) || (typeof(iterable_items[current_index + 1]) <: Tuple))
+        if ((typeof(iterable_items[current_index + 1]) <: AbstractVector)
+            || (typeof(iterable_items[current_index + 1]) <: Tuple)
+            || (typeof(iterable_items[current_index + 1]) <: Set))
             for item in iterable_items[current_index + 1]
                 iterable_cartesian_product(iterable_items, (current_index + 1), vcat(current_permutation, item), product_array);
             end
         else
-            error("iterable_cartesian_product(): iterable_items[", current_index, "] is not iterable!");
+            error("iterable_cartesian_product(): iterable_items[", current_index + 1, "] is not iterable!");
         end
     end
 end
@@ -798,12 +800,14 @@ function iterable_cartesian_product(iterable_items::Tuple, current_index::Int64,
     elseif (current_index > length(iterable_items))
         error("iterable_cartesian_product(): The current index ", current_index, " exceeds the length of the given array!");
     else
-        if ((typeof(iterable_items[current_index + 1]) <: AbstractVector) || (typeof(iterable_items[current_index + 1]) <: Tuple))
+        if ((typeof(iterable_items[current_index + 1]) <: AbstractVector)
+            || (typeof(iterable_items[current_index + 1]) <: Tuple)
+            || (typeof(iterable_items[current_index + 1]) <: Set))
             for item in iterable_items[current_index + 1]
                 iterable_cartesian_product(iterable_items, (current_index + 1), vcat(current_permutation, item), product_array);
             end
         else
-            error("iterable_cartesian_product(): iterable_items[", current_index, "] is not iterable!");
+            error("iterable_cartesian_product(): iterable_items[", current_index + 1, "] is not iterable!");
         end
     end
 end

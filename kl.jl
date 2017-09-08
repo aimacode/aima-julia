@@ -3,7 +3,9 @@
 
 export guess_example_value, generate_powerset, current_best_learning,
         version_space_learning,
-        is_consistent_determination, minimal_consistent_determination;
+        is_consistent_determination, minimal_consistent_determination,
+        FOILKnowledgeBase, extend_example, choose_literal, new_literals,
+        new_clause, foil;
 
 function disjunction_value(e::Dict, d::Dict)
     for (k, v) in d
@@ -332,5 +334,196 @@ function minimal_consistent_determination(E::AbstractVector, A::Set)
         end
     end
     return nothing;
+end
+
+#=
+
+    FOILKnowledgeBase is a knowledge base that consists of first order logic definite clauses,
+
+    constant symbols, and predicate symbols used by foil().
+
+=#
+type FOILKnowledgeBase <: AbstractKnowledgeBase
+    fol_kb::FirstOrderLogicKnowledgeBase
+    constant_symbols::Set
+    predicate_symbols::Set
+
+    function FOILKnowledgeBase()
+        return new(FirstOrderLogicKnowledgeBase(), Set(), Set());
+    end
+
+    function FOILKnowledgeBase(initial_clauses::Array{Expression, 1})
+        local fkb::FOILKnowledgeBase = new(FirstOrderLogicKnowledgeBase(), Set(), Set());
+        for clause in initial_clauses
+            tell(fkb, clause);
+        end
+        return fkb;
+    end
+end
+
+function tell(fkb::FOILKnowledgeBase, e::Expression)
+    if (!is_logic_definite_clause(e))
+        error("tell(): ", repr(e), " , is not a definite clause!");
+    end
+
+    tell(fkb.fol_kb, e);
+    fkb.constant_symbols = union(fkb.constant_symbols, constant_symbols(e));
+    fkb.predicate_symbols = union(fkb.predicate_symbols, predicate_symbols(e));
+
+    return nothing;
+end
+
+function ask(fkb::FOILKnowledgeBase, e::Expression)
+    return fol_bc_ask(fkb.fol_kb, e);
+end
+
+function retract(fkb::FOILKnowledgeBase, e::Expression)
+    retract(fkb.fol_kb, e);
+    nothing;
+end
+
+"""
+    extend_example(fkb::FOILKnowledgeBase, example::Dict, literal::Expression)
+
+Return an array of extended examples by extending the given example 'example' to satisfy
+the given literal 'literal'.
+"""
+function extend_example(fkb::FOILKnowledgeBase, example::Dict, literal::Expression)
+    local solution::AbstractVector = [];
+    local substitutions::Tuple = ask(fkb, substitute(example, literal));
+    for substitution in substitutions
+        push!(solution, merge!(substitution, example));
+    end
+    return solution;
+end
+
+"""
+    update_positive_examples(fkb::FOILKnowledgeBase, examples_positive::AbstractVector, extended_positive_examples::AbstractVector, target::Expression)
+
+Return an array of uncovered positive examples given the positive examples 'positive_examples' and
+the extended positive examples 'extended_positive_examples'.
+"""
+function update_positive_examples(fkb::FOILKnowledgeBase, examples_positive::AbstractVector, extended_positive_examples::AbstractVector, target::Expression)
+    local uncovered_positive_examples::Array{Dict, 1} = Array{Dict, 1}();
+    for example in examples_positive
+        if (any((function(dict::Dict)
+                    return all((dict[x] == example[x]) for x in keys(example));
+                end),
+                extended_positive_examples))
+            tell(fkb, substitute(example, target));
+        else
+            push!(uncovered_positive_examples, example);
+        end
+    end
+    return uncovered_positive_examples;
+end
+
+"""
+    new_literals(fkb::FOILKnowledgeBase, clause::Tuple{Expression, AbstractVector})
+
+Return a Tuple of literals given the known predicate symbols in the FOIL knowledge base 'fkb'
+and the horn clause 'clause'.
+
+Each literal in the returned literals share at least 1 variable with the given horn clause.
+"""
+function new_literals(fkb::FOILKnowledgeBase, clause::Tuple{Expression, AbstractVector})
+    local share_known_variables::Set = variables(clause[1]);
+    for literal in clause[2]
+        union!(share_known_variables, variables(literal));
+    end
+    local result::Tuple = ();
+    for (predicate, arity) in fkb.predicate_symbols
+        local new_variables::Set = Set(collect(standardize_variables(expr("x"), standardize_variables_counter)
+                                                for i in 1:(arity - 1)));
+        for arguments in iterable_cartesian_product(fill(union(share_known_variables, new_variables), arity))
+            if (any((variable in share_known_variables) for variable in arguments))
+                result = Tuple((result..., Expression(predicate, arguments...)));
+            end
+        end
+    end
+    return result;
+end
+
+"""
+    choose_literal(fkb::FOILKnowledgeBase, literals::Tuple, examples::Tuple{AbstractVector, AbstractVector})
+
+Return the best literal from the given literals 'literals' by comparing the information gained.
+"""
+function choose_literal(fkb::FOILKnowledgeBase, literals::Tuple, examples::Tuple{AbstractVector, AbstractVector})
+    local information_gain::Function = (function(literal::Expression)
+                                            local examples_positive::Int64 = length(examples[1]);
+                                            local examples_negative::Int64 = length(examples[2]);
+                                            local extended_examples::AbstractVector = collect(vcat(collect(extend_example(fkb, example, literal)
+                                                                                                            for example in examples[i])...)
+                                                                                            for i in 1:2);
+                                            local extended_examples_positive::Int64 = length(extended_examples[1]);
+                                            local extended_examples_negative::Int64 = length(extended_examples[2]);
+                                            if ((examples_positive + examples_negative == 0) ||
+                                                (extended_examples_positive + extended_examples_negative == 0))
+                                                return (literal, -1);
+                                            end
+                                            local T::Int64 = 0;
+                                            for example in examples[1]
+                                                if (any((function(l_prime::Dict)
+                                                            return all((l_prime[x] == example[x]) for x in keys(example));
+                                                        end),
+                                                        extended_examples[1]))
+                                                    T = T + 1;
+                                                end
+                                            end
+                                            return (literal, (T * log((extended_examples_positive * (examples_positive + examples_negative) + 0.0001)/((extended_examples_positive + extended_examples_negative) * examples_positive))));
+                                        end);
+
+    local gains::Tuple = map(information_gain, literals);
+    return reduce((function(t1::Tuple, t2::Tuple)
+                        if (getindex(t1, 2) < getindex(t2, 2))
+                            return t2;
+                        else
+                            return t1;
+                        end
+                    end), gains)[1];
+end
+
+"""
+    new_clause(fkb::FOILKnowledgeBase, examples::Tuple{AbstractVector, AbstractVector}, target::Expression)
+
+Return a horn clause and the extended positive examples as Tuple.
+
+The horn clause is represented as (consequent, array of antecendents).
+"""
+function new_clause(fkb::FOILKnowledgeBase, examples::Tuple{AbstractVector, AbstractVector}, target::Expression)
+    local clause::Tuple = (target, Array{Expression, 1}());
+    extended_examples = examples;
+    while (length(extended_examples[2]) != 0)
+        local literal::Expression = choose_literal(fkb, new_literals(fkb, clause), extended_examples);
+        push!(clause[2], literal);
+        extended_examples = (collect(vcat(collect(extend_example(fkb, example, literal)
+                                        for example in extended_examples[i])...)
+                            for i in 1:2)...);
+    end
+    return (clause, extended_examples[1]);
+end
+
+"""
+    foil(fkb::FOILKnowledgeBase, examples::Tuple{AbstractVector, AbstractVector}, target::Expression)
+
+Return an array of horn clauses by using the FOIL algorithm (Fig. 19.12) on the given FOIL knowledge
+base 'fkb', set of examples 'examples', and the target literal 'target'.
+"""
+function foil(fkb::FOILKnowledgeBase, examples::Tuple{AbstractVector, AbstractVector}, target::Expression)
+    local clauses::AbstractVector = [];
+    local positive_examples::AbstractVector;
+    local negative_examples::AbstractVector;
+    positive_examples, negative_examples = examples;
+
+    while (length(positive_examples) != 0)
+        local clause::Tuple;
+        local positive_extended_examples::AbstractVector;
+        clause, positive_extended_examples = new_clause(fkb, (positive_examples, negative_examples), target);
+        # Remove postive examples covered by 'clause' from 'examples'
+        positive_examples = update_positive_examples(fkb, positive_examples, positive_extended_examples, target);
+        push!(clauses, clause);
+    end
+    return clauses;
 end
 

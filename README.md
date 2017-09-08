@@ -99,10 +99,10 @@ Index of Algorithms
 | 18.11   | Decision-List-Learning 	    | `decision_list_learning` | [`learning.jl`](learning.jl) |
 | 18.24   | Back-Prop-Learning     	    | `back_propagation_learning!` | [`learning.jl`](learning.jl) |
 | 18.34   | AdaBoost               	    | `adaboost!` | [`learning.jl`](learning.jl) |
-| 19.2    | Current-Best-Learning  	    |  |  |
-| 19.3    | Version-Space-Learning 	    |  |  |
-| 19.8    | Minimal-Consistent-Det 	    |  |  |
-| 19.12   | FOIL               |  |  |
+| 19.2    | Current-Best-Learning  	    | `current_best_learning` | [`kl.jl`](kl.jl) |
+| 19.3    | Version-Space-Learning 	    | `version_space_learning` | [`kl.jl`](kl.jl) |
+| 19.8    | Minimal-Consistent-Det 	    | `minimal_consistent_determination` | [`kl.jl`](kl.jl) |
+| 19.12   | FOIL               | `foil` | [`kl.jl`](kl.jl) |
 | 21.2    | Passive-ADP-Agent  |  |  |
 | 21.4    | Passive-TD-Agent   |  |  |
 | 21.8    | Q-Learning-Agent   |  |  |

@@ -133,6 +133,13 @@ function retract(kb::PropositionalKnowledgeBase, e::Expression)
     nothing;
 end
 
+#=
+
+    FirstOrderLogicKnowledgeBase is a knowledge base that contains first order
+
+    logic definite clauses.
+
+=#
 type FirstOrderLogicKnowledgeBase <: AbstractKnowledgeBase
     clauses::Array{Expression, 1}
 
