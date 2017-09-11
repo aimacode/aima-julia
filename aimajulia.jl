@@ -24,4 +24,6 @@ include("learning.jl");
 
 include("kl.jl");
 
+include("rl.jl");
+
 end;
