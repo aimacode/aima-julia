@@ -128,3 +128,88 @@ function update_state(padpap::PassiveADPAgentProgram, percept::Tuple{Any, Any})
     return percept;
 end
 
+#=
+
+    PassiveTDAgentProgram is a passive reinforcement learning agent that learns
+
+    utility estimates by using temporal differences (Fig. 21.4).
+
+=#
+type PassiveTDAgentProgram <: AgentProgram
+    state::Nullable
+    action::Nullable
+    reward::Nullable
+    gamma::Float64
+    U::Dict
+    pi::Dict
+    N_s::Dict
+    terminal_states::Set
+    alpha::Function
+
+    function PassiveTDAgentProgram{T <: AbstractMarkovDecisionProcess}(pi::Dict, mdp::T; alpha::Union{Void, Function}=nothing)
+        local gamma::Float64;
+        local states::Set;
+        local terminal_states::Set;
+        local new_alpha::Function;
+        if (typeof(mdp) <: PassiveADPAgentMDP)
+            gamma = mdp.mdp.gamma;
+            states = mdp.mdp.states;
+            terminal_states = mdp.mdp.terminal_states;
+        else
+            gamma = mdp.gamma;
+            states = mdp.states;
+            terminal_states = mdp.terminal_states;
+        end
+        if (typeof(alpha) <: Void)
+            new_alpha = (function(n::Number)
+                            return (1/(n + 1));
+                        end);
+        else
+            new_alpha = alpha;
+        end
+        return new(Nullable(),
+                    Nullable(),
+                    Nullable(),
+                    gamma,
+                    Dict(),
+                    pi,
+                    Dict(),
+                    terminal_states,
+                    new_alpha);
+    end
+end
+
+function execute(ptdap::PassiveTDAgentProgram, percept::Tuple{Any, Any})
+    local r_prime::Float64;
+    s_prime, r_prime = update_state(ptdap, percept);
+    if (!haskey(ptdap.N_s, s_prime))
+        ptdap.U[s_prime] = r_prime;
+    end
+    if (!isnull(ptdap.state))
+        ptdap.N_s[get(ptdap.state)] = get!(ptdap.N_s, get(ptdap.state), 0) + 1;
+        ptdap.U[get(ptdap.state)] = (get!(ptdap.U, get(ptdap.state), 0.0)
+                                    + ptdap.alpha(get!(ptdap.N_s, get(ptdap.state), 0))
+                                    * (get(ptdap.reward)
+                                    + (ptdap.gamma * get!(ptdap.U, s_prime, 0.0))
+                                    - get!(ptdap.U, get(ptdap.state), 0.0)));
+    end
+    if (s_prime in ptdap.terminal_states)
+        ptdap.state = Nullable();
+        ptdap.action = Nullable();
+        ptdap.reward = Nullable();
+    else
+        ptdap.state = Nullable(s_prime);
+        ptdap.action = Nullable(ptdap.pi[s_prime]);
+        ptdap.reward = Nullable(r_prime);
+    end
+    if (isnull(ptdap.action))
+        return nothing;
+    else
+        return get(ptdap.action);
+    end
+end
+
+function update_state(ptdap::PassiveTDAgentProgram, percept::Tuple{Any, Any})
+    return percept;
+end
+
