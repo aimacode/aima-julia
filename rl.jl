@@ -50,6 +50,24 @@ function actions(mdp::PassiveADPAgentMDP, state)
     end
 end
 
+"""
+    policy_evaluation(pi::Dict, U::Dict, mdp::PassiveADPAgentMDP; k::Int64=20)
+
+Return the updated utilities of the MDP's states by applying the modified policy iteration
+algorithm on the given Markov decision process 'mdp', utility function 'U', policy 'pi',
+and number of Bellman updates to use 'k'.
+"""
+function policy_evaluation(pi::Dict, U::Dict, mdp::PassiveADPAgentMDP; k::Int64=20)
+    for i in 1:k
+        for state in mdp.mdp.states
+            U[state] = (reward(mdp, state)
+                        + (mdp.mdp.gamma
+                        * sum((p * U[state_prime] for (p, state_prime) in transition_model(mdp, state, pi[state])))));
+        end
+    end
+    return U;
+end
+
 #=
 
     PassiveADPAgentProgram is a passive reinforcement learning agent based on
@@ -75,5 +93,38 @@ type PassiveADPAgentProgram <: AgentProgram
                     Dict(),
                     Dict());
     end
+end
+
+function execute(padpap::PassiveADPAgentProgram, percept::Tuple{Any, Any})
+    local r_prime::Float64;
+    s_prime, r_prime = percept;
+
+    union!(padpap.mdp.mdp.states, s_prime);
+    if (!haskey(mdp.mdp.reward, s_prime))
+        padpap.U[s_prime] = r_prime;
+        padpap.mdp.mdp.reward = r_prime;
+    end
+    if (!isnull(padpap.state))
+        padpap.N_sa[(get(padpap.state), get(padpap.action))] = get!(padpap.N_sa, (get(padpap.state), get(padpap.action)), 0) + 1;
+        padpap.N_s_prime_sa[(s_prime, get(padpap.state), get(padpap.action))] = get!(padpap.N_s_prime_sa, (s_prime, get(padpap.state), get(padpap.action)), 0) + 1;
+        for t in collect(result_state
+                        for ((result_state, state, action), occurrences) in padpap.N_s_prime_sa
+                        if (((state, action) == (get(padpap.state), get(padpap.action))) && (occurrences != 0)))
+            get!(padpap.mdp.mdp.transitions, (get(padpap.state), get(padpap.action)), Dict())[t] = padpap.N_s_prime_sa[(t, get(padpap.state), get(padpap.action))] / padpap.N_sa[(get(padpap.state), get(padpap.action))];
+        end
+    end
+    local U::Dict = policy_evaluation(padpap.pi, padpap.U, padpap.mdp);
+    if (s_prime in padpap.mdp.mdp.terminal_states)
+        padpap.state = Nullable();
+        padpap.action = Nullable();
+    else
+        padpap.state = Nullable(s_prime);
+        padpap.action = Nullable(padpap.pi[s_prime]);
+    end
+    return padpap.action;
+end
+
+function update_state(padpap::PassiveADPAgentProgram, percept::Tuple{Any, Any})
+    return percept;
 end
 
