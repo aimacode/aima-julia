@@ -121,7 +121,11 @@ function execute(padpap::PassiveADPAgentProgram, percept::Tuple{Any, Any})
         padpap.state = Nullable(s_prime);
         padpap.action = Nullable(padpap.pi[s_prime]);
     end
-    return padpap.action;
+    if (isnull(padpap.action))
+        return nothing;
+    else
+        return get(padpap.action);
+    end
 end
 
 function update_state(padpap::PassiveADPAgentProgram, percept::Tuple{Any, Any})
@@ -210,6 +214,117 @@ function execute(ptdap::PassiveTDAgentProgram, percept::Tuple{Any, Any})
 end
 
 function update_state(ptdap::PassiveTDAgentProgram, percept::Tuple{Any, Any})
+    return percept;
+end
+
+type QLearningAgentProgram <: AgentProgram
+    state::Nullable
+    action::Nullable
+    reward::Nullable
+    gamma::Float64
+    Q::Dict
+    N_sa::Dict
+    actions::Set
+    terminal_states::Set
+    R_plus::Float64 # optimistic estimate of the best possible reward obtainable
+    N_e::Int64  # try action-state pair at least N_e times
+    f::Function
+    alpha::Function
+
+    function QLearningAgentProgram{T <: AbstractMarkovDecisionProcess}(mdp::T, N_e::Int64, R_plus::Float64; alpha::Union{Void, Function}=nothing)
+        local new_alpha::Function;
+        local gamma::Float64;
+        local actions::Set;
+        local terminal_states::Set;
+        if (typeof(mdp) <: PassiveADPAgentMDP)
+            gamma = mdp.mdp.gamma;
+            actions = mdp.mdp.actions;
+            terminal_states = mdp.mdp.terminal_states;
+        else
+            gamma = mdp.gamma;
+            actions = mdp.actions;
+            terminal_states = mdp.terminal_states;
+        end
+        if (typeof(alpha) <: Void)
+            new_alpha = (function(n::Number)
+                            return (1/(n + 1));
+                        end);
+        else
+            new_alpha = alpha;
+        end
+        return new(Nullable(),
+                    Nullable(),
+                    Nullable(),
+                    gamma,
+                    Dict(),
+                    Dict(),
+                    actions,
+                    termincal_states,
+                    R_plus,
+                    N_e,
+                    exploration_function,
+                    new_alpha);
+    end
+end
+
+function exploration_function(qlap::QLearningAgentProgram, u::Number, n::Number)
+    if (n < qlap.N_e)  
+        return qlap.R_plus;
+    else
+        return u;
+    end
+end
+
+function actions(qlap::QLearningAgentProgram, state)
+    if (state in qlap.terminal_states)
+        return Set([nothing]);
+    else
+        return qlap.actions;
+    end
+end
+
+function execute(qlap::QLearningAgentProgram, percept::Tuple{Any, Any})
+    local r_prime::Float64;
+    s_prime, r_prime = update_state(qlap, percept);
+    if (!isnull(qlap.state))
+        if (get(qlap.state) in qlap.terminal_states)
+            qlap.Q[(qlap.state, nothing)] = r_prime;
+        end
+        qlap.N_sa[(get(qlap.state), get(qlap.action))] = get!(qlap.N_sa, (get(qlap.state), get(qlap.action)), 0) + 1;
+        qlap.Q[(get(qlap.state), get(qlap.action))] = get!(qlap.Q, (get(qlap.state), get(qlap.action)), 0.0)
+                                                    + (qlap.alpha(qlap.N_sa[(get(qlap.state), get(qlap.action))]) *
+                                                    (get(qlap.reward) +
+                                                    (qlap.gamma * reduce(max, collect(qlap.Q[(s_prime, a_prime)]
+                                                                                    for a_prime in actions(qlap, s_prime)))))
+                                                    - qlap.Q[(get(qlap.state), get(qlap.action))]);
+        if (get(qlap.state) in qlap.terminal_states)
+            qlap.state = Nullable();
+            qlap.action = Nullable();
+            qlap.reward = Nullable();
+        else
+            qlap.state = Nullable(s_prime);
+            qlap.action = Nullable(argmax(collect(actions(qlap, s_prime)),
+                                        (function(a_prime)
+                                            return qlap.f(qlap, qlap.Q[(s_prime, a_prime)], qlap.N_sa[(s_prime, a_prime)]);
+                                        end)));
+            qlap.reward = Nullable(r_prime);
+        end
+    else
+        qlap.state = Nullable(s_prime);
+        qlap.action = Nullable(argmax(collect(actions(qlap, s_prime)),
+                                    (function(a_prime)
+                                        return qlap.f(qlap, qlap.Q[(s_prime, a_prime)], qlap.N_sa[(s_prime, a_prime)]);
+                                    end)));
+        qlap.reward = Nullable(r_prime);
+    end
+    if (isnull(qlap.action))
+        return nothing;
+    else
+        return get(qlap.action);
+    end
+end
+
+function update_state(qlap::QLearningAgentProgram, percept::Tuple{Any, Any})
     return percept;
 end
 
