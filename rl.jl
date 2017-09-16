@@ -1,5 +1,5 @@
 
-export PassiveADPAgentMDP, PassiveADPAgentProgram;
+export PassiveADPAgentMDP, PassiveADPAgentProgram, QLearningAgentProgram;
 
 #=
 
