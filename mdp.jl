@@ -178,7 +178,7 @@ end
 # terminate until it reaches a terminal state in the 4x3 environment (Fig. 17.1a).
 #
 # Matrices in Julia start from the upper-left corner and index (1, 1).
-sequential_decision_environment = GridMarkovDecisionProcess((0, 0),
+sequential_decision_environment = GridMarkovDecisionProcess((1, 1),
                                             Set([(2, 4), (3, 4)]),
                                             map(Nullable{Float64}, [-0.04 -0.04 -0.04 -0.04;
                                                                     -0.04 nothing -0.04 -1;
