@@ -11,16 +11,16 @@ using aimajulia.utils;
 north, south, west, east = (1, 0), (-1, 0), (0, -1), (0, 1);
 
 policy = Dict([Pair((1, 1), north),
-				Pair((1, 2), west),
-				Pair((1, 3), west),
-				Pair((1, 4), west),
-				Pair((2, 1), north),
-				Pair((2, 3), north),
-				Pair((2, 4), nothing),
-				Pair((3, 1), east),
-				Pair((3, 2), east),
-				Pair((3, 3), east),
-				Pair((3, 4), nothing)])
+                Pair((1, 2), west),
+                Pair((1, 3), west),
+                Pair((1, 4), west),
+                Pair((2, 1), north),
+                Pair((2, 3), north),
+                Pair((2, 4), nothing),
+                Pair((3, 1), east),
+                Pair((3, 2), east),
+                Pair((3, 3), east),
+                Pair((3, 4), nothing)])
 
 passive_adp_agent = PassiveADPAgentProgram(policy, aimajulia.sequential_decision_environment);
 for i in 1:75
