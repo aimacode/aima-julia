@@ -103,9 +103,9 @@ Index of Algorithms
 | 19.3    | Version-Space-Learning 	    | `version_space_learning` | [`kl.jl`](kl.jl) |
 | 19.8    | Minimal-Consistent-Det 	    | `minimal_consistent_determination` | [`kl.jl`](kl.jl) |
 | 19.12   | FOIL               | `foil` | [`kl.jl`](kl.jl) |
-| 21.2    | Passive-ADP-Agent  |  |  |
-| 21.4    | Passive-TD-Agent   |  |  |
-| 21.8    | Q-Learning-Agent   |  |  |
+| 21.2    | Passive-ADP-Agent  | `PassiveADPAgentProgram` | [`rl.jl`](rl.jl) |
+| 21.4    | Passive-TD-Agent   | `PassiveTDAgentProgram` | [`rl.jl`](rl.jl) |
+| 21.8    | Q-Learning-Agent   | `QLearningAgentProgram` | [`rl.jl`](rl.jl) |
 | 22.1    | HITS               |  |  |
 | 23      | Chart-Parse        |  |  |
 | 23.5    | CYK-Parse          |  |  |

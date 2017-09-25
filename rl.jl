@@ -13,13 +13,11 @@ type PassiveADPAgentMDP{T} <: AbstractMarkovDecisionProcess
 	mdp::MarkovDecisionProcess{T}
 
 
-    #function PassiveADPAgentMDP{T}(initial::T, actions_list::Set{T}, terminal_states::Set{T}, gamma::Float64, states::Set{T})
-	function PassiveADPAgentMDP{T}(initial::T, actions_list::Set{T}, terminal_states::Set{T}, gamma::Float64)
+    function PassiveADPAgentMDP{T}(initial::T, actions_list::Set{T}, terminal_states::Set{T}, gamma::Float64)
 		return new(MarkovDecisionProcess(initial, actions_list, terminal_states, Dict(), gamma=gamma));
 	end
 end
 
-#PassiveADPAgentMDP(initial, actions_list::Set, terminal_states::Set, gamma::Float64, states::Set) = PassiveADPAgentMDP{typeof(initial)}(initial, actions_list, terminal_states, gamma);
 PassiveADPAgentMDP(initial, actions_list::Set, terminal_states::Set, gamma::Float64) = PassiveADPAgentMDP{typeof(initial)}(initial, actions_list, terminal_states, gamma);
 
 """
@@ -96,7 +94,6 @@ type PassiveADPAgentProgram <: AgentProgram
                     Nullable(),
                     Dict(),
                     pi,
-                    #PassiveADPAgentMDP(mdp.initial, mdp.actions, mdp.terminal_states, mdp.gamma, mdp.states),
                     PassiveADPAgentMDP(mdp.initial, mdp.actions, mdp.terminal_states, mdp.gamma),
                     Dict(),
                     Dict());
