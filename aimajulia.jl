@@ -26,4 +26,6 @@ include("kl.jl");
 
 include("rl.jl");
 
+include("nlp.jl");
+
 end;
