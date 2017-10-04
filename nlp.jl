@@ -1,32 +1,33 @@
 
-export Rules, Lexicon, Grammar;
+export Rules, Lexicon, Grammar,
+        rewrites_for, is_category, cnf_rules, rewrite, generate_random_sentence;
 
 """
-	Rules{T <: Pair}(rules_array::Array{T})
+    Rules{T <: Pair}(rules_array::Array{T})
 
 Return a Dict of mappings for symbols (lexical categories) to alternative sequences.
 """
 function Rules{T <: Pair}(rules_array::Array{T})
-	local rules::Dict = Dict();
-	for (lhs, rhs) in rules_array
-		rules[lhs] = collect(split(strip(ss)) for ss in split(rhs, ['|']));
-	end
-	return rules;
+    local rules::Dict = Dict();
+    for (lhs, rhs) in rules_array
+        rules[lhs] = collect(map(String, split(strip(ss))) for ss in map(String, split(rhs, ['|'])));
+    end
+    return rules;
 end
 
 """
-	Lexicon{T <: Pair}(rules_array::Array{T})
+    Lexicon{T <: Pair}(rules_array::Array{T})
 
 Return a Dict of mappings for symbols (lexical categories) to alternative words.
 
 The lexicon is the list of allowable words.
 """
 function Lexicon{T <: Pair}(rules_array::Array{T})
-	local rules::Dict = Dict();
-	for (lhs, rhs) in rules_array
-		rules[lhs] = collect(strip(ss) for ss in split(rhs, "|"));
-	end
-	return rules;
+    local rules::Dict = Dict();
+    for (lhs, rhs) in rules_array
+        rules[lhs] = collect(strip(ss) for ss in map(String, split(rhs, "|")));
+    end
+    return rules;
 end
 
 type Grammar
@@ -44,5 +45,44 @@ type Grammar
         end
         return ng;
     end
+end
+
+function rewrites_for(g::Grammar, cat::String)
+    return get(g.rules, cat, Array{String, 1}());
+end
+
+function is_category(g::Grammar, word::String, cat::String)
+    return (cat in g.categories[word]);
+end
+
+function cnf_rules(g::Grammar)
+    local cnf::AbstractVector = [];
+    for (x, rules) in g.rules
+        for (y, z) in rules;
+            push!(cnf, (x, y, z));
+        end
+    end
+    return cnf;
+end
+
+function rewrite(g::Grammar, tokens::AbstractVector, into::AbstractVector)
+    for token in tokens
+        if (token in keys(g.rules))
+            rewrite(g, rand(RandomDeviceInstance, g.rules[token]), into);
+        elseif (token in keys(g.lexicon))
+            push!(into, rand(RandomDeviceInstance, g.lexicon[token]));
+        else
+            push!(into, token);
+        end
+    end
+    return into;
+end
+
+function generate_random_sentence(g::Grammar, categories::String)
+    return join(rewrite(g, split(categories), []), " ");
+end
+
+function generate_random_sentence(g::Grammar)
+    return generate_random_sentence(g, "S");
 end
 
