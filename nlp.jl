@@ -1,7 +1,8 @@
 
 export Rules, Lexicon, Grammar,
         rewrites_for, is_category, cnf_rules, rewrite, generate_random_sentence,
-        ProbabilityRules, ProbabilityLexicon, ProbabilityGrammar;
+        ProbabilityRules, ProbabilityLexicon, ProbabilityGrammar,
+        Chart, parse_sentence;
 
 """
     Rules{T <: Pair}(rules_array::Array{T})
@@ -228,14 +229,15 @@ epsilon_np_ = Grammar("ε_NP_",
 # ε_probability is a probabilistic grammar found in the Python notebook.
 # The rules (Fig 23.2 3rd edition) for the language 'ε_probability' use the probabilities from the Python notebook.
 epsilon_probability = ProbabilityGrammar("ε_probability", 
-                                        ProbabilityRules(
-                                                    ["S"=>"NP VP [0.6] | S Conjunction S [0.4]",
-                                                    "NP"=>("Pronoun [0.2] | Name [0.05] | Noun [0.2] | Article Noun [0.15] | "*
-                                                            "Article Adjs Noun [0.1] | Digit [0.05] | NP PP [0.15] | NP RelClause [0.1]"),
-                                                    "VP"=>"Verb [0.3] | VP NP [0.2] | VP Adjective [0.25] | VP PP [0.15] | VP Adverb [0.1]",
-                                                    "Adjs"=>"Adjective [0.5] | Adjective Adjs [0.5]",
-                                                    "PP"=>"Preposition NP [1]",
-                                                    "RelClause"=>"RelPro VP [1]"]),
+                                        ProbabilityRules(["S"=>"NP VP [0.6] | S Conjunction S [0.4]",
+                                                        "NP"=>("Pronoun [0.2] | Name [0.05] | Noun [0.2] | "*
+                                                                "Article Noun [0.15] | Article Adjs Noun [0.1] | "*
+                                                                "Digit [0.05] | NP PP [0.15] | NP RelClause [0.1]"),
+                                                        "VP"=>("Verb [0.3] | VP NP [0.2] | VP Adjective [0.25] | "*
+                                                                "VP PP [0.15] | VP Adverb [0.1]"),
+                                                        "Adjs"=>"Adjective [0.5] | Adjective Adjs [0.5]",
+                                                        "PP"=>"Preposition NP [1]",
+                                                        "RelClause"=>"RelPro VP [1]"]),
                                         ProbabilityLexicon(["Verb"=>"is [0.5] | say [0.3] | are [0.2]",
                                                             "Noun"=>"robot [0.4] | sheep [0.4] | fence [0.2]",
                                                             "Adjective"=>"good [0.5] | new [0.2] | sad [0.3]",
@@ -266,5 +268,119 @@ epsilon_probability_chomsky = ProbabilityGrammar("ε_probability_chomsky",
                                                         "Adjective"=>"good [0.5] | new [0.2] | sad [0.3]",
                                                         "Verb"=>"is [0.5] | say [0.3] | are [0.2]"]));
 
+end
+
+#=
+
+    Chart is a data structure used in the process of analyzing a string
+
+    of words to uncover the phrase structure.
+
+=#
+type Chart
+    trace::Bool
+    grammar::Grammar
+    chart::AbstractVector
+
+    function Chart(g::Grammar; trace::Bool= false)
+        return new(trace, g);
+    end
+end
+
+function parse_sentence(chart::Chart, words::String, categories::String)
+    local words_array::Array{String, 1} = map(String, split(words));
+    return parse_sentence(chart, words_array, categories);
+end
+
+function parse_sentence(chart::Chart, words::String)
+    local words_array::Array{String, 1} = map(String, split(words));
+    return parse_sentence(chart, words_array, "S");
+end
+
+function parse_sentence(chart::Chart, words::Array{String, 1}, categories::String)
+    parse_words(chart, words, categories);
+    return collect([i, j, categories, found, []]
+                    for (i, j, lhs, found, expects) in chart.chart[length(words)]);
+end
+
+function parse_sentence(chart::Chart, words::Array{String, 1})
+    return parse_sentence(chart, words, "S");
+end
+
+function parse_words(chart::Chart, words::Array{String, 1}, categories::String)
+    chart.chart = collect([] for i in 1:(length(words) + 1));
+    add_edge(chart, [1, 1, "S_", [], [categories]]);
+    for i in 1:length(words)
+        scanner(chart, i, words[i]);
+    end
+    return chart.chart;
+end
+
+function parse_words(chart::Chart, words::Array{String, 1})
+    return parse_words(chart, words, "S");
+end
+
+function add_edge(chart::Chart, edge::AbstractVector)
+    local start_index::Int64;
+    local end_index::Int64;
+    local lhs::String;
+    local found::AbstractVector;
+    local expects::AbstractVector;
+
+    start_index, end_index, lhs, found, expects = edge;
+    if (!(edge in chart.chart[end_index]))
+        push!(chart.chart[end_index], edge);
+        if (chart.trace)
+            println("Chart: added ", edge);
+        end
+        if (length(expects) == 0)
+            extender(chart, edge);
+        else
+            predictor(chart, edge);
+        end
+    end
+    return nothing;
+end
+
+function scanner(chart::Chart, index::Int64, word::String)
+    for (i, j, A, alpha, Bb) in chart.chart[index]
+        if ((length(Bb) != 0) && (is_category(chart.grammar, word, Bb[1])))
+            add_edge(chart, [i, (j + 1), A, vcat(alpha, [(Bb[1], word)]), Bb[2:end]]);
+        end
+    end
+    return nothing;
+end
+
+function predictor(chart::Chart, edge::AbstractVector)
+    local i::Int64;
+    local j::Int64;
+    local A::String;
+    local alpha::AbstractVector;
+    local Bb::AbstractVector;
+
+    i, j, A, alpha, Bb = edge;
+    local B::String = Bb[1];
+    if (haskey(chart.grammar.rules, B))
+        for rhs in rewrites_for(chart.grammar, B)
+            add_edge(chart, [j, j, B, [], rhs]);
+        end
+    end
+    return nothing;
+end
+
+function extender(chart::Chart, edge::AbstractVector)
+    local m::Int64;
+    local n::Int64;
+    local B::String;
+    local found::AbstractVector;
+    local expects::AbstractVector;
+
+    m, n, B, found, expects = edge;
+    for (i, j, A, alpha, B1b) in chart.chart[m]
+        if ((length(B1b) != 0) && (B == B1b[1]))
+            add_edge(chart, [i, n, A, vcat(alpha, [edge]), B1b[2:end]]);
+        end
+    end
+    return nothing;
 end
 

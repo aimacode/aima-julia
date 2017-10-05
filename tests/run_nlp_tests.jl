@@ -76,3 +76,7 @@ sentence = generate_random_sentence(grammar, "S");
 
 @test (length(sentence) == 2);
 
+chart = Chart(aimajulia.nlp.epsilon_0);
+
+@test (length(parse_sentence(chart, "the stench is in 2 2")) == 1);
+
