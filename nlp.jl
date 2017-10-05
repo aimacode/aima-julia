@@ -59,7 +59,7 @@ end
 function cnf_rules(g::Grammar)
     local cnf::AbstractVector = [];
     for (x, rules) in g.rules
-        for (y, z) in rules;
+        for (y, z) in rules
             push!(cnf, (x, y, z));
         end
     end
@@ -109,7 +109,7 @@ function ProbabilityLexicon{T <: Pair}(rules_array::Array{T, 1})
         for rule in rhs_split
             local word_probability::Float64 = parse(Float64, rule[end][2:(end - 1)]);
             local rule_word::String = rule[1];
-            local rule_tuple::Tuple = (word, word_probability);
+            local rule_tuple::Tuple = (rule_word, word_probability);
             push!(rules[lhs], rule_tuple);
         end
     end
@@ -123,7 +123,7 @@ type ProbabilityGrammar
     categories::Dict
 
     function ProbabilityGrammar(name::String, rules::Dict, lexicon::Dict)
-        local npg::Grammar = new(name, rules, lexicon, Dict());
+        local npg::ProbabilityGrammar = new(name, rules, lexicon, Dict());
         for (category, words) in npg.lexicon
             for (word, p) in words
                 npg.categories[word] = push!(get!(npg.categories, word, []), (category, p));
@@ -131,5 +131,140 @@ type ProbabilityGrammar
         end
         return npg;
     end
+end
+
+function rewrites_for(pg::ProbabilityGrammar, cat::String)
+    return get(pg.rules, cat, []);
+end
+
+function is_category(pg::ProbabilityGrammar, word::String, cat::String)
+    return (cat in map(first, pg.categories[word]));
+end
+
+function cnf_rules(pg::ProbabilityGrammar)
+    local cnf::AbstractVector = [];
+    for (x, rules) in pg.rules
+        for ((y, z), p) in rules
+            push!(cnf, (x, y, z, p));
+        end
+    end
+    return cnf;
+end
+
+function rewrite(pg::ProbabilityGrammar, tokens::AbstractVector, into::AbstractVector)
+    local p::Float64;
+
+    for token in tokens
+        if (token in keys(pg.rules))
+            local non_terminal_symbols::AbstractVector;
+            non_terminal_symbols, p = weighted_choice(pg.rules[token]);
+            into[2] = into[2] * p;
+            rewrite(pg, non_terminal_symbols, into);
+        elseif (token in keys(pg.lexicon))
+            local terminal_symbol::String;
+            terminal_symbol, p = weighted_choice(pg.lexicon[token]);
+            push!(into[1], terminal_symbol);
+            into[2] = into[2] * p;
+        else
+            push!(into[1], token);
+        end
+    end
+    return into;
+end
+
+function generate_random_sentence(pg::ProbabilityGrammar, categories::String)
+    local rewritten_sentence::AbstractVector;
+    local p::Float64;
+    rewritten_sentence, p = rewrite(pg, split(categories), [[], 1.0]);
+    return (join(rewritten_sentence, " "), p);
+end
+
+function generate_random_sentence(pg::ProbabilityGrammar)
+    return generate_random_sentence(pg, "S");
+end
+
+# Create a submodule to contain the following example grammars.
+# These grammars are defined in the module path "aimajulia.nlp".
+
+module nlp
+
+using aimajulia;
+
+epsilon_0 = Grammar("ε_0",
+                    Rules(      # Grammar for ε_0 (Fig. 22.4 2nd edition)
+                        ["S"=>"NP VP | S Conjunction S",
+                        "NP"=>"Pronoun | Name | Noun | Article Noun | Digit Digit | NP PP | NP RelClause",
+                        "VP"=>"Verb | VP NP | VP Adjective | VP PP | VP Adverb",
+                        "PP"=>"Preposition NP",
+                        "RelClause"=>"That VP"]),
+                    Lexicon(    # Lexicon for ε_0 (Fig. 22.3 2nd edition)
+                        ["Noun"=>"stench | breeze | glitter | nothing | wumpus | pit | pits | gold | east",
+                        "Verb"=>"is | see | smell | shoot | fell | stinks | go | grab | carry | kill | turn | feel",
+                        "Adjective"=>"right | left | east | south | back | smelly",
+                        "Adverb"=>"here | there | nearby | ahead | right | left | east | south | back",
+                        "Pronoun"=>"me | you | I | it",
+                        "Name"=>"John | Mary | Boston | Aristotle",
+                        "Article"=>"the | a | an",
+                        "Preposition"=>"to | in | on | near",
+                        "Conjunction"=>"and | or | but",
+                        "Digit"=>"0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9"
+                        ]));
+
+# An example grammar for testing
+epsilon_ = Grammar("ε_",
+                    Rules(["S"=>"NP VP",
+                            "NP"=>"Art N | Pronoun",
+                            "VP"=>"V NP"]),
+                    Lexicon(["Art"=>"the | a",
+                            "N"=>"man | woman | table | shoelace | saw",
+                            "Pronoun"=>"I | you | it",
+                            "V"=>"saw | liked | feel"]));
+
+# An example grammar for testing
+epsilon_np_ = Grammar("ε_NP_",
+                    Rules(["NP"=>"Adj NP | N"]),
+                    Lexicon(["Adj"=>"happy | handsome | hairy", "N"=>"man"]));
+
+# ε_probability is a probabilistic grammar found in the Python notebook.
+# The rules (Fig 23.2 3rd edition) for the language 'ε_probability' use the probabilities from the Python notebook.
+epsilon_probability = ProbabilityGrammar("ε_probability", 
+                                        ProbabilityRules(
+                                                    ["S"=>"NP VP [0.6] | S Conjunction S [0.4]",
+                                                    "NP"=>("Pronoun [0.2] | Name [0.05] | Noun [0.2] | Article Noun [0.15] | "*
+                                                            "Article Adjs Noun [0.1] | Digit [0.05] | NP PP [0.15] | NP RelClause [0.1]"),
+                                                    "VP"=>"Verb [0.3] | VP NP [0.2] | VP Adjective [0.25] | VP PP [0.15] | VP Adverb [0.1]",
+                                                    "Adjs"=>"Adjective [0.5] | Adjective Adjs [0.5]",
+                                                    "PP"=>"Preposition NP [1]",
+                                                    "RelClause"=>"RelPro VP [1]"]),
+                                        ProbabilityLexicon(["Verb"=>"is [0.5] | say [0.3] | are [0.2]",
+                                                            "Noun"=>"robot [0.4] | sheep [0.4] | fence [0.2]",
+                                                            "Adjective"=>"good [0.5] | new [0.2] | sad [0.3]",
+                                                            "Adverb"=>"here [0.6] | lightly [0.1] | now [0.3]",
+                                                            "Pronoun"=>"me [0.3] | you [0.4] | he [0.3]",
+                                                            "RelPro"=>"that [0.5] | who [0.3] | which [0.2]",
+                                                            "Name"=>"john [0.4] | mary [0.4] | peter [0.2]",
+                                                            "Article"=>"the [0.5] | a [0.25] | an [0.25]",
+                                                            "Preposition"=>"to [0.4] | in [0.3] | at [0.3]",
+                                                            "Conjuction"=>"and [0.5] | or [0.2] | but [0.3]",
+                                                            "Digit"=>"0 [0.35] | 1 [0.35] | 2 [0.3]"])); 
+
+epsilon_chomsky = Grammar("ε_chomsky",
+                        Rules(["S"=>"NP VP",
+                                "NP"=>"Article Noun | Adjective Noun",
+                                "VP"=>"Verb NP | Verb Adjective"]),
+                        Lexicon(["Article"=>"the | a | an",
+                                "Noun"=>"robot | sheep | fence",
+                                "Adjective"=>"good | new | sad",
+                                "Verb"=>"is | say | are"]));
+
+epsilon_probability_chomsky = ProbabilityGrammar("ε_probability_chomsky",
+                                                Rules(["S"=>"NP VP [1]",
+                                                        "NP"=>"Article Noun [0.6] | Adjective Noun [0.4]",
+                                                        "VP"=>"Verb NP [0.5] | Verb Adjective [0.5]"]),
+                                                Lexicon(["Article"=>"the [0.5] | a [0.25] | an [0.25]",
+                                                        "Noun"=>"robot [0.4] | sheep [0.4] | fence [0.2]",
+                                                        "Adjective"=>"good [0.5] | new [0.2] | sad [0.3]",
+                                                        "Verb"=>"is [0.5] | say [0.3] | are [0.2]"]));
+
 end
 

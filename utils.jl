@@ -21,7 +21,8 @@ export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         isfunction, removeall,
         normalize_probability_distribution,
         mode, sigmoid, sigmoid_derivative,
-        combinations, iterable_cartesian_product;
+        combinations, iterable_cartesian_product,
+        weighted_choice;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -833,6 +834,23 @@ function iterable_cartesian_product(iterable_items::Set)
     local product_array::AbstractVector = [];
     iterable_cartesian_product((iterable_items...), 0, [], product_array);
     return product_array;
+end
+
+"""
+    weighted_choice(choices::AbstractVector)
+
+Return an element from the given array 'choices' based on the choice and its corresponding weight.
+"""
+function weighted_choice(choices::AbstractVector)
+    local total::Float64 = sum(collect(choice[2] for choice in choices));
+    local r::Float64 = rand(RandomDeviceInstance) * total;
+    local upto::Float64 = 0.0;
+    for (choice, weight) in choices
+        if ((upto + weight) >= r)
+            return (choice, weight);
+        end
+        upto = upto + weight;
+    end
 end
 
 end
