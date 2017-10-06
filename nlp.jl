@@ -2,7 +2,7 @@
 export Rules, Lexicon, Grammar,
         rewrites_for, is_category, cnf_rules, rewrite, generate_random_sentence,
         ProbabilityRules, ProbabilityLexicon, ProbabilityGrammar,
-        Chart, parse_sentence;
+        Chart, parse_sentence, cyk_parse;
 
 """
     Rules{T <: Pair}(rules_array::Array{T})
@@ -260,13 +260,13 @@ epsilon_chomsky = Grammar("ε_chomsky",
                                 "Verb"=>"is | say | are"]));
 
 epsilon_probability_chomsky = ProbabilityGrammar("ε_probability_chomsky",
-                                                Rules(["S"=>"NP VP [1]",
-                                                        "NP"=>"Article Noun [0.6] | Adjective Noun [0.4]",
-                                                        "VP"=>"Verb NP [0.5] | Verb Adjective [0.5]"]),
-                                                Lexicon(["Article"=>"the [0.5] | a [0.25] | an [0.25]",
-                                                        "Noun"=>"robot [0.4] | sheep [0.4] | fence [0.2]",
-                                                        "Adjective"=>"good [0.5] | new [0.2] | sad [0.3]",
-                                                        "Verb"=>"is [0.5] | say [0.3] | are [0.2]"]));
+                                                ProbabilityRules(["S"=>"NP VP [1]",
+                                                                "NP"=>"Article Noun [0.6] | Adjective Noun [0.4]",
+                                                                "VP"=>"Verb NP [0.5] | Verb Adjective [0.5]"]),
+                                                ProbabilityLexicon(["Article"=>"the [0.5] | a [0.25] | an [0.25]",
+                                                                    "Noun"=>"robot [0.4] | sheep [0.4] | fence [0.2]",
+                                                                    "Adjective"=>"good [0.5] | new [0.2] | sad [0.3]",
+                                                                    "Verb"=>"is [0.5] | say [0.3] | are [0.2]"]));
 
 end
 
@@ -383,4 +383,36 @@ function extender(chart::Chart, edge::AbstractVector)
     end
     return nothing;
 end
+
+"""
+    cyk_parse(words::Array{String, 1}, grammar::ProbabilityGrammar)
+
+Return the resulting table as a Dict by applying the CYK algorithm (Fig. 23.5) on the
+given sequence of words 'words' and grammar 'grammar'.
+"""
+function cyk_parse(words::Array{String, 1}, grammar::ProbabilityGrammar)
+    local N::Int64 = length(words);
+    local P::Dict = Dict();
+
+    for (i, word) in enumerate(words)
+        for (X, p) in get!(grammar.categories, word, [])
+            P[(X, i, 1)] = p;
+        end
+    end
+
+    for l in 2:N
+        for start_index in 1:(N - l + 1)
+            for len1 in 1:(l - 1)
+                local len2::Int64 = l - len1;
+                for (X, Y, Z, p) in cnf_rules(grammar)
+                    P[(X, start_index, l)] = max(get!(P, (X, start_index, l), 0.0),
+                                                (get!(P, (Y, start_index, len1), 0.0)
+                                                * get!(P, (Z, start_index + len1, len2), 0.0) * p));
+                end
+            end
+        end
+    end
+    return P;
+end
+
 

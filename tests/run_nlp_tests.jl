@@ -80,3 +80,8 @@ chart = Chart(aimajulia.nlp.epsilon_0);
 
 @test (length(parse_sentence(chart, "the stench is in 2 2")) == 1);
 
+grammar = aimajulia.nlp.epsilon_probability_chomsky;
+words = ["the", "robot", "is", "good"];
+
+@test (length(cyk_parse(words, grammar)) == 52);
+
