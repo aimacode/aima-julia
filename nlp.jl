@@ -2,7 +2,8 @@
 export Rules, Lexicon, Grammar,
         rewrites_for, is_category, cnf_rules, rewrite, generate_random_sentence,
         ProbabilityRules, ProbabilityLexicon, ProbabilityGrammar,
-        Chart, parse_sentence, cyk_parse;
+        Chart, parse_sentence, cyk_parse,
+        Page, load_page_html, determine_inlinks, find_outlinks, init_pages, only_wikipedia_urls;
 
 """
     Rules{T <: Pair}(rules_array::Array{T})
@@ -415,4 +416,71 @@ function cyk_parse(words::Array{String, 1}, grammar::ProbabilityGrammar)
     return P;
 end
 
+type Page
+    address::String
+    inlinks::AbstractVector
+    outlinks::AbstractVector
+    hub::Int64
+    authority::Int64
+
+    function Page(address::String; inlinks::AbstractVector=[], outlinks::AbstractVector=[], hub::Int64=0, authority::Int64=0)
+        return new(address, inlinks, outlinks, hub, authority);
+    end
+end
+
+function load_page_html(addresses::AbstractVector)
+    local content::Dict = Dict();
+    for address in addresses
+        local tmp_file::Tuple = mktemp(pwd());
+        close(tmp_file[2]);
+        rm(tmp_file[1]);
+        download(address, tmp_file[1]);
+        local raw_html::String = String(read(tmp_file[1]));
+        rm(tmp_file[1]);
+        local html::String = replace(raw_html, @r_str("<head>(.*)</head>", "s"), "");
+        content[address] = html;
+    end
+    return content;
+end
+
+function determine_inlinks(page::Page, pages_index::Dict)
+    local inlinks::AbstractVector = [];
+    for (address, index_page) in pages_index
+        if (page.address == index_page.address)
+            continue;
+        elseif (page.address in index_page.outlinks)
+            push!(inlinks, address);
+        end
+    end
+    return inlinks;
+end
+
+function find_outlinks(page::Page, pages_content::Dict)
+    local urls::AbstractVector = Array{String, 1}();
+    for regex_m in eachmatch(r"href=['\"]?([^'\" >]+)", pages_content[page.address])
+        push!(urls, String(regex_m.captures[1]));
+    end
+    return urls;
+end
+
+function find_outlinks(page::Page, pages_content::Dict, handle_urls::Function)
+    local urls::AbstractVector = Array{String, 1}();
+    for regex_m in eachmatch(r"href=['\"]?([^'\" >]+)", pages_content[page.address])
+        push!(urls, String(regex_m.captures[1]));
+    end
+    return handle_urls(urls);
+end
+
+function init_pages(addresses::AbstractVector)
+    local pages::Dict = Dict();
+    for address in addresses
+        pages[address] = Page(address);
+    end
+    return pages;
+end
+
+function only_wikipedia_urls(urls::AbstractVector)
+    local wiki_urls::AbstractVector = collect(url for url in urls if (startswith(url, "/wiki/")));
+    return collect(("https://en.wikipedia.org" * url) for url in wiki_urls);
+end
 

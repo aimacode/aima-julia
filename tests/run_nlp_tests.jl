@@ -85,3 +85,62 @@ words = ["the", "robot", "is", "good"];
 
 @test (length(cyk_parse(words, grammar)) == 52);
 
+address = "https://en.wikipedia.org/wiki/Ethics";
+
+page = load_page_html([address]);
+
+page_html = page[address];
+
+@test ((!contains(page_html, "<head>")) && (!contains(page_html, "</head>")));
+
+test_html_1 = ("Keyword String 1: A man is a male human."
+                *"Keyword String 2: Like most other male mammals, a man inherits an"
+                *"X from his mom and a Y from his dad."
+                *"Links:"
+                *"href=\"https://google.com.au\""
+                *"<href=\"/wiki/TestThing\"> href=\"/wiki/TestBoy\""
+                *"href=\"/wiki/TestLiving\" href=\"/wiki/TestMan\">");
+test_html_2 = "a mom and a dad";
+test_html_3 = "<!DOCTYPE html><html><head><title>Page Title</title></head><body><p>AIMA book</p></body></html>";
+no_head_test_html_3 = replace(test_html_3, @r_str("<head>(.*)</head>", "s"), "");
+
+@test ((!contains(no_head_test_html_3, "<head>")) && (!contains(no_head_test_html_3, "</head>")));
+
+@test ((contains(test_html_3, "AIMA book")) && (contains(no_head_test_html_3, "AIMA book")));
+
+page_A = Page("A", inlinks=["B", "C", "E"], outlinks=["D"], hub=1, authority=6);
+page_B = Page("B", inlinks=["E"], outlinks=["A", "C", "D"], hub=2, authority=5);
+page_C = Page("C", inlinks=["B", "E"], outlinks=["A", "D"], hub=3, authority=4);
+page_D = Page("D", inlinks=["A", "B", "C", "E"], outlinks=[], hub=4, authority=3);
+page_E = Page("E", inlinks=[], outlinks=["A", "B", "C", "D", "F"], hub=5, authority=2);
+page_F = Page("F", inlinks=["E"], outlinks=[], hub=6, authority=1);
+
+page_dict = Dict([Pair(page_A.address, page_A),
+                    Pair(page_B.address, page_B),
+                    Pair(page_C.address, page_C),
+                    Pair(page_D.address, page_D),
+                    Pair(page_E.address, page_E),
+                    Pair(page_F.address, page_F)]);
+
+pages_index = page_dict;
+
+pages_content = Dict([Pair(page_A.address, test_html_1),
+                        Pair(page_B.address, test_html_2),
+                        Pair(page_C.address, test_html_1),
+                        Pair(page_D.address, test_html_2),
+                        Pair(page_E.address, test_html_1),
+                        Pair(page_F.address, test_html_2)]);
+
+@test (Set(determine_inlinks(page_A, pages_index)) == Set(["B", "C", "E"]));
+
+@test (Set(determine_inlinks(page_E, pages_index)) == Set([]));
+
+@test (Set(determine_inlinks(page_F, pages_index)) == Set(["E"]));
+
+test_page_A = page_dict[page_A.address];
+test_outlinks = find_outlinks(test_page_A, pages_content, only_wikipedia_urls);
+
+@test ("https://en.wikipedia.org/wiki/TestThing" in test_outlinks);
+
+@test (!("https://google.com.au" in test_outlinks));
+
