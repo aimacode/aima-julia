@@ -144,3 +144,84 @@ test_outlinks = find_outlinks(test_page_A, pages_content, only_wikipedia_urls);
 
 @test (!("https://google.com.au" in test_outlinks));
 
+pages = Dict(collect((k, page_dict[k]) for k in ("F",)));
+pages_two = Dict(collect((k, page_dict[k]) for k in ("A", "E")));
+expanded_pages = expand_pages(pages, pages_index);
+
+@test (all(x in keys(expanded_pages) for x in ("F", "E")));
+
+@test (all(!(x in keys(expanded_pages)) for x in ("A", "B", "C", "D")));
+
+expanded_pages = expand_pages(pages_two, pages_index);
+
+@test (all(x in keys(expanded_pages) for x in ("A", "B", "C", "D", "E", "F")));
+
+pages = relevant_pages("his dad", pages_index, pages_content);
+
+@test (all((x in keys(pages)) for x in ("A", "C", "E")));
+
+@test (all((!(x in keys(pages))) for x in ("B", "D", "F")));
+
+pages = relevant_pages("mom and dad", pages_index, pages_content);
+
+@test (all((x in keys(pages)) for x in ("A", "B", "C", "D", "E", "F")));
+
+pages = relevant_pages("philosophy", pages_index, pages_content);
+
+@test (all((!(x in keys(pages))) for x in ("A", "B", "C", "D", "E", "F")));
+
+normalize_pages(page_dict);
+println("pages_index hubs: ", collect(page.hub for page in values(pages_index)));
+
+expected_hubs = [(1 / sqrt(91)), (2 / sqrt(91)), (3 / sqrt(91)), (4 / sqrt(91)), (5 / sqrt(91)), (6 / sqrt(91))];
+expected_authorities = collect(reverse(expected_hubs));
+
+@test (length(expected_hubs) == length(expected_authorities) == length(pages_index));
+
+sorted_pages = sort(collect(pages_index),
+                    lt=(function(p1::Pair, p2::Pair)
+                            if (p1.first < p2.first)
+                                return true;
+                            else
+                                return false;
+                            end
+                        end));
+
+@test (expected_hubs == collect(page.hub for (address, page) in sorted_pages));
+
+@test (expected_authorities == collect(page.authority for (address, page) in sorted_pages));
+
+convergence = ConvergenceDetector();
+detect_convergence(convergence, pages_index);
+
+@test (detect_convergence(convergence, pages_index));
+
+new_pages_index = deepcopy(pages_index);
+
+for (address, page) in new_pages_index
+    page.hub = page.hub + 0.0003;
+    page.authority = page.authority + 0.0004;
+end
+
+@test (detect_convergence(convergence, new_pages_index));
+
+for (address, page) in new_pages_index
+    page.hub = page.hub + 3000000;
+    page.authority = page.authority + 3000000;
+end
+
+@test (!detect_convergence(convergence, new_pages_index));
+
+@test (sort(get_inlinks(page_dict["A"], pages_index)) == page_dict["A"].inlinks);
+
+@test (sort(get_outlinks(page_dict["A"], pages_index, pages_content)) == page_dict["A"].outlinks);
+
+HITS("inherit", pages_index, pages_content);
+
+authorities = [page_A.authority, page_B.authority, page_C.authority, page_D.authority, page_E.authority, page_F.authority];
+hubs = [page_A.hub, page_B.hub, page_C.hub, page_D.hub, page_E.hub, page_F.hub];
+
+@test (reduce(max, authorities) == page_D.authority);
+
+@test (reduce(max, hubs) == page_E.hub);
+

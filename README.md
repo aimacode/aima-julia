@@ -106,9 +106,9 @@ Index of Algorithms
 | 21.2    | Passive-ADP-Agent  | `PassiveADPAgentProgram` | [`rl.jl`](rl.jl) |
 | 21.4    | Passive-TD-Agent   | `PassiveTDAgentProgram` | [`rl.jl`](rl.jl) |
 | 21.8    | Q-Learning-Agent   | `QLearningAgentProgram` | [`rl.jl`](rl.jl) |
-| 22.1    | HITS               |  |  |
-| 23      | Chart-Parse        |  |  |
-| 23.5    | CYK-Parse          |  |  |
+| 22.1    | HITS               | `HITS` | [`nlp.jl`](nlp.jl) |
+| 23      | Chart-Parse        | `Chart` | [`nlp.jl`](nlp.jl) |
+| 23.5    | CYK-Parse          | `cyk_parse` | [`nlp.jl`](nlp.jl) |
 | 25.9    | Monte-Carlo-Localization|  |  |
 
 Running tests

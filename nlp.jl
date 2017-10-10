@@ -3,7 +3,9 @@ export Rules, Lexicon, Grammar,
         rewrites_for, is_category, cnf_rules, rewrite, generate_random_sentence,
         ProbabilityRules, ProbabilityLexicon, ProbabilityGrammar,
         Chart, parse_sentence, cyk_parse,
-        Page, load_page_html, determine_inlinks, find_outlinks, init_pages, only_wikipedia_urls;
+        Page, load_page_html, determine_inlinks, find_outlinks, init_pages, only_wikipedia_urls,
+        expand_pages, relevant_pages, normalize_pages,
+        ConvergenceDetector, detect_convergence, get_inlinks, get_outlinks, HITS;
 
 """
     Rules{T <: Pair}(rules_array::Array{T})
@@ -33,6 +35,11 @@ function Lexicon{T <: Pair}(rules_array::Array{T, 1})
     return rules;
 end
 
+#=
+
+    Grammar consists of a set of rules and a lexicon.
+
+=#
 type Grammar
     name::String
     rules::Dict
@@ -50,14 +57,29 @@ type Grammar
     end
 end
 
+"""
+    rewrites_for(g::Grammar, cat::String)
+
+Return an Array of possible rhs's that category 'cat' can be rewritten as.
+"""
 function rewrites_for(g::Grammar, cat::String)
     return get(g.rules, cat, Array{String, 1}());
 end
 
+"""
+    is_category(g::Grammar, word::String, cat::String)
+
+Return whether the given word 'word' is of category 'cat'.
+"""
 function is_category(g::Grammar, word::String, cat::String)
     return (cat in g.categories[word]);
 end
 
+"""
+    cnf_rules(g::Grammar)
+
+Return the rules of grammar 'g' as an Array of Tuples (X, Y, Z) such that X -> Y Z.
+"""
 function cnf_rules(g::Grammar)
     local cnf::AbstractVector = [];
     for (x, rules) in g.rules
@@ -68,6 +90,11 @@ function cnf_rules(g::Grammar)
     return cnf;
 end
 
+"""
+    rewrite(g::Grammar, tokens::AbstractVector, into::AbstractVector)
+
+Return the resulting array of words by replacing each token in 'tokens' with a random word.
+"""
 function rewrite(g::Grammar, tokens::AbstractVector, into::AbstractVector)
     for token in tokens
         if (token in keys(g.rules))
@@ -81,6 +108,12 @@ function rewrite(g::Grammar, tokens::AbstractVector, into::AbstractVector)
     return into;
 end
 
+"""
+    generate_random_sentence(g::Grammar, categories::String)
+    generate_random_sentence(g::Grammar)
+
+Return a randomly generated sentence as a String by using the given categories 'categories'.
+"""
 function generate_random_sentence(g::Grammar, categories::String)
     return join(rewrite(g, split(categories), []), " ");
 end
@@ -89,6 +122,11 @@ function generate_random_sentence(g::Grammar)
     return generate_random_sentence(g, "S");
 end
 
+"""
+    ProbabilityRules{T <: Pair}(rules_array::Array{T})
+
+Return a Dict of mappings for symbols (lexical categories) to alternative sequences with probabilities.
+"""
 function ProbabilityRules{T <: Pair}(rules_array::Array{T, 1})
     local rules::Dict = Dict();
     for (lhs, rhs) in rules_array
@@ -103,6 +141,13 @@ function ProbabilityRules{T <: Pair}(rules_array::Array{T, 1})
     return rules;
 end
 
+"""
+    ProbabilityLexicon{T <: Pair}(rules_array::Array{T})
+
+Return a Dict of mappings for symbols (lexical categories) to alternative words with probabilities.
+
+The lexicon is the list of allowable words.
+"""
 function ProbabilityLexicon{T <: Pair}(rules_array::Array{T, 1})
     local rules::Dict = Dict();
     for (lhs, rhs) in rules_array
@@ -118,6 +163,11 @@ function ProbabilityLexicon{T <: Pair}(rules_array::Array{T, 1})
     return rules;
 end
 
+#=
+
+    ProbabilityGrammar consists of a set of rules and a lexicon.
+
+=#
 type ProbabilityGrammar
     name::String
     rules::Dict
@@ -135,14 +185,29 @@ type ProbabilityGrammar
     end
 end
 
+"""
+    rewrites_for(pg::ProbabilityGrammar, cat::String)
+
+Return an Array of possible rhs's that category 'cat' can be rewritten as.
+"""
 function rewrites_for(pg::ProbabilityGrammar, cat::String)
     return get(pg.rules, cat, []);
 end
 
+"""
+    is_category(pg::ProbabilityGrammar, word::String, cat::String)
+
+Return whether the given word 'word' is of category 'cat'.
+"""
 function is_category(pg::ProbabilityGrammar, word::String, cat::String)
     return (cat in map(first, pg.categories[word]));
 end
 
+"""
+    cnf_rules(pg::ProbabilityGrammar)
+
+Return the rules of grammar 'pg' as an Array of Tuples (X, Y, Z, p) such that X -> Y Z [p].
+"""
 function cnf_rules(pg::ProbabilityGrammar)
     local cnf::AbstractVector = [];
     for (x, rules) in pg.rules
@@ -153,6 +218,11 @@ function cnf_rules(pg::ProbabilityGrammar)
     return cnf;
 end
 
+"""
+    rewrite(pg::ProbabilityGrammar, tokens::AbstractVector, into::AbstractVector)
+
+Return the resulting array of words by replacing each token in 'tokens' with a random word.
+"""
 function rewrite(pg::ProbabilityGrammar, tokens::AbstractVector, into::AbstractVector)
     local p::Float64;
 
@@ -174,6 +244,12 @@ function rewrite(pg::ProbabilityGrammar, tokens::AbstractVector, into::AbstractV
     return into;
 end
 
+"""
+    generate_random_sentence(pg::ProbabilityGrammar, categories::String)
+    generate_random_sentence(pg::ProbabilityGrammar)
+
+Return a randomly generated sentence as a String by using the given categories 'categories'.
+"""
 function generate_random_sentence(pg::ProbabilityGrammar, categories::String)
     local rewritten_sentence::AbstractVector;
     local p::Float64;
@@ -288,6 +364,14 @@ type Chart
     end
 end
 
+"""
+    parse_sentence(chart::Chart, words::String, categories::String)
+    parse_sentence(chart::Chart, words::String)
+    parse_sentence(chart::Chart, words::Array{String, 1}, categories::String)
+    parse_sentence(chart::Chart, words::Array{String, 1})
+
+Return an array of parses given the sentence 'words' and categories 'categories'.
+"""
 function parse_sentence(chart::Chart, words::String, categories::String)
     local words_array::Array{String, 1} = map(String, split(words));
     return parse_sentence(chart, words_array, categories);
@@ -308,6 +392,12 @@ function parse_sentence(chart::Chart, words::Array{String, 1})
     return parse_sentence(chart, words, "S");
 end
 
+"""
+    parse_words(chart::Chart, words::Array{String, 1}, categories::String)
+    parse_words(chart::Chart, words::Array{String, 1})
+
+Return an array of words given the array of 'words' and categories 'categories'.
+"""
 function parse_words(chart::Chart, words::Array{String, 1}, categories::String)
     chart.chart = collect([] for i in 1:(length(words) + 1));
     add_edge(chart, [1, 1, "S_", [], [categories]]);
@@ -321,6 +411,11 @@ function parse_words(chart::Chart, words::Array{String, 1})
     return parse_words(chart, words, "S");
 end
 
+"""
+    add_edge(chart::Chart, edge::AbstractVector)
+
+Add the given edge 'edge' to the chart 'chart'.
+"""
 function add_edge(chart::Chart, edge::AbstractVector)
     local start_index::Int64;
     local end_index::Int64;
@@ -343,6 +438,11 @@ function add_edge(chart::Chart, edge::AbstractVector)
     return nothing;
 end
 
+"""
+    scanner(chart::Chart, index::Int64, word::String)
+
+Extend the edge for given index 'index' if the given word 'word' and its category are expected.
+"""
 function scanner(chart::Chart, index::Int64, word::String)
     for (i, j, A, alpha, Bb) in chart.chart[index]
         if ((length(Bb) != 0) && (is_category(chart.grammar, word, Bb[1])))
@@ -352,6 +452,11 @@ function scanner(chart::Chart, index::Int64, word::String)
     return nothing;
 end
 
+"""
+    predictor(chart::Chart, edge::AbstractVector)
+
+Add edges with rules for 'B' that may help in extending the given edge 'edge'.
+"""
 function predictor(chart::Chart, edge::AbstractVector)
     local i::Int64;
     local j::Int64;
@@ -369,6 +474,11 @@ function predictor(chart::Chart, edge::AbstractVector)
     return nothing;
 end
 
+"""
+    extender(chart::Chart, edge::AbstractVector)
+
+Extend whatever edge can be extended from the given edge 'edge' to the chart 'chart'.
+"""
 function extender(chart::Chart, edge::AbstractVector)
     local m::Int64;
     local n::Int64;
@@ -416,18 +526,28 @@ function cyk_parse(words::Array{String, 1}, grammar::ProbabilityGrammar)
     return P;
 end
 
+#=
+
+    Page consists of an address, an array of inlinks, an array of outlinks, a hub score, and an authority score.
+
+=#
 type Page
     address::String
     inlinks::AbstractVector
     outlinks::AbstractVector
-    hub::Int64
-    authority::Int64
+    hub::Float64
+    authority::Float64
 
     function Page(address::String; inlinks::AbstractVector=[], outlinks::AbstractVector=[], hub::Int64=0, authority::Int64=0)
         return new(address, inlinks, outlinks, hub, authority);
     end
 end
 
+"""
+    load_page_html(addresses::AbstractVector)
+
+Return a Dict of page content for the given URLs 'addresses' by downloading the HTML pages.
+"""
 function load_page_html(addresses::AbstractVector)
     local content::Dict = Dict();
     for address in addresses
@@ -443,6 +563,11 @@ function load_page_html(addresses::AbstractVector)
     return content;
 end
 
+"""
+    determine_inlinks(page::Page, pages_index::Dict)
+
+Return an Array of inlinks for the given page 'page'.
+"""
 function determine_inlinks(page::Page, pages_index::Dict)
     local inlinks::AbstractVector = [];
     for (address, index_page) in pages_index
@@ -455,6 +580,15 @@ function determine_inlinks(page::Page, pages_index::Dict)
     return inlinks;
 end
 
+"""
+    find_outlinks(page::Page, pages_content::Dict)
+    find_outlinks(page::Page, pages_content::Dict, handle_urls::Function)
+
+Return an Array of outlinks to other pages for the given page 'page'.
+
+If the argument 'handle_urls' is given, the resulting array is returned
+after the function is applied to the array of outlinks.
+"""
 function find_outlinks(page::Page, pages_content::Dict)
     local urls::AbstractVector = Array{String, 1}();
     for regex_m in eachmatch(r"href=['\"]?([^'\" >]+)", pages_content[page.address])
@@ -471,6 +605,11 @@ function find_outlinks(page::Page, pages_content::Dict, handle_urls::Function)
     return handle_urls(urls);
 end
 
+"""
+    init_pages(addresses::AbstractVector)
+
+Return a Dict of pages from the given array of URLs 'addresses'.
+"""
 function init_pages(addresses::AbstractVector)
     local pages::Dict = Dict();
     for address in addresses
@@ -479,8 +618,171 @@ function init_pages(addresses::AbstractVector)
     return pages;
 end
 
+"""
+    only_wikipedia_urls(urls::AbstractVector)
+
+Return an Array of wikipedia URLs where relative wiki URLs are converted to their absolute URL.
+"""
 function only_wikipedia_urls(urls::AbstractVector)
     local wiki_urls::AbstractVector = collect(url for url in urls if (startswith(url, "/wiki/")));
     return collect(("https://en.wikipedia.org" * url) for url in wiki_urls);
+end
+
+"""
+    expand_pages(pages::Dict, pages_index::Dict)
+
+Return the Dict of expanded pages by adding in every page that links to
+or is linked from one of the relevant pages.
+"""
+function expand_pages(pages::Dict, pages_index::Dict)
+    local expanded::Dict = Dict();
+    for (address, page) in pages
+        if (!haskey(expanded, address))
+            expanded[address] = page;
+        end
+        for inlink in page.inlinks
+            if (!haskey(expanded, inlink))
+                expanded[inlink] = pages_index[inlink];
+            end
+        end
+        for outlink in page.outlinks
+            if (!haskey(expanded, outlink))
+                expanded[outlink] = pages_index[outlink];
+            end
+        end
+    end
+    return expanded;
+end
+
+"""
+    relevant_pages(query::String, pages_index::Dict, pages_content::Dict)
+
+Return a Dict of pages that contain all of the query words in 'query'.
+These pages are found by intersecting the hit lists of the query words.
+"""
+function relevant_pages(query::String, pages_index::Dict, pages_content::Dict)
+    local hit_intersection::Set = Set(collect(keys(pages_index)));
+    local query_words::AbstractVector = map(String, split(query));
+    for query_word in query_words
+        local hit_list::Set = Set();
+        for address in keys(pages_index)
+            if (contains(lowercase(pages_content[address]), lowercase(query_word)))
+                push!(hit_list, address);
+            end
+        end
+        hit_intersection = intersect(hit_intersection, hit_list);
+    end
+    return Dict(collect((address, pages_index[address]) for address in hit_intersection));
+end
+
+"""
+    normalize_pages(pages::Dict)
+
+Divide the scores of each page in 'pages' by the sum of all the squares of all pages' scores
+(separately for both the authority and hubs scores). 
+"""
+function normalize_pages(pages::Dict)
+    local summed_hub::Float64 = sum(collect(page.hub^2 for page in values(pages)));
+    local summed_authority::Float64 = sum(collect(page.authority^2 for page in values(pages)));
+    local sqrt_summed_hub::Float64 = sqrt(summed_hub);
+    local sqrt_summed_authority::Float64 = sqrt(summed_authority);
+    for address in keys(pages)
+        pages[address].hub = pages[address].hub / sqrt_summed_hub;
+        pages[address].authority = pages[address].authority / sqrt_summed_authority;
+    end
+    return nothing;
+end
+
+#=
+
+    ConvergenceDetector contains the hub history and authorities history for a set of pages.
+
+=#
+type ConvergenceDetector
+    hub_history::AbstractVector
+    authority_history::AbstractVector
+
+    function ConvergenceDetector()
+        return new([], []);
+    end
+end
+
+"""
+    detect_convergence(cd::ConvergenceDetector, pages_index::Dict)
+
+Return a boolean indicating if both the 'hub' and 'authority' values of the pages
+in 'pages_index' have converged.
+"""
+function detect_convergence(cd::ConvergenceDetector, pages_index::Dict)
+    local current_hubs::AbstractVector = collect(page.hub for page in values(pages_index));
+    local current_authorities::AbstractVector = collect(page.authority for page in values(pages_index));
+    if (length(cd.hub_history) != 0)
+        local diffs_hub::AbstractVector = collect(abs(x - y) for (x, y) in zip(current_hubs, cd.hub_history[end]));
+        local diffs_authority::AbstractVector = collect(abs(x - y) for (x, y) in zip(current_authorities, cd.authority_history[end]));
+        local average_delta_hub::Float64 = sum(diffs_hub)/length(pages_index);
+        local average_delta_authority::Float64 = sum(diffs_authority)/length(pages_index);
+        if ((average_delta_hub < 0.01) && (average_delta_authority < 0.01))
+            return true;
+        end
+    end
+    if (length(cd.hub_history) > 2)
+        deleteat!(cd.hub_history, 1);
+        deleteat!(cd.authority_history, 1);
+    end
+    push!(cd.hub_history, current_hubs);
+    push!(cd.authority_history, current_authorities);
+    return false;
+end
+
+"""
+    get_inlinks(page::Page, pages_index::Dict)
+
+Return an Array of addresses where each address is in both the page's inlinks
+and index of pages 'pages_index'.
+"""
+function get_inlinks(page::Page, pages_index::Dict)
+    if (length(page.inlinks) == 0)
+        page.inlinks = determine_inlinks(page, pages_index);
+    end
+    return collect(address for (address, p) in pages_index if (address in page.inlinks));
+end
+
+"""
+    get_outlinks(page::Page, pages_index::Dict, pages_content::Dict)
+
+Return an Array of addresses where each address is in both the page's outlinks
+and index of pages 'pages_index'.
+"""
+function get_outlinks(page::Page, pages_index::Dict, pages_content::Dict)
+    if (length(page.outlinks) == 0)
+        page.outlinks = find_outlinks(page, pages_content);
+    end
+    return collect(address for (address, p) in pages_index if (address in page.outlinks));
+end
+
+"""
+    HITS(query::String, pages_index::Dict, pages_content::Dict)
+
+Return the computed hubs and authorities with respect to the query as a Dict by using the
+HITS algorithm (Fig. 22.1) to the given query 'query', index of pages 'pages_index',
+and the content of the pages 'pages_content'.
+"""
+function HITS(query::String, pages_index::Dict, pages_content::Dict)
+    local pages::Dict = expand_pages(relevant_pages(query, pages_index, pages_content), pages_index);
+    for p in values(pages)
+        p.authority = 1.0;
+        p.hub = 1.0;
+    end
+    local convergence::ConvergenceDetector = ConvergenceDetector();
+    while (detect_convergence(convergence, pages_index))
+        local authority::Dict = Dict(collect(Pair(p, pages[p].authority) for p in pages));
+        local hub::Dict = Dict(collect(Pair(p, pages[p].hub) for p in pages));
+        for p in values(pages)
+            p.authority = sum(hub[x] for x in get_inlinks(p, pages_index));
+            p.hub = sum(authority[x] for x in get_outlinks(p, pages_index, pages_content));
+        end
+        normalize_pages(pages);
+    end
+    return pages;
 end
 
