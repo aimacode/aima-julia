@@ -109,7 +109,7 @@ Index of Algorithms
 | 22.1    | HITS               | `HITS` | [`nlp.jl`](nlp.jl) |
 | 23      | Chart-Parse        | `Chart` | [`nlp.jl`](nlp.jl) |
 | 23.5    | CYK-Parse          | `cyk_parse` | [`nlp.jl`](nlp.jl) |
-| 25.9    | Monte-Carlo-Localization|  |  |
+| 25.9    | Monte-Carlo-Localization| `monte_carlo_localization` | [`probability.jl`](probability.jl) |
 
 Running tests
 -------------

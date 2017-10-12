@@ -187,3 +187,98 @@ probability_cavity = enumerate_joint_ask("Cavity", Dict([Pair("Toothache", true)
 
 @test (0.4 - 0.001 < probability_cavity[false] < 0.4 + 0.001);
 
+# Seed the RNG for Monte Carlo localization Base.Tests
+mt_rng = MersenneTwister(sum("aima-julia".data));
+
+m = MonteCarloLocalizationMap([0 0 0 0 0 0 0 0 0 0 1 1 1 0 0 1 0;
+                                0 0 0 0 0 0 0 0 0 0 1 1 1 0 1 1 0;
+                                1 1 1 1 1 1 1 1 0 0 1 1 1 0 1 1 0;
+                                0 0 0 0 0 0 0 0 0 0 1 1 1 0 1 1 0;
+                                0 1 1 1 1 1 1 1 1 1 1 1 1 0 1 1 0;
+                                0 0 0 0 0 0 0 0 0 0 1 1 1 0 1 1 0;
+                                0 0 0 0 0 0 0 0 0 0 1 1 1 0 1 1 0;
+                                0 0 1 1 1 1 1 0 0 0 1 1 1 0 1 1 0;
+                                0 0 1 1 1 1 1 0 0 0 0 0 0 0 0 1 0;
+                                0 0 0 0 0 0 0 0 0 0 0 0 0 0 1 1 0;
+                                0 0 1 1 1 1 1 0 0 0 1 1 1 0 0 1 0],
+                                rng=mt_rng);
+
+"""
+    P_motion_sample(kinematic_state::Tuple, v::Tuple, w::Int64)
+
+Return a sample from the possible kinematic states (using a single element
+probability distribution).
+"""
+function P_motion_sample(kinematic_state::Tuple, v::Tuple, w::Int64)
+    local position::Tuple = kinematic_state[1:2];
+    local orientation::Int64 = kinematic_state[3];
+
+    # Rotate the robot.
+    orientation = (orientation + w) % 4;
+
+    for i in 1:orientation
+        v = (v[2], -v[1]);
+    end
+
+    position = (position[1] + v[1], position[2] + v[2]);
+
+    return (position..., orientation);
+end
+
+"""
+    P_sensor(x::Int64, y::Int64)
+
+Return the conditional probability for the range sensor noise reading.
+"""
+function P_sensor(x::Int64, y::Int64)
+    if (x == y)
+        return 0.8;
+    elseif (abs(x - y) <= 2)
+        return 0.05;
+    else
+        return 0.0;
+    end
+end
+
+a = Dict([Pair("v", (0, 0)), Pair("w", 0.0)]);
+z = (2, 4, 1, 6);
+S = monte_carlo_localization(a, z, 1000, P_motion_sample, P_sensor, m);
+grid_1 = fill(0, 11, 17);
+
+for (x, y, v) in S
+    if ((0 < x <= 11) && (0 < y <= 17))
+        grid_1[x, y] = grid_1[x, y] + 1;
+    end
+end
+
+println("GRID 1:");
+for x in 1:size(grid_1)[1]
+    for y in 1:size(grid_1)[2]
+        print(grid_1[x, y], " ");
+    end
+    println();
+end
+println();
+
+a = Dict([Pair("v", (0, 1)), Pair("w", 0.0)]);
+z = (2, 3, 5, 7);
+S = monte_carlo_localization(a, z, 1000, P_motion_sample, P_sensor, m, S);
+grid_2 = fill(0, 11, 17);
+
+for (x, y, v) in S
+    if ((0 < x <= 11) && (0 < y <= 17))
+        grid_2[x, y] = grid_2[x, y] + 1;
+    end
+end
+
+println("GRID 2:");
+for x in 1:size(grid_2)[1]
+    for y in 1:size(grid_2)[2]
+        print(grid_2[x, y], " ");
+    end
+    println();
+end
+println();
+
+@test (grid_2[7, 8] > 700);
+

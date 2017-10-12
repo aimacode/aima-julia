@@ -489,22 +489,22 @@ Return a random sample function that chooses an element from 'seq' based on its 
 weight in 'weight'.
 """
 function weighted_sampler{T1 <: AbstractVector, T2 <: AbstractVector}(seq::T1, weights::T2)
-    local totals::Array{Tuple{Any, Any}, 1} = Array{Tuple{Any, Any}, 1}();
+    local totals::Array{Float64, 1} = Array{Float64, 1}();
     for w in weights
         if (length(totals) != 0)
-            push!(totals, (w + totals[length(totals)][1], w + totals[length(totals)][1]));
+            push!(totals, (w + totals[length(totals)]));
         else
-            push!(totals, (w, w));
+            push!(totals, w);
         end
     end
     return (function(;sequence=seq, totals_array=totals)
-                element = rand(RandomDeviceInstance)*totals_array[length(totals_array)][1];
-                bsi = bisearch(totals_array,
-                                (element, element),
-                                1,
-                                length(totals_array),
-                                Base.Order.Forward);
-                return seq[bsi.stop + 1];
+                element = rand(RandomDeviceInstance)*totals_array[end];
+                bsi = searchsorted(totals_array, element);
+                if (bsi.stop == length(seq))  # Prevent indices out of bounds.
+                    return seq[bsi.stop];
+                else
+                    return seq[bsi.stop + 1];
+                end
             end);
 end
 
@@ -523,7 +523,11 @@ function weighted_sampler{T <: AbstractVector}(seq::String, weights::T)
                                 1,
                                 length(totals_array),
                                 Base.Order.Forward);
-                return seq[bsi.stop + 1];
+                if (bsi.stop == length(seq))  # Prevent indices out of bounds.
+                    return seq[bsi.stop];
+                else
+                    return seq[bsi.stop + 1];
+                end
             end);
 end
 

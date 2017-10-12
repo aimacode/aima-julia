@@ -12,7 +12,8 @@ export getindex, setindex!, values,
         prior_sample, consistent_with, rejection_sampling, likelihood_weighting,
         gibbs_ask,
         HiddenMarkovModel, sensor_distribution, forward_backward,
-        fixed_lag_smoothing, particle_filtering;
+        fixed_lag_smoothing, particle_filtering,
+        MonteCarloLocalizationMap, ray_cast, monte_carlo_localization;
 
 
 #=
@@ -828,5 +829,130 @@ function particle_filtering(e::Bool, N::Int64, hmm::HiddenMarkovModel)
     s = weighted_sample_with_replacement(s, w, N);
 
     return s;
+end
+
+#=
+
+    MonteCarloLocalizationMap is a 2D map of the environment.
+
+    The indices of empty cells in the environment are collected during initialization.
+
+=#
+type MonteCarloLocalizationMap
+    map::AbstractMatrix
+    empty::AbstractVector
+    rng::Nullable{MersenneTwister}
+
+    function MonteCarloLocalizationMap(m::AbstractMatrix; rng::Union{Void, MersenneTwister}=nothing)
+        local mclm::MonteCarloLocalizationMap = new(m, [], Nullable{MersenneTwister}(rng));
+        for i in 1:size(m)[1]
+            for j in 1:size(m)[2]
+                if (m[i, j] == 0)
+                    push!(mclm.empty, (i, j));
+                end
+            end
+        end
+        return mclm;
+    end
+end
+
+"""
+    sample(mclm::MonteCarloLocalizationMap)
+
+Return a random kinematic state in the given map 'mclm'. 
+"""
+function sample(mclm::MonteCarloLocalizationMap)
+    local position::Tuple;
+    local orientation::Int64;
+    if (isnull(mclm.rng))
+        position = rand(RandomDeviceInstance, mclm.empty);
+        orientation = rand(RandomDeviceInstance, collect(1:4));
+    else
+        position = rand(get(mclm.rng), mclm.empty);
+        orientation = rand(get(mclm.rng), collect(1:4));
+    end
+    local kinematic_state::Tuple = (position..., orientation);
+    return kinematic_state;
+end
+
+"""
+    ray_cast(mclm::MonteCarloLocalizationMap, sensor_num::Int64, kinematic_state::Tuple)
+
+Return the distance to the nearest obstacle or map boundary in the direction of the given sensor 'sensor_num'.
+"""
+function ray_cast(mclm::MonteCarloLocalizationMap, sensor_num::Int64, kinematic_state::Tuple)
+    local position::Tuple = kinematic_state[1:2];
+    local orientation::Int64 = kinematic_state[3];
+    local delta::Tuple = ((Int64(sensor_num % 2 == 0) * (sensor_num - 1)), (Int64(sensor_num % 2 == 1) * (2 - sensor_num)));
+    for i in 1:orientation
+        delta = (delta[2], -delta[1]);
+    end
+    local range_count::Int64 = 0;
+    while ((0 < position[1] <= size(mclm.map)[1]) && (0 < position[2] <= size(mclm.map)[2]) && (mclm.map[position[1], position[2]] == 0))
+        position = (position[1] + delta[1], position[2] + delta[2]);
+        range_count = range_count + 1;
+    end
+    return range_count;
+end
+
+"""
+    monte_carlo_localization(a::Dict, z::Tuple, N::Int64, motion_model_sample::Function, sensor_model::Function, m::MonteCarloLocalizationMap)
+    monte_carlo_localization(a::Dict, z::Tuple, N::Int64, motion_model_sample::Function, sensor_model::Function, m::MonteCarloLocalizationMap, S::AbstractVector)
+
+Return an array of samples for the next time step by using a Monte Carlo localization algorithm (Fig. 25.9) on the given robot velocities 'a',
+the range sensor scans 'z', the number of weights and samples to use in the update cycle 'N', the sample function of the motion model
+(P(X' | X, v, w)) 'motion_model_sample', the range sensor noise model (P(z | z*)) 'sensor_model', and the 2D map of the environment 'm'.
+
+If an array of samples for the next time step 'S' is given as an argument, the function skips the initialization process and runs the update
+cycle on the given samples from 'S'.
+"""
+function monte_carlo_localization(a::Dict, z::Tuple, N::Int64, motion_model_sample::Function, sensor_model::Function, m::MonteCarloLocalizationMap)
+    local M::Int64 = length(z);
+    local S_prime::AbstractVector = Array{Any, 1}(fill(nothing, N));
+    # The local variable 'W' is unused after being defined as a vector of weights of size N.
+    local W_prime::AbstractVector = Array{Any, 1}(fill(nothing, N));
+    local v::Tuple = a["v"];
+    local w::Int64 = a["w"];
+
+    # /* initialization phase */
+    local S::AbstractVector = collect(sample(m) for i in 1:N);  # In this method, S is not given as an argument.
+
+    # /* update cycle */
+    for i in 1:N
+        S_prime[i] = motion_model_sample(S[i], v, w);
+        W_prime[i] = 1.0;
+        for j in 1:M
+            local z_prime::Int64 = ray_cast(m, (j - 1), S_prime[i]);
+            W_prime[i] = W_prime[i] * sensor_model(z[j], z_prime);
+        end
+    end
+
+    S = weighted_sample_with_replacement(S_prime, W_prime, N);
+    return S;
+end
+
+function monte_carlo_localization(a::Dict, z::Tuple, N::Int64, motion_model_sample::Function, sensor_model::Function, m::MonteCarloLocalizationMap, S::AbstractVector)
+    local M::Int64 = length(z);
+    local S_prime::AbstractVector = Array{Any, 1}(fill(nothing, N));
+    # The local variable 'W' is unused after being defined as a vector of weights of size N.
+    local W_prime::AbstractVector = Array{Any, 1}(fill(nothing, N));
+    local v::Tuple = a["v"];
+    local w::Int64 = a["w"];
+
+    # /* initialization phase */
+    # In this method, S is given as an argument.
+
+    # /* update cycle */
+    for i in 1:N
+        S_prime[i] = motion_model_sample(S[i], v, w);
+        W_prime[i] = 1.0;
+        for j in 1:M
+            local z_prime::Int64 = ray_cast(m, (j - 1), S_prime[i]);
+            W_prime[i] = W_prime[i] * sensor_model(z[j], z_prime);
+        end
+    end
+
+    S = weighted_sample_with_replacement(S_prime, W_prime, N);
+    return S;
 end
 
