@@ -80,7 +80,7 @@ function sample(uwm::UnigramWordModel)
     if (isnull(uwm.sample_function))
         uwm.sample_function = weighted_sampler(collect(keys(uwm.dict)), collect(values(uwm.dict)));
     end
-    return uwm.sample_function();
+    return get(uwm.sample_function)();
 end
 
 """
@@ -166,7 +166,7 @@ function sample(nwm::NgramWordModel)
     if (isnull(nwm.sample_function))
         nwm.sample_function = weighted_sampler(collect(keys(nwm.dict)), collect(values(nwm.dict)));
     end
-    return nwm.sample_function();
+    return get(nwm.sample_function)();
 end
 
 function add_conditional_probability(nwm::NgramWordModel, ngram::Tuple)
@@ -186,14 +186,9 @@ function add_sequence(nwm::NgramWordModel, words::AbstractVector)
 end
 
 function samples(nwm::NgramWordModel, n::Int64)
-    local output::AbstractVector = [sample(nwm)];
+    local output::AbstractVector = collect(sample(nwm));
     for i in nwm.n+1:n
-        local start_index::Int64;
-        if (length(output) - nwm.n + 1 < 1)
-            start_index = 1;
-        else
-            start_index = length(output) - nwm.n + 1;
-        end
+        local start_index::Int64 = length(output) - nwm.n + 2;
         local last::Tuple = Tuple((output[start_index:end]...));
         local next_word::String = sample(nwm.conditional_probabilities[last]);
         push!(output, next_word);

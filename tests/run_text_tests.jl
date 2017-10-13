@@ -58,3 +58,17 @@ P3 = NgramWordModel(3, word_sequence);
 
 @test (canonicalize_text("``EGAD'' Edgar cried.") == "egad edgar cried");
 
+# Base.Test tests for samples() methods
+story = String(read("./aima-data/EN-text/flatland.txt"));
+story = story*String(read("./aima-data/gutenberg.txt"));
+word_sequence = extract_words(story);
+P1 = UnigramWordModel(word_sequence);
+P2 = NgramWordModel(2, word_sequence);
+P3 = NgramWordModel(3, word_sequence);
+
+@test (length(split(samples(P1, 10))) == 10);
+
+@test (length(split(samples(P2, 10))) == 10);
+
+@test (length(split(samples(P3, 10))) == 10);
+

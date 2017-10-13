@@ -463,7 +463,7 @@ function sample(cpd::CountingProbabilityDistribution)
     if (isnull(cpd.sample_function))
         cpd.sample_function = weighted_sampler(collect(keys(cpd.dict)), collect(values(cpd.dict)));
     end
-    return cpd.sample_function();
+    return get(cpd.sample_function)();
 end
 
 abstract AbstractLearner;
