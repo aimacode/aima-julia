@@ -28,4 +28,6 @@ include("rl.jl");
 
 include("nlp.jl");
 
+include("text.jl");
+
 end;

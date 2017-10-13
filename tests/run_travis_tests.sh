@@ -52,3 +52,5 @@ julia --color=yes run_rl_tests.jl
 
 julia --color=yes run_nlp_tests.jl
 
+julia --color=yes run_text_tests.jl
+

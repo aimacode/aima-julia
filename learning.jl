@@ -445,7 +445,7 @@ does not exceed length 'n'.
 function top(cpd::CountingProbabilityDistribution, n::Int64)
     local observations::AbstractVector = sort(collect(reverse((i...)) for i in cpd.dict),
                                                 lt=(function(p1::Tuple{Number, Any}, p2::Tuple{Number, Any})
-                                                        return (p1[1] < p2[1]);
+                                                        return (p1[1] > p2[1]);
                                                     end));
     if (length(observations) <= n)
         return observations;

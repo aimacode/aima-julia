@@ -6,7 +6,7 @@ using aimajulia;
 
 using aimajulia.utils;
 
-#The following reinforcement nlp tests are from the aima-python doctests
+#The following nlp tests are from the aima-python doctests
 
 check = Dict([Pair("A", [["B", "C"], ["D", "E"]]),
             Pair("B", [["E"], ["a"], ["b", "c"]])]);
