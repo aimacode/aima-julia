@@ -171,3 +171,10 @@ expected_trigrams = Dict([Pair((' ', 't', 'r'), 3),
 
 @test (bigrams(["this", "is", "a", "test"]) == [("this", "is"), ("is", "a"), ("a", "test")]);
 
+flatland = String(read("./aima-data/EN-text/flatland.txt"));
+word_sequence = extract_words(flatland);
+P = UnigramWordModel(word_sequence);
+segmented_text, p = viterbi_text_segmentation("itiseasytoreadwordswithoutspaces", P);
+
+@test (segmented_text == ["it", "is", "easy", "to", "read", "words", "without", "spaces"]);
+

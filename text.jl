@@ -1,7 +1,7 @@
 
 export extract_words, canonicalize_text, UnigramWordModel, NgramWordModel, samples,
         UnigramCharModel, NgramCharModel,
-        shift_encode, rot13, bigrams;
+        shift_encode, rot13, bigrams, viterbi_text_segmentation;
 
 #=
 
@@ -345,5 +345,40 @@ Return an array of 2 word Tuples of consisting of adjacent words in the given ar
 """
 function bigrams(text::AbstractVector)
     return collect(Tuple((text[i:(i + 1)]...)) for i in 1:(length(text) - 1));
+end
+
+"""
+    viterbi_text_segmentation(text::String, P::UnigramWordModel)
+
+Return the best segmentation of the given text 'text' as an array of Strings and its corresponding
+probability by applying the Viterbi algorithm on the given text 'text' and probabiliy distribution 'P'.
+"""
+function viterbi_text_segmentation(text::String, P::UnigramWordModel)
+    # words[i] - best word ending at index (i - 1)
+    # best[i] - best probability for text[1:(i - 1)]
+    local words::AbstractVector = vcat([""], map(String, collect([c] for c in text)));
+    local n::Int64 = length(text);
+    local best::AbstractVector = vcat([1.0], fill(0.0, n));
+
+    # Update 'words' and 'best' if a better word is found.
+    for i in 1:(n + 1)
+        for j in 1:i
+            local w::String = text[j:(i - 1)];
+            local current_score::Float64 = P[w] * best[(i - length(w))];
+            if (current_score >= best[i])
+                best[i] = current_score;
+                words[i] = w;
+            end
+        end
+    end
+
+    # Reconstruct the Viterbi path for the best segmentation of the given text.
+    local sequence::AbstractVector = [];
+    local idx::Int64 = length(words);
+    while (idx > 1)     # Julia uses 1-indexing
+        unshift!(sequence, words[idx]);
+        idx = idx - length(words[idx]);
+    end
+    return sequence, best[end];
 end
 
