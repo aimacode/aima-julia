@@ -343,7 +343,7 @@ function add_sequence(ucm::UnigramCharModel, words::AbstractVector)
 end
 
 """
-    samples(uwm::UnigramWordModel, n::Int64)
+    samples(uwm::UnigramCharModel, n::Int64)
 
 Return a String of 'n' characters by using 'n' random samples made from the probability distribution 'uwm'.
 """
