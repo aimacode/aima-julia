@@ -6,6 +6,7 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         DataSet, set_problem, attribute_index, check_dataset_fields,
         check_example, update_values, add_example, remove_examples, sanitize, summarize, copy,
         classes_to_numbers, split_values_by_classes, find_means_and_deviations,
+        AbstractCountingProbabilityDistribution,
         CountingProbabilityDistribution, add, smooth_for_observation, getindex, top, sample,
         AbstractLearner, PluralityLearner, predict,
         AbstractNaiveBayesModel, NaiveBayesLearner,
@@ -378,6 +379,8 @@ copy(ds::DataSet) = DataSet(identity(ds.name),
                             copy(ds.inputs),
                             identity(ds.target));
 
+abstract AbstractCountingProbabilityDistribution;
+
 #=
 
     CountingProbabilityDistribution is a probability distribution for counting
@@ -389,7 +392,7 @@ copy(ds::DataSet) = DataSet(identity(ds.name),
     accessing the CountingProbabilityDistribution by the given key.
 
 =#
-type CountingProbabilityDistribution
+type CountingProbabilityDistribution <: AbstractCountingProbabilityDistribution
     dict::Dict
     number_of_observations::Int64
     default::Int64
@@ -410,11 +413,11 @@ type CountingProbabilityDistribution
 end
 
 """
-    add(cpd::CountingProbabilityDistribution, observation)
+    add{T <: AbstractCountingProbabilityDistribution}(cpd::T, observation)
 
 Add observation 'observation' to the probability distribution 'cpd'.
 """
-function add(cpd::CountingProbabilityDistribution, observation)
+function add{T <: AbstractCountingProbabilityDistribution}(cpd::T, observation)
     smooth_for_observation(cpd, observation);
     cpd.dict[observation] = cpd.dict[observation] + 1;
     cpd.number_of_observations = cpd.number_of_observations + 1;
@@ -423,12 +426,12 @@ function add(cpd::CountingProbabilityDistribution, observation)
 end
 
 """
-    smooth_for_observation(cpd::CountingProbabilityDistribution, observation)
+    smooth_for_observation{T <: AbstractCountingProbabilityDistribution}(cpd::T, observation)
 
 Initialize observation 'observation' in the distribution 'cpd' if the observation doesn't
 exist in the distribution yet.
 """
-function smooth_for_observation(cpd::CountingProbabilityDistribution, observation)
+function smooth_for_observation{T <: AbstractCountingProbabilityDistribution}(cpd::T, observation)
     if (!(observation in keys(cpd.dict)))
         cpd.dict[observation] = cpd.default;
         cpd.number_of_observations = cpd.number_of_observations + cpd.default;
@@ -438,22 +441,22 @@ function smooth_for_observation(cpd::CountingProbabilityDistribution, observatio
 end
 
 """
-    getindex(cpd::CountingProbabilityDistribution, key)
+    getindex{T <: AbstractCountingProbabilityDistribution}(cpd::T, key)
 
 Return the probability of the given 'key'.
 """
-function getindex(cpd::CountingProbabilityDistribution, key)
+function getindex{T <: AbstractCountingProbabilityDistribution}(cpd::T, key)
     smooth_for_observation(cpd, key);
     return (Float64(cpd.dict[key]) / Float64(cpd.number_of_observations));
 end
 
 """
-    top(cpd::CountingProbabilityDistribution, n::Int64)
+    top{T <: AbstractCountingProbabilityDistribution}(cpd::T, n::Int64)
 
 Return an array of (observation_count, observation) tuples such that the array
 does not exceed length 'n'.
 """
-function top(cpd::CountingProbabilityDistribution, n::Int64)
+function top{T <: AbstractCountingProbabilityDistribution}(cpd::T, n::Int64)
     local observations::AbstractVector = sort(collect(reverse((i...)) for i in cpd.dict),
                                                 lt=(function(p1::Tuple{Number, Any}, p2::Tuple{Number, Any})
                                                         return (p1[1] > p2[1]);
