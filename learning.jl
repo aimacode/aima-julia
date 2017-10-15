@@ -409,6 +409,11 @@ type CountingProbabilityDistribution
     end
 end
 
+"""
+    add(cpd::CountingProbabilityDistribution, observation)
+
+Add observation 'observation' to the probability distribution 'cpd'.
+"""
 function add(cpd::CountingProbabilityDistribution, observation)
     smooth_for_observation(cpd, observation);
     cpd.dict[observation] = cpd.dict[observation] + 1;
@@ -417,6 +422,12 @@ function add(cpd::CountingProbabilityDistribution, observation)
     nothing;
 end
 
+"""
+    smooth_for_observation(cpd::CountingProbabilityDistribution, observation)
+
+Initialize observation 'observation' in the distribution 'cpd' if the observation doesn't
+exist in the distribution yet.
+"""
 function smooth_for_observation(cpd::CountingProbabilityDistribution, observation)
     if (!(observation in keys(cpd.dict)))
         cpd.dict[observation] = cpd.default;
