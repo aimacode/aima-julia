@@ -178,3 +178,66 @@ segmented_text, p = viterbi_text_segmentation("itiseasytoreadwordswithoutspaces"
 
 @test (segmented_text == ["it", "is", "easy", "to", "read", "words", "without", "spaces"]);
 
+# Base.Test tests for IR systems
+uc = UnixConsultant();
+
+function check_query{T <: AbstractInformationRetrievalSystem}(irs::T, results::AbstractVector, expected::AbstractVector)
+    @test (length(results) == length(expected));
+    for (i, (score, id)) in enumerate(results)
+        expected_score, expected_url = expected[i];
+        @test (@sprintf("%.4f", score) == @sprintf("%.4f", expected_score));
+        @test (basename(irs.documents[id].url) == basename(expected_url));
+    end
+    nothing;
+end
+
+check_query(uc,
+            execute_query(uc, "how do I remove a file"),
+            [(0.7683, "aima-data/MAN/rm.txt"),
+            (0.6783, "aima-data/MAN/tar.txt"),
+            (0.6779, "aima-data/MAN/cp.txt"),
+            (0.6658, "aima-data/MAN/zip.txt"),
+            (0.6458, "aima-data/MAN/gzip.txt"),
+            (0.6374, "aima-data/MAN/pine.txt"),
+            (0.6295, "aima-data/MAN/shred.txt"),
+            (0.5746, "aima-data/MAN/pico.txt"),
+            (0.4338, "aima-data/MAN/login.txt"),
+            (0.4193, "aima-data/MAN/ln.txt")]);
+
+check_query(uc,
+            execute_query(uc, "how do I delete a file"),
+            [(0.7547, "aima-data/MAN/diff.txt"),
+            (0.6912, "aima-data/MAN/pine.txt"),
+            (0.6356, "aima-data/MAN/tar.txt"),
+            (0.6063, "aima-data/MAN/zip.txt"),
+            (0.5746, "aima-data/MAN/pico.txt"),
+            (0.5128, "aima-data/MAN/shred.txt"),
+            (0.2672, "aima-data/MAN/tr.txt")]);
+
+check_query(uc,
+            execute_query(uc, "email"),
+            [(0.1839, "aima-data/MAN/pine.txt"),
+            (0.1201, "aima-data/MAN/info.txt"),
+            (0.0989, "aima-data/MAN/pico.txt"),
+            (0.0873, "aima-data/MAN/grep.txt"),
+            (0.0807, "aima-data/MAN/zip.txt")]);
+
+check_query(uc,
+            execute_query(uc, "word count for files"),
+            [(1.2815, "aima-data/MAN/grep.txt"),
+            (0.9420, "aima-data/MAN/find.txt"),
+            (0.8171, "aima-data/MAN/du.txt"),
+            (0.5545, "aima-data/MAN/ps.txt"),
+            (0.5342, "aima-data/MAN/more.txt"),
+            (0.4200, "aima-data/MAN/dd.txt"),
+            (0.1285, "aima-data/MAN/who.txt")]);
+
+if (!is_windows())  # Windows 7/8 does not install a date executable by default
+    check_query(uc, execute_query(uc, "learn: date"), []);
+end
+
+check_query(uc,
+            execute_query(uc, "2003"),
+            [(0.1458, "aima-data/MAN/pine.txt"),
+            (0.1162, "aima-data/MAN/jar.txt")]);
+

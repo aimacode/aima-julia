@@ -4,6 +4,8 @@ include("utils.jl");
 
 using aimajulia.utils;
 
+AIMAJULIA_DIRECTORY = Base.source_dir();
+
 include("logic.jl");
 
 include("agents.jl");

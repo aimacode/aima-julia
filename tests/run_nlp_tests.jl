@@ -8,6 +8,7 @@ using aimajulia.utils;
 
 #The following nlp tests are from the aima-python doctests
 
+# Test the Grammar DataType methods
 check = Dict([Pair("A", [["B", "C"], ["D", "E"]]),
             Pair("B", [["E"], ["a"], ["b", "c"]])]);
 
@@ -43,6 +44,7 @@ sentence = generate_random_sentence(grammar, "S");
                             end), values(grammar.lexicon));
             end), map(String, split(sentence))));
 
+# Test the ProbabilityGrammar DataType methods
 check = Dict([Pair("A", [(["B", "C"], 0.3), (["D", "E"], 0.7)]),
             Pair("B", [(["E"], 0.1), (["a"], 0.2), (["b", "c"], 0.7)])]);
 
@@ -76,15 +78,18 @@ sentence = generate_random_sentence(grammar, "S");
 
 @test (length(sentence) == 2);
 
+# Test the Chart DataType
 chart = Chart(aimajulia.nlp.epsilon_0);
 
 @test (length(parse_sentence(chart, "the stench is in 2 2")) == 1);
 
+# Test the CYK parsing
 grammar = aimajulia.nlp.epsilon_probability_chomsky;
 words = ["the", "robot", "is", "good"];
 
 @test (length(cyk_parse(words, grammar)) == 52);
 
+# Test the HTML parsing functions
 address = "https://en.wikipedia.org/wiki/Ethics";
 
 page = load_page_html([address]);

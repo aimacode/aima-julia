@@ -1,7 +1,9 @@
 
 export extract_words, canonicalize_text, UnigramWordModel, NgramWordModel, samples,
         UnigramCharModel, NgramCharModel,
-        shift_encode, rot13, bigrams, viterbi_text_segmentation;
+        shift_encode, rot13, bigrams, viterbi_text_segmentation,
+        DocumentMetadata,
+        AbstractInformationRetrievalSystem, InformationRetrievalSystem, UnixConsultant, execute_query;
 
 #=
 
@@ -380,5 +382,153 @@ function viterbi_text_segmentation(text::String, P::UnigramWordModel)
         idx = idx - length(words[idx]);
     end
     return sequence, best[end];
+end
+
+#=
+
+    DocumentMetadata is the metadata for a document.
+
+=#
+type DocumentMetadata
+    title::String
+    url::String
+    number_of_words::Int64
+
+    function DocumentMetadata(title::String, url::String, number_of_words::Int64)
+        return new(title, url, number_of_words);
+    end
+end
+
+abstract AbstractInformationRetrievalSystem;
+
+#=
+
+    InformationRetrievalSystem is a information retrieval (IR) system implementation
+
+    that consists of an index, a set of stop words, and the metadata for the documents.
+
+=#
+type InformationRetrievalSystem <: AbstractInformationRetrievalSystem
+    index::Dict
+    stop_words::Set
+    documents::AbstractVector
+
+    function InformationRetrievalSystem(stop_words::String)
+        return new(Dict(), Set(extract_words(stop_words)), []);
+    end
+
+    function InformationRetrievalSystem()
+        return new(Dict(), Set(["the", "a", "of"]), []);
+    end
+end
+
+"""
+    index_document{T <: AbstractInformationRetrievalSystem}(irs::T, text::String, url::String)
+
+Index the document by its text 'text' and URL 'url'.
+"""
+function index_document{T <: AbstractInformationRetrievalSystem}(irs::T, text::String, url::String)
+    local title::String = strip(text[1:(Base.search(text, "\n").stop)]);
+    local document_words::AbstractVector = extract_words(text);
+    push!(irs.documents, DocumentMetadata(title, url, length(document_words)));
+    local document_id::Int64 = length(irs.documents);
+    for word in document_words
+        if (!(word in irs.stop_words))
+            get!(irs.index, word, Dict())[document_id] = get!(get!(irs.index, word, Dict()), document_id, 0) + 1;
+        end
+    end
+    return nothing;
+end
+
+"""
+    index_collection{T <: AbstractInformationRetrievalSystem}(irs::T, filenames::AbstractVector)
+
+Index the given collection of files 'filenames'.
+"""
+function index_collection{T <: AbstractInformationRetrievalSystem}(irs::T, filenames::AbstractVector)
+    for filename in filenames
+        index_document(irs, String(read(filename)), relpath(filename, AIMAJULIA_DIRECTORY));
+    end
+    return nothing;
+end
+
+"""
+    score_document{T <: AbstractInformationRetrievalSystem}(irs::T, word::String, document_id::Int64)
+
+Return a score for the given word 'word' and document referenced by ID 'document_id'.
+"""
+function score_document{T <: AbstractInformationRetrievalSystem}(irs::T, word::String, document_id::Int64)
+    return (log(1 + get!(get!(irs.index, word, Dict()), document_id, 0)) / log(1 + irs.documents[document_id].number_of_words));
+end
+
+"""
+    total_score_document{T <: AbstractInformationRetrievalSystem}(irs::T, words::AbstractVector, document_id::Int64)
+
+Return the sum of scores for the given words 'words' within the document referenced by ID 'document_id'.
+"""
+function total_score_document{T <: AbstractInformationRetrievalSystem}(irs::T, words::AbstractVector, document_id::Int64)
+    return sum(score_document(irs, word, document_id) for word in words);
+end
+
+"""
+    execute_query{T <: AbstractInformationRetrievalSystem}(irs::T, query::String; n::Int64=10)
+
+Return an array of 'n' (score, document ID) Tuples for the best matches.
+
+If the query starts with 'learn: ', the following command within the query is executed.
+Then the command output is then indexed with index_document().
+"""
+function execute_query{T <: AbstractInformationRetrievalSystem}(irs::T, query::String; n::Int64=10)
+    if (startswith(query, "learn:"))
+        local truncated_query::String = strip(query[7:end]);
+        local document_text::String = strip(readstring(`$truncated_query`));
+        index_document(irs, document_text, query);
+        return [];
+    end
+    local query_words::AbstractVector = collect(word for word in extract_words(query)
+                                                if (!(word in irs.stop_words)));
+    local shortest_word::String = argmin(query_words,
+                                        (function(s::String)
+                                            return length(get!(irs.index, s, Dict()));
+                                        end));
+    local document_ids::AbstractVector = collect(keys(get!(irs.index, shortest_word, Dict())));
+    local document_ids_scores::AbstractVector = sort(collect((total_score_document(irs, query_words, id), id) for id in document_ids),
+                                                    lt=(function(p1::Tuple{Number, Any}, p2::Tuple{Number, Any})
+                                                            return (p1[1] > p2[1]);
+                                                        end));
+    if (length(document_ids_scores) <= n)
+        return document_ids_scores;
+    else
+        return document_ids_scores[1:n];
+    end
+end
+
+#=
+
+    UnixConsultant is a information retrieval (IR) system implementation for Unix man (manual)
+
+    pages which consists of an index, a set of stop words, and the metadata for the documents.
+
+=#
+type UnixConsultant <: AbstractInformationRetrievalSystem
+    index::Dict
+    stop_words::Set
+    documents::AbstractVector
+
+    function UnixConsultant(stop_words::String)
+        local uc::UnixConsultant = new(Dict(), Set(extract_words(stop_words)), []);
+        index_collection(uc, collect(joinpath(joinpath(AIMAJULIA_DIRECTORY, "aima-data"), filename)
+                                    for filename in readdir(joinpath(AIMAJULIA_DIRECTORY, "aima-data"))
+                                    if (endswith(filename, ".txt"))));
+        return uc;
+    end
+
+    function UnixConsultant()
+        local uc::UnixConsultant = new(Dict(), Set(["how", "do", "i", "the", "a", "of"]), []);
+        index_collection(uc, collect(joinpath(joinpath(joinpath(AIMAJULIA_DIRECTORY, "aima-data"), "MAN"), filename)
+                                    for filename in readdir(joinpath(joinpath(AIMAJULIA_DIRECTORY, "aima-data"), "MAN"))
+                                    if (endswith(filename, ".txt"))));
+        return uc;
+    end
 end
 
