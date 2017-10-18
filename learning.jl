@@ -9,7 +9,7 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         AbstractCountingProbabilityDistribution,
         CountingProbabilityDistribution, add, smooth_for_observation, getindex, top, sample,
         AbstractLearner, PluralityLearner, predict,
-        AbstractNaiveBayesModel, NaiveBayesLearner,
+        AbstractNaiveBayesModel, NaiveBayesLearner, NaiveBayesSimpleModel,
         NaiveBayesDiscreteModel, NaiveBayesContinuousModel, NearestNeighborLearner,
         AbstractDecisionTreeNode, DecisionLeafNode, DecisionForkNode, classify,
         DecisionTreeLearner, plurality_value,
@@ -502,6 +502,13 @@ end
 
 abstract AbstractNaiveBayesModel;
 
+#=
+
+    NaiveBayesLearner is a learner that chooses to uses either a continuous model, discrete model,
+
+    or a conditional probability model (if 'simple' keyword is given as true).
+
+=#
 type NaiveBayesLearner <: AbstractLearner
     model::AbstractNaiveBayesModel
 
@@ -512,12 +519,72 @@ type NaiveBayesLearner <: AbstractLearner
             return new(NaiveBayesDiscreteModel(ds));
         end
     end
+
+    # The expected type of distribution 'd' is Dict.
+    function NaiveBayesLearner(d::Dict; simple::Bool=false)
+        if (simple)
+            return new(NaiveBayesSimpleModel(d));
+        else
+            error("NaiveBayesLearner(): The values of 'simple' should be true! "*
+                    "If the expected model is either continuous or discrete, try passing a DataSet rather than an Dict!");
+        end
+    end
 end
 
 function predict(nbl::NaiveBayesLearner, example::AbstractVector)
     return predict(nbl.model, example);
 end
 
+function predict(nbl::NaiveBayesLearner, example::String)
+    return predict(nbl.model, example);
+end
+
+#=
+
+    NaiveBayesSimpleModel is a simple naive bayes classifier that is initialized with
+
+    a dictionary of classifications to CountingProbabilityDistributions.
+
+    Each key-value pair of the dictionary is in the form:
+    
+        (classification, probability)=>CountingProbabilityDistribution
+
+=#
+type NaiveBayesSimpleModel <: AbstractNaiveBayesModel
+    target_distribution::Dict
+    attributes_distributions::Dict
+
+    function NaiveBayesSimpleModel(distribution::Dict)
+        return new(Dict(collect((classification, p)
+                                for (classification, p) in keys(distribution))),
+                    Dict(collect((classification, cpd)
+                                for ((classification, p), cpd) in distribution)));
+    end
+end
+
+function predict(nbsm::NaiveBayesSimpleModel, example::AbstractVector)
+    return argmax(collect(keys(nbsm.target_distribution)),
+                (function(target)
+                    local attribute_distribution::CountingProbabilityDistribution = nbsm.attributes_distributions[target];
+                    return (nbsm.target_distribution[target] * prod(attribute_distribution[attribute] for attribute in example));
+                end));
+end
+
+function predict(nbsm::NaiveBayesSimpleModel, example::String)
+    return argmax(collect(keys(nbsm.target_distribution)),
+                (function(target)
+                    local attribute_distribution::CountingProbabilityDistribution = nbsm.attributes_distributions[target];
+                    return (nbsm.target_distribution[target] * prod(attribute_distribution[attribute] for attribute in example));
+                end));
+end
+
+#=
+
+    NaiveBayesDiscreteModel contains the frequencies of the input attribute values depending
+
+    on their corresponding target value.
+
+=#
 type NaiveBayesDiscreteModel <: AbstractNaiveBayesModel
     dataset::DataSet
     target_values::AbstractVector
@@ -551,6 +618,13 @@ function predict(nbdm::NaiveBayesDiscreteModel, example::AbstractVector)
                     end));
 end
 
+#=
+
+    NaiveBayesContinuousModel contains the frequencies of the target values and the
+
+    mean and deviations for the input attribute values for each target value.
+
+=#
 type NaiveBayesContinuousModel <: AbstractNaiveBayesModel
     dataset::DataSet
     target_values::AbstractVector

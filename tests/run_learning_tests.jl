@@ -97,6 +97,7 @@ pl = PluralityLearner(zoo_dataset);
 
 iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
 
+# Naive Discrete Model
 nbdm = NaiveBayesLearner(iris_dataset, continuous=false);
 
 @test (predict(nbdm, [5, 3, 1, 0.1]) == "setosa");
@@ -105,6 +106,7 @@ nbdm = NaiveBayesLearner(iris_dataset, continuous=false);
 
 @test (predict(nbdm, [7.7, 3, 6, 2]) == "virginica");
 
+# Naive Continuous Model
 nbcm = NaiveBayesLearner(iris_dataset, continuous=true);
 
 @test (predict(nbcm, [5, 3, 1, 0.1]) == "setosa");
@@ -112,6 +114,18 @@ nbcm = NaiveBayesLearner(iris_dataset, continuous=true);
 @test (predict(nbcm, [6, 5, 3, 1.5]) == "versicolor");
 
 @test (predict(nbcm, [7, 3, 6.5, 2]) == "virginica");
+
+# Naive Conditional Probability Model
+d1 = CountingProbabilityDistribution(vcat(fill('a', 50), fill('b', 30), fill('c', 15)));
+d2 = CountingProbabilityDistribution(vcat(fill('a', 30), fill('b', 45), fill('c', 20)));
+d3 = CountingProbabilityDistribution(vcat(fill('a', 20), fill('b', 20), fill('c', 35)));
+nbsm = NaiveBayesLearner(Dict([(("First", 0.5), d1), (("Second", 0.3), d2), (("Third", 0.2), d3)]), simple=true);
+
+@test (predict(nbsm, "aab") == "First");
+
+@test (predict(nbsm, ['b', 'b']) == "Second");
+
+@test (predict(nbsm, "ccbcc") == "Third");
 
 iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
 
