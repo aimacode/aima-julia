@@ -4,6 +4,8 @@ sudo: false
 before_install:
     - git submodule update --init
 
+install: travis_wait mvn install
+
 os:
     - linux
     - osx
