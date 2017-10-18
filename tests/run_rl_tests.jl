@@ -52,7 +52,7 @@ println("passive_td_agent.U[(1, 1)] (expected ~0.3): ", passive_td_agent.U[(1, 1
 @test (passive_td_agent.U[(2, 1)] > 0.15);
 println("passive_td_agent.U[(2, 1)] (expected ~0.35): ", passive_td_agent.U[(2, 1)]);
 
-@test (passive_td_agent.U[(1, 2)] > 0.14);
+@test (passive_td_agent.U[(1, 2)] > 0.13);
 println("passive_td_agent.U[(1, 2)] (expected ~0.25): ", passive_td_agent.U[(1, 2)]);
 
 qlearning_agent = QLearningAgentProgram(aimajulia.sequential_decision_environment,
