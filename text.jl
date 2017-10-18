@@ -4,7 +4,8 @@ export extract_words, canonicalize_text, UnigramWordModel, NgramWordModel, sampl
         shift_encode, rot13, bigrams, viterbi_text_segmentation,
         DocumentMetadata,
         AbstractInformationRetrievalSystem, InformationRetrievalSystem, UnixConsultant, execute_query,
-        ShiftCipherDecoder, score_text, decode_text;
+        ShiftCipherDecoder, score_text, decode_text,
+        PermutationCipherDecoder, PermutationCipherDecoderProblem;
 
 #=
 
@@ -538,6 +539,15 @@ function all_shift_ciphers(text::String)
     return collect(shift_encode(text, i) for (i, letter) in enumerate(lowercase_alphabet));
 end
 
+#=
+
+    ShiftCipherDecoder contains the probability distribution for the bigrams of the
+
+    given training text. The decoder tries all 26 possible encodings and returns
+
+    the highest scoring decoded text.
+
+=#
 type ShiftCipherDecoder
     training_text::String
     P2::CountingProbabilityDistribution
@@ -548,6 +558,11 @@ type ShiftCipherDecoder
     end
 end
 
+"""
+    score_text(scd::ShiftCipherDecoder, plaintext::String)
+
+Return a score for the given text 'plaintext' by using the probability distribution 'scd.P2' for letter pairs.
+"""
 function score_text(scd::ShiftCipherDecoder, plaintext::String)
     local score::Float64 = 1.0;
     for bigram in bigrams(plaintext)
@@ -556,10 +571,170 @@ function score_text(scd::ShiftCipherDecoder, plaintext::String)
     return score;
 end
 
+"""
+    decode_text(scd::ShiftCipherDecoder, ciphertext::String)
+
+Return the decoded ciphertext using the best scoring cipher.
+"""
 function decode_text(scd::ShiftCipherDecoder, ciphertext::String)
     return argmax(all_shift_ciphers(ciphertext),
                     (function(shifted_text::String)
                         return score_text(scd, shifted_text);
                     end));
+end
+
+#=
+
+    PermutationCipherDecoder contains the probability distribution for the words of the training text, the
+
+    probability distribution for the 1-grams (letters) of the training text, and the probability distribution
+
+    for the 2-grams (2 adjacent letters) of the training text.
+
+
+
+    This decoder does not try all possible encodings because there are 26! permutations. As a result, the
+
+    decoder tries to search for a solution. The decoder would have some success by simply guessing by with
+
+    only the 1-grams of letters, but, this decoder uses the incremental representation. Each state is an 
+
+    array of letter to letter mappings (ie. ('z', 'e') represents that the letter 'z' will translate to 'e').
+
+=#
+type PermutationCipherDecoder
+    P_words::UnigramWordModel
+    P1::UnigramWordModel
+    P2::NgramWordModel
+    character_domain::Set
+    ciphertext::String
+
+    function PermutationCipherDecoder(training_text::String)
+        return new(UnigramWordModel(extract_words(training_text)),
+                    UnigramWordModel(collect(training_text)),
+                    NgramWordModel(2, extract_words(training_text)));
+    end
+end
+
+"""
+    score_text(pcd::PermutationCipherDecoder, code::AbstractVector)
+
+Return a score for the given code 'code' by obtaining the product of word scores, 1-gram scores,
+and 2-gram scores. Since these values can get very small, this function will use the logarithms
+of the scores to calculate the result.
+"""
+function score_text(pcd::PermutationCipherDecoder, code::AbstractVector)
+    local full_code::Dict = Dict(code);
+    local new_characters::Dict = Dict(collect((x, x)
+                                                for x in pcd.character_domain
+                                                if (!(haskey(full_code, x)))));
+    merge!(full_code, new_characters);
+    full_code[' '] = ' ';
+    local text::String = String(map((function(c::Char)
+                                        return full_code[c];
+                                    end),
+                                    pcd.ciphertext));
+    local log_P::Float64 = (sum((log(pcd.P_words[word]) + 1e-20) for word in extract_words(text)) +
+                            sum((log(pcd.P1[c] + 0.00001) for c in text)) +
+                            sum((log(pcd.P2[bigram] + 1e-10) for bigram in bigrams(text))));
+    return -exp(log_P);
+end
+
+"""
+    decode_text(pcd::PermutationCipherDecoder, ciphertext::String)
+
+Return the decoded ciphertext by searching for a decoding of the given ciphertext 'ciphertext'.
+"""
+function decode_text(pcd::PermutationCipherDecoder, ciphertext::String)
+    pcd.ciphertext = ciphertext;
+    pcd.character_domain = Set(collect(c for c in ciphertext
+                                        if (c != ' ')));
+    local problem::PermutationCipherDecoderProblem = PermutationCipherDecoderProblem(pcd);
+    local solution::Node = best_first_graph_search(problem,
+                                                    (function(node::Node)
+                                                        return score_text(pcd, node.state);
+                                                    end));
+    local solution_dict::Dict = Dict(solution.state);
+    solution_dict[' '] = ' ';
+    return String(map((function(c::Char)
+                            return get(solution_dict, c, c);
+                        end),
+                        pcd.ciphertext));
+end
+
+#=
+
+    PermutationCipherDecoderProblem is the problem of decoding a ciphertext when there
+
+    are 26! possible encoding permutations.
+
+=#
+type PermutationCipherDecoderProblem <: AbstractProblem
+    initial::AbstractVector
+    decoder::PermutationCipherDecoder
+
+    function PermutationCipherDecoderProblem(decoder::PermutationCipherDecoder; initial::Union{Void, AbstractVector}=nothing)
+        if (typeof(initial) <: Void)
+            return new([], decoder);
+        else
+            return new(initial, decoder);
+        end
+    end
+end
+
+"""
+    actions(pcdp::PermutationCipherDecoderProblem, state::AbstractVector)
+
+Return an array of possible actions that can be executed in the given state 'state'.
+"""
+function actions(pcdp::PermutationCipherDecoderProblem, state::AbstractVector)
+    local state_dict::Dict = Dict(state);
+    local search_list::AbstractVector = collect(character
+                                                for character in pcdp.decoder.character_domain
+                                                if (!(haskey(state_dict, character))));
+    local target_list::AbstractVector = collect(character
+                                                for character in lowercase_alphabet
+                                                if (!(character in values(state_dict))));
+    local plain_character::Char = argmax(search_list,
+                                        (function(c::Char)
+                                            return pcdp.decoder.P1[c];
+                                        end));
+    return collect(zip(repeated(plain_character, length(target_list)), target_list));
+end
+
+"""
+    get_result{T <: AbstractProblem}(ap::T, state::String, action::String)
+
+Return the resulting state from executing the given action 'action' in the given state 'state'.
+"""
+function get_result(pcdp::PermutationCipherDecoderProblem, state::AbstractVector, action::Tuple)
+    local new_state::Dict = Dict(state);
+    new_state[action[1]] = action[2];
+
+    # All states for the problem 'pcdp' should be in sorted order.
+    return sort(collect((x, y) for (x, y) in new_state),
+                lt=(function(t1::Tuple, t2::Tuple)
+                        return t1[1] < t2[1];
+                    end));
+end
+
+"""
+    goal_test(pcdp::PermutationCipherDecoderProblem, state::AbstractVector)
+
+Return a boolean value representing whether all characters in the character domain have a corresponding
+mapping in the given state 'state'.
+"""
+function goal_test(pcdp::PermutationCipherDecoderProblem, state::AbstractVector)
+    return (length(state) >= length(pcdp.decoder.character_domain));
+end
+
+"""
+    path_cost(pcdp::PermutationCipherDecoderProblem, cost::Float64, state_1::AbstractVector, action::Tuple, state_2::AbstractVector)
+
+Return the cost of a solution path arriving at 'state_2' from 'state_1' with the given action 'action' and
+cost 'cost' to arrive at 'state_1'.
+"""
+function path_cost(pcdp::PermutationCipherDecoderProblem, cost::Float64, state_1::AbstractVector, action::Tuple, state_2::AbstractVector)
+    return cost + 1;
 end
 

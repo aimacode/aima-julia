@@ -174,6 +174,15 @@ ring = ShiftCipherDecoder(flatland);
 
 @test (decode_text(ring, rot13("Hello, world!")) == "Hello, world!");
 
+gutenberg = readstring("./aima-data/gutenberg.txt");
+pd = PermutationCipherDecoder(canonicalize_text(gutenberg));
+
+@test (decode_text(pd, "aba") in ("ece", "ete", "tat", "tit", "txt"));
+
+pd = PermutationCipherDecoder(canonicalize_text(flatland));
+
+@test (decode_text(pd, "aba") in ("ded", "did", "ece", "ele", "eme", "ere", "eve", "eye", "iti", "mom", "ses", "tat", "tit"));
+
 # Base.Test tests for generating arrays of bigrams
 @test (bigrams("this") == [('t', 'h'), ('h', 'i'), ('i', 's')]);
 
