@@ -1,6 +1,9 @@
 language: julia
 sudo: false
 
+before_install:
+    - git submodule update --init
+
 os:
     - linux
     - osx
@@ -9,4 +12,5 @@ julia:
     - 0.5
 
 script:
+    - "travis_wait 20 sleep 1200 &"
     - sh tests/run_travis_tests.sh

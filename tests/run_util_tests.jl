@@ -6,7 +6,7 @@ using aimajulia;
 
 using aimajulia.utils;
 
-# The following queue tests are from the aima-python utils.py doctest
+# The following util functions' tests are from the aima-python utils.py doctest
 
 na = [1, 8, 2, 7, 5, 6, -99, 99, 4, 3, 0];
 
@@ -68,4 +68,5 @@ mabs = MemoizedFunction(abs);		#memoize abs()
 
 @test findfirst(isfunction, [1, 2, 3]) == 0;
 
+@test normalize_probability_distribution([1, 2, 1]) == [0.25, 0.5, 0.25];
 

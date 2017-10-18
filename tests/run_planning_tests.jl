@@ -4,7 +4,7 @@ using Base.Test;
 
 using aimajulia;
 
-#The following Planning tests are from the aima-python doctests
+#The following planning tests are from the aima-python doctests
 
 precondition = (map(expr, ["P(x)", "Q(y, z)"]), [expr("Q(x)")]);
 

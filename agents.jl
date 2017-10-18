@@ -33,12 +33,24 @@ export AgentProgram,
         
 =#
 
-function execute{T <: AgentProgram}(ap::T, p::Tuple{Any, Any})      #implement functionality later
-    #comment the following line to reduce verbosity
+"""
+    execute{T <: AgentProgram}(ap::T, p::Tuple{Any, Any})
+
+Return an action using the given agent program 'ap' and percept 'p'.
+"""
+function execute{T <: AgentProgram}(ap::T, p::Tuple{Any, Any})      # implement methods for other AgentPrograms later
+    # comment the following line to reduce verbosity
     #println("execute() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
 
+#=
+
+    TableDrivenAgentProgram is an agent program implementation consisting of a table of
+
+    mappings of percepts to actions.
+
+=#
 type TableDrivenAgentProgram <: AgentProgram
     isTracing::Bool
     percepts::Array{Tuple{Any, Any}, 1}
@@ -53,6 +65,13 @@ type TableDrivenAgentProgram <: AgentProgram
     end
 end
 
+#=
+
+    ReflexVacuumAgentProgram is an agent program implementation of AgentProgram
+
+    in the two-state vacuum environment.
+
+=#
 type ReflexVacuumAgentProgram <: AgentProgram
     isTracing::Bool
 
@@ -61,6 +80,13 @@ type ReflexVacuumAgentProgram <: AgentProgram
     end
 end
 
+#=
+
+    ModelBasedVacuumAgentProgram is an agent program implementation that contains
+
+    the model of the vacuum environment.
+
+=#
 type ModelBasedVacuumAgentProgram <: AgentProgram
     isTracing::Bool
     model::Dict{Any, Any}
@@ -76,6 +102,13 @@ type ModelBasedVacuumAgentProgram <: AgentProgram
     end
 end
 
+#=
+
+    RandomAgentProgram is an agent program implementation that contains
+
+    all possible actions in the environment of the agent.
+
+=#
 type RandomAgentProgram <: AgentProgram
     isTracing::Bool
     actions::Array{String, 1}
@@ -85,7 +118,7 @@ type RandomAgentProgram <: AgentProgram
     end
 end
 
-type Rule   #condition-action rules
+type Rule   # condition-action rules
     condition::String
     action::String
 
@@ -94,6 +127,13 @@ type Rule   #condition-action rules
     end
 end
 
+#=
+
+    SimpleReflexAgentProgram is an agent program implementation that contains
+
+    a set of condition-action rules.
+
+=#
 type SimpleReflexAgentProgram <: AgentProgram
     isTracing::Bool
     rules::Array{Rule, 1}
@@ -105,12 +145,19 @@ type SimpleReflexAgentProgram <: AgentProgram
     end
 end
 
+#=
+
+    ModelBasedReflexAgentProgram is an agent program implementation that contains
+
+    a set of condition-action rules and the model of the environment.
+
+=#
 type ModelBasedReflexAgentProgram <: AgentProgram
     isTracing::Bool
     state::Dict{Any, Any}
     model::Dict{Any, Any}
     rules::Array{Rule, 1}
-    action::String          #most recent action, initialized to empty string ""
+    action::String          # most recent action, initialized to empty string ""
 
     function ModelBasedReflexAgentProgram(state::Dict{Any, Any}, model::Dict{Any, Any}, rules::Array{Rule, 1}; trace::Bool=false)
         mbrap = new(Bool(trace));
@@ -127,9 +174,10 @@ end
 
 =#
 
-abstract EnvironmentObject;         #declare EnvironmentObject as a supertype for EnvironmentObject implementations
+# Declare EnvironmentObject as a supertype for EnvironmentObject implementations
+abstract EnvironmentObject;
 
-#the EnvironmentAgent implementations exist in the environment like other EnvironmentObjects such as Gold or Dirt
+# The EnvironmentAgent implementations exist in the environment like other EnvironmentObjects such as Gold or Dirt
 abstract EnvironmentAgent <: EnvironmentObject;
 
 type Agent <: EnvironmentAgent
@@ -139,7 +187,7 @@ type Agent <: EnvironmentAgent
     heading::Tuple{Any, Any}
     holding::Array{Any, 1}
     program::AgentProgram
-    location::Tuple{Any, Any}       #initialized when adding agent to environment
+    location::Tuple{Any, Any}       # initialized when adding agent to environment
 
     function Agent()
         return new(Bool(true), Float64(0), Bool(false),
@@ -150,7 +198,7 @@ type Agent <: EnvironmentAgent
     function Agent{T <: AgentProgram}(ap::T)
         new_agent = new(Bool(true), Float64(0), Bool(false),
                                                 rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
-                                                Array{Any, 1}());   #program is undefined
+                                                Array{Any, 1}());   # program is undefined
         new_agent.program = ap;
         return new_agent;
     end
@@ -163,7 +211,7 @@ type Wumpus <: EnvironmentAgent
     heading::Tuple{Any, Any}
     holding::Array{Any, 1}
     program::AgentProgram
-    location::Tuple{Any, Any}       #initialized when adding agent to environment
+    location::Tuple{Any, Any}       # initialized when adding agent to environment
 
     function Wumpus()
         return new(Bool(true), Float64(0), Bool(false),
@@ -174,7 +222,7 @@ type Wumpus <: EnvironmentAgent
     function Wumpus{T <: AgentProgram}(ap::T)
         new_agent = new(Bool(true), Float64(0), Bool(false),
                                                 rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
-                                                Array{Any, 1}());   #program is undefined
+                                                Array{Any, 1}());   # program is undefined
         new_agent.program = ap;
         return new_agent;
     end
@@ -187,7 +235,7 @@ type Explorer <: EnvironmentAgent
     heading::Tuple{Any, Any}
     holding::Array{Any, 1}
     program::AgentProgram
-    location::Tuple{Any, Any}       #initialized when adding agent to environment
+    location::Tuple{Any, Any}       # initialized when adding agent to environment
 
     function Explorer()
         return new(Bool(true), Float64(0), Bool(false),
@@ -198,7 +246,7 @@ type Explorer <: EnvironmentAgent
     function Explorer{T <: AgentProgram}(ap::T)
         new_agent = new(Bool(true), Float64(0), Bool(false),
                                                 rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
-                                                Array{Any, 1}());   #program is undefined
+                                                Array{Any, 1}());   # program is undefined
         new_agent.program = ap;
         return new_agent;
     end
@@ -282,17 +330,23 @@ end
 loc_A = (0, 0)
 loc_B = (1, 0)
 
+"""
+    execute(ap::TableDrivenAgentProgram, percept::Tuple{Any, Any})
+
+Return an action by using the given table driven agent program 'ap' (Fig. 2.7),
+percept 'percept', and table 'ap.table'.
+"""
 function execute(ap::TableDrivenAgentProgram, percept::Tuple{Any, Any})
     push!(ap.percepts, percept);
     local action;
     if (haskey(ap.table, Tuple((ap.percepts...))))
-        action = ap.table[Tuple((ap.percepts...))]  #convert percept sequence to tuple
+        action = ap.table[Tuple((ap.percepts...))]  # convert percept sequence to tuple
         if (ap.isTracing)
             @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), action.name);
         end
     else
-        #The table is not complete with all possible percept sequences.
-        #So, this program should now behave like a ReflexVacuumAgentProgram.
+        # The table is not complete with all possible percept sequences.
+        # So, this program should now behave like a ReflexVacuumAgentProgram.
         if (percept[1] == loc_A)
             action = "Right";
         elseif (percept[1] == loc_B)
@@ -302,6 +356,12 @@ function execute(ap::TableDrivenAgentProgram, percept::Tuple{Any, Any})
     return action;
 end
 
+"""
+    execute(ap::ReflexVacuumAgentProgram, location_status::Tuple{Any, Any})
+
+Return an action by using the given reflex agent program 'ap' (Fig. 2.8) and
+percept 'location_status'.
+"""
 function execute(ap::ReflexVacuumAgentProgram, location_status::Tuple{Any, Any})
     local location = location_status[1];
     local status = location_status[2];
@@ -323,11 +383,17 @@ function execute(ap::ReflexVacuumAgentProgram, location_status::Tuple{Any, Any})
     end
 end
 
+"""
+    execute(ap::ModelBasedVacuumAgentProgram, location_status::Tuple{Any, Any})
+
+Return an action by using the given model-based agent program 'ap' and
+percept 'location_status'.
+"""
 function execute(ap::ModelBasedVacuumAgentProgram, location_status::Tuple{Any, Any})
     local location = location_status[1];
     local status = location_status[2];
-    ap.model[location] = status;                            #update existing model
-    if (ap.model[loc_A] == ap.model[loc_B] == "Clean")      #return "NoOp" when no work is necessary
+    ap.model[location] = status;                            # update existing model
+    if (ap.model[loc_A] == ap.model[loc_B] == "Clean")      # return "NoOp" when no work is necessary
         if (ap.isTracing)
             @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(location_status), "NoOp");
         end
@@ -350,6 +416,11 @@ function execute(ap::ModelBasedVacuumAgentProgram, location_status::Tuple{Any, A
     end
 end
 
+"""
+    execute(ap::RandomAgentProgram, percept::Tuple{Any, Any})
+
+Return an action by using the given random agent program 'ap' and percept 'percept'.
+"""
 function execute(ap::RandomAgentProgram, percept::Tuple{Any, Any})
     return rand(RandomDeviceInstance, ap.actions);
 end
@@ -360,22 +431,38 @@ function rule_match(state::String, rules::Array{Rule, 1})
             return element;
         end
     end
-    return C_NULL;                  #the function did not find a matching rule
+    return C_NULL;                  # the function did not find a matching rule
 end
 
-function interpret_input{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})        #implement this later
+"""
+    interpret_input{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})
+
+Return a new state for the given agent program 'ap' and percept 'percept'.
+"""
+function interpret_input{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})
     println("interpret_input() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
 
-function update_state{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})           #implement this later
+"""
+    update_state{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})
+
+Return a new state for the given agent program 'ap' and percept 'percept'.
+"""
+function update_state{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})
     println("update_state() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
 
+"""
+    execute(ap::SimpleReflexAgentProgram, percept::Tuple{Any, Any})
+
+Return an action by using the given simple reflex agent program 'ap' (Fig. 2.10),
+percept 'percept', and rules 'ap.rules'.
+"""
 function execute(ap::SimpleReflexAgentProgram, percept::Tuple{Any, Any})
-    #the agent acts according to the given percept (Fig. 2.10)
-    local state = interpret_input(ap, percept);     #generate condition string from given percept
+    # Generate condition string from given percept
+    local state = interpret_input(ap, percept);
     local rule = rule_match(state, ap.rules);
     local action = rule.action;
     if (ap.isTracing)
@@ -384,10 +471,14 @@ function execute(ap::SimpleReflexAgentProgram, percept::Tuple{Any, Any})
     return action;
 end
 
-function execute(ap::ModelBasedReflexAgentProgram, percept::Tuple{Any, Any})
-    #the agent acts according to the agent state and model and given percept (Fig. 2.12)
+"""
+    execute(ap::ModelBasedReflexAgentProgram, percept::Tuple{Any, Any})
 
-    #ap.state <- update-state(ap.state, ap.action, percept, ap.model);  #set new state
+Return the most recent action made by using the given model-based reflex agent
+program 'ap' (Fig. 2.12) and percept 'percept'.
+"""
+function execute(ap::ModelBasedReflexAgentProgram, percept::Tuple{Any, Any})
+    # Set new state
     ap.state = update_state(ap, percept);
     local rule = rule_match(ap.state, ap.rules);
     ap.action = rule.action;
@@ -402,9 +493,13 @@ end
     Load a implemented AgentProgram into a Agent.
 
 =#
+"""
+    TableDrivenVacuumAgent()
 
+Return an Agent that uses the dictionary representation of a table (Fig. 2.3)
+of percept sequences (key) mappings to actions (value).
+"""
 function TableDrivenVacuumAgent()
-    #dictionary representation of table (Fig. 2.3) of percept sequences (key) mappings to actions (value).
     local table = Dict{Any, Any}([
                 Pair(((loc_A, "Clean"),), "Right"),
                 Pair(((loc_A, "Dirty"),), "Suck"),
@@ -420,30 +515,51 @@ function TableDrivenVacuumAgent()
     return Agent(TableDrivenAgentProgram(table_dict=table));
 end
 
+"""
+    ReflexVacuumAgent()
+
+Return an agent for the two-state vacuum environment (Fig. 2.8).
+"""
 function ReflexVacuumAgent()
-    #Return a reflex agent for the two-state vacuum environment (Fig. 2.8).
     return Agent(ReflexVacuumAgentProgram());
 end
 
+"""
+    ModelBasedVacuumAgent()
+
+Return an agent that tracks statuses of clean and dirty locations.
+"""
 function ModelBasedVacuumAgent()
-    #Return a agent that tracks statuses of clean and dirty locations.
     return Agent(ModelBasedVacuumAgentProgram(model=Dict{Any, Any}([
             Pair(loc_A, Void),
             Pair(loc_B, Void),
             ])));
 end
 
+"""
+    RandomVacuumAgent()
+
+Return an agent that randomly chooses one of the possible actions in the
+vacuum environment.
+"""
 function RandomVacuumAgent()
     return Agent(RandomAgentProgram(["Right", "Left", "Suck", "NoOp"]));
 end
 
-abstract Environment;               #declare Environment as a supertype for Environment implementations
+# Declare Environment as a supertype for Environment implementations
+abstract Environment;
 
 abstract TwoDimensionalEnvironment <: Environment;
 
-#XYEnvironment is a 2-dimensional Environment implementation with obstacles.
-#Agents perceive their location as a tuple of objects within perceptible_distance radius.
-#This environment does not update agent performance measures.
+#=
+
+    XYEnvironment is a 2-dimensional Environment implementation with obstacles.
+    
+    Agents perceive their location as a tuple of objects within perceptible_distance radius.
+    
+    This environment does not update agent performance measures.
+
+=#
 type XYEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
@@ -458,9 +574,14 @@ type XYEnvironment <: TwoDimensionalEnvironment
     end
 end
 
-#VacuumEnvironment is a 2-dimensional Environment implementation with obstacles.
-#Agents can perceive their location as "Dirty" or "Clean".
-#Agent performance measures are updated when Dirt is removed or a non-NoOp action is executed.
+#=
+
+    VacuumEnvironment is a 2-dimensional Environment implementation with obstacles.
+
+    Agents can perceive their location as "Dirty" or "Clean". Agent performance measures
+
+    are updated when Dirt is removed or a non-NoOp action is executed.
+=#
 type VacuumEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
@@ -475,8 +596,13 @@ type VacuumEnvironment <: TwoDimensionalEnvironment
     end
 end
 
-#TrivialVacuumEnvironment has 2 possible locations: loc_A and loc_B.
-#The status of those locations can be either "Dirty" or "Clean".
+#=
+
+    TrivialVacuumEnvironment has 2 possible locations: loc_A and loc_B.
+    
+    The status of those locations can be either "Dirty" or "Clean".
+
+=#
 type TrivialVacuumEnvironment <: Environment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}
@@ -495,6 +621,11 @@ type TrivialVacuumEnvironment <: Environment
     end
 end
 
+#=
+
+    WumpusEnvironment is a 2-dimensional Environment implementation of the Wumpus World.
+
+=#
 type WumpusEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Array, 1}
@@ -540,7 +671,7 @@ function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius::Union{Void
 end
 
 function percept(e::XYEnvironment, a::Agent)
-    #this percept might not consist of exactly 2 elements
+    # this percept might not consist of exactly 2 elements
     return Tuple(([string(typeof(obj)) for obj in objects_near(a.location)]...));
 end
 
@@ -595,8 +726,8 @@ function run{T <: Environment}(e::T; steps::Int64=1000)
     end
 end
 
-function exogenous_change{T <: Environment}(e::T)   #implement this later
-    #comment the following line to reduce verbosity
+function exogenous_change{T <: Environment}(e::T)   # implement this later
+    # comment the following line to reduce verbosity
     #println("exogenous_change() not yet implemented for ", typeof(e), "!");
     nothing;
 end
@@ -618,14 +749,14 @@ function environment_objects{T <: Environment}(e::T)
 end
 
 function environment_objects(e::VacuumEnvironment)
-    #ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, and ModelBasedVacuumAgent
-    #are functions that generate new agents with their respective AgentPrograms
+    # ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, and ModelBasedVacuumAgent
+    # are functions that generate new agents with their respective AgentPrograms
     return [Wall, Dirt, ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, ModelBasedVacuumAgent];
 end
 
 function environment_objects(e::TrivialVacuumEnvironment)
-    #ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, and ModelBasedVacuumAgent
-    #are functions that generate new agents with their respective AgentPrograms
+    # ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, and ModelBasedVacuumAgent
+    # are functions that generate new agents with their respective AgentPrograms
     return [Wall, Dirt, ReflexVacuumAgent, RandomVacuumAgent, TableDrivenVacuumAgent, ModelBasedVacuumAgent];
 end
 
@@ -746,7 +877,7 @@ end
 Move the EnvironmentObject to the destination given.
 """
 function move_to{T <: TwoDimensionalEnvironment}(e::T, obj::EnvironmentObject, destination::Tuple{Any, Any})
-    obj.bump = some_objects_at(e, destination, Wall);   #Wall is a subtype of Obstacle, not an alias
+    obj.bump = some_objects_at(e, destination, Wall);   # Wall is a subtype of Obstacle, not an alias
     if (!obj.bump)
         obj.location = destination;
     end
@@ -779,3 +910,4 @@ function compare_agents(EnvironmentGenerator::DataType, AgentGenerators::Array{F
     local envs = [EnvironmentGenerator() for i in range(0, n)];
     return [(string(typeof(A)), test_agent(A, steps, deepcopy(envs))) for A in AgentGenerators];
 end
+

@@ -11,7 +11,7 @@ export AbstractPDDL,
         find_mutex_links, build_level_links, build_level_links_permute_arguments, perform_actions,
         planning_combinations,
         PlanningGraph, expand_graph, non_mutex_goals,
-        GraphPlanProblem, check_level_off, actions_cartesian_product, extract_solution,
+        GraphPlanProblem, check_level_off, extract_solution,
         graphplan,
         doubles_tennis_pddl, doubles_tennis_pddl_goal_test,
         PlanningHighLevelAction, check_resource, check_job_order,
@@ -617,22 +617,6 @@ function check_level_off(gpp::GraphPlanProblem)
     return (first_check && second_check);
 end
 
-function actions_cartesian_product(iterable_items::AbstractVector, current_index::Int64, current_permutation::AbstractVector, product_array::AbstractVector)
-    if (current_index == length(iterable_items))
-        push!(product_array, current_permutation);
-    elseif (current_index > length(iterable_items))
-        error("actions_cartesian_product(): The current index ", current_index, " exceeds the length of the given array!");
-    else
-        if ((typeof(iterable_items[current_index + 1]) <: AbstractVector) || (typeof(iterable_items[current_index + 1]) <: Tuple))
-            for item in iterable_items[current_index + 1]
-                actions_cartesian_product(iterable_items, (current_index + 1), vcat(current_permutation, item), product_array);
-            end
-        else
-            error("actions_cartesian_product(): iterable_items[", current_index, "] is not iterable!");
-        end
-    end
-end
-
 function extract_solution(gpp::GraphPlanProblem, goals_positive::AbstractVector, goals_negated::AbstractVector, index::Int64)
     local level::PlanningLevel;
     if (index < 0)
@@ -654,8 +638,7 @@ function extract_solution(gpp::GraphPlanProblem, goals_positive::AbstractVector,
     end
 
     # Create all possible combinations of actions by using finding the cartesian product.
-    local action_combinations::AbstractVector = [];
-    actions_cartesian_product(actions, 0, [], action_combinations);
+    local action_combinations::AbstractVector = iterable_cartesian_product(actions);
     # Remove action combinations that contain mutexes.
     local non_mutex_actions::AbstractVector = [];
     for action_list in action_combinations
@@ -903,11 +886,11 @@ end
 
 #=
 
-    HighLevelPDDL is a high-level Planning Domain Definition Language (PDDL) is used to define a search problem.
+    HighLevelPDDL is a high-level Planning Domain Definition Language (PDDL) and is used to
 
-    The HighLevelPDDL includes job scheduling and resource constraints in addition to the states, action
+    define a search problem. The HighLevelPDDL includes job scheduling and resource constraints
 
-    schemas, and the goal test found in the PDDL datatype.
+    in addition to the states, action schemas, and the goal test found in the PDDL datatype.
 
 =#
 type HighLevelPDDL <: AbstractPDDL 

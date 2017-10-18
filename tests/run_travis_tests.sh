@@ -40,3 +40,17 @@ julia --color=yes run_logic_tests.jl
 
 julia --color=yes run_planning_tests.jl
 
+julia --color=yes run_probability_tests.jl
+
+julia --color=yes run_mdp_tests.jl
+
+julia --color=yes run_learning_tests.jl
+
+julia --color=yes run_kl_tests.jl
+
+julia --color=yes run_rl_tests.jl
+
+julia --color=yes run_nlp_tests.jl
+
+julia --color=yes run_text_tests.jl
+

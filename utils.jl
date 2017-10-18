@@ -7,7 +7,8 @@ import Base.push!,
         Base.next,
         Base.done,
         Base.length,
-        Base.delete!;
+        Base.delete!,
+        Base.combinations;
 
 export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         start, next, done, length,
@@ -17,7 +18,11 @@ export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         weighted_sampler, weighted_sample_with_replacement,
         distance, distance2,
         RandomDeviceInstance,
-        isfunction, removeall;
+        isfunction, removeall,
+        normalize_probability_distribution,
+        mode, sigmoid, sigmoid_derivative,
+        combinations, iterable_cartesian_product,
+        weighted_choice;
 
 function if_(boolean_expression::Bool, ans1::Any, ans2::Any)
     if (boolean_expression)
@@ -59,7 +64,8 @@ end
 
 function turn_heading(heading::Tuple{Any, Any}, inc::Int64)
     local o = [(1, 0), (0, 1), (-1, 0), (0, -1)];
-    return o[(index(o, heading) + inc) % length(o)];
+    # 4 (for negative increments) - 1 (adjust index) = 3 offset
+    return o[((index(o, heading) + inc + 3) % length(o)) + 1];
 end
 
 function vector_add_tuples(a::Tuple, b::Tuple)
@@ -483,7 +489,7 @@ Return a random sample function that chooses an element from 'seq' based on its 
 weight in 'weight'.
 """
 function weighted_sampler{T1 <: AbstractVector, T2 <: AbstractVector}(seq::T1, weights::T2)
-    local totals = Array{Any, 1}();
+    local totals::Array{Float64, 1} = Array{Float64, 1}();
     for w in weights
         if (length(totals) != 0)
             push!(totals, (w + totals[length(totals)]));
@@ -492,12 +498,13 @@ function weighted_sampler{T1 <: AbstractVector, T2 <: AbstractVector}(seq::T1, w
         end
     end
     return (function(;sequence=seq, totals_array=totals)
-                bsi = bisearch(totals_array,
-                                (rand(RandomDeviceInstance)*totals_array[length(totals_array)]),
-                                1,
-                                length(totals_array),
-                                Base.Order.Forward);
-                return seq[bsi.stop + 1];
+                element = rand(RandomDeviceInstance)*totals_array[end];
+                bsi = searchsorted(totals_array, element);
+                if (bsi.stop == length(seq))  # Prevent indices out of bounds.
+                    return seq[bsi.stop];
+                else
+                    return seq[bsi.stop + 1];
+                end
             end);
 end
 
@@ -516,7 +523,11 @@ function weighted_sampler{T <: AbstractVector}(seq::String, weights::T)
                                 1,
                                 length(totals_array),
                                 Base.Order.Forward);
-                return seq[bsi.stop + 1];
+                if (bsi.stop == length(seq))  # Prevent indices out of bounds.
+                    return seq[bsi.stop];
+                else
+                    return seq[bsi.stop + 1];
+                end
             end);
 end
 
@@ -542,11 +553,12 @@ end
 function argmin_random_tie{T <: AbstractVector}(seq::T, fn::Function)
     local best_score = fn(seq[1]);
     local n::Int64 = 0;
-    local best_element;
+    local best_element = seq[1];
     for element in seq
         element_score = fn(element);
         if (element_score < best_score)
             best_element = element;
+            best_score = element_score;
         elseif (element_score == best_score)
             n = n + 1;
             if (rand(RandomDeviceInstance, 1:n) == 1)
@@ -579,11 +591,12 @@ end
 function argmax_random_tie{T <: AbstractVector}(seq::T, fn::Function)
     local best_score = fn(seq[1]);
     local n::Int64 = 1;
-    local best_element;
+    local best_element = seq[1];
     for element in seq
         element_score = fn(element);
         if (element_score > best_score)
             best_element = element;
+            best_score = element_score;
         elseif (element_score == best_score)
             n = n + 1;
             if (rand(RandomDeviceInstance, 1:n) == 1)
@@ -601,6 +614,247 @@ Check if 'var' is callable as a function.
 """
 function isfunction(var)
     return (typeof(var) <: Function);
+end
+
+"""
+    normalize_probability_distribution(d)
+
+Return a collection such that each value is the corresponding value in 'd' divided
+by the sum of all values in 'd'.
+"""
+function normalize_probability_distribution(d::Dict)
+    local total::Float64 = sum(values(d));
+    for key in keys(d)
+        d[key] = d[key] / total;
+        if (!(0.0 <= d[key] <= 1.0))
+            error("normalize_probability_distribution(): ", d[key], " is not a valid probability.");
+        end
+    end
+    return dist;
+end
+
+function normalize_probability_distribution(d::AbstractVector)
+    local total::Float64 = sum(d);
+    return collect((i / total) for i in d);
+end
+
+function mode_reverse_isless(p1::Tuple, p2::Tuple)
+    return (p1[2] > p2[2]);
+end
+
+function mode(v::AbstractVector)
+    local sorted::AbstractVector = sort!(collect((i, count(j->(j == i), v)) for i in Set(v)),
+                                        lt=mode_reverse_isless);
+    if (length(sorted) == 0)
+        error("mode(): There is no mode for an empty array!");
+    else
+        return getindex(getindex(sorted, 1), 1);
+    end
+end
+
+function mode(iter::Base.Generator)
+    local sorted::AbstractVector = sort!(collect((i, count(j->(j == i), iter)) for i in Set(iter)),
+                                        lt=mode_reverse_isless);
+    if (length(sorted) == 0)
+        error("mode(): There is no mode for an empty array!");
+    else
+        return getindex(getindex(sorted, 1), 1);
+    end
+end
+
+"""
+    sigmoid(x::Number)
+
+Return the activation value of 'x' by using a sigmoid function 'S(x)' as the activation function.
+"""
+function sigmoid(x::Number)
+    return (Float64(1)/(Float64(1) + exp(-x)));
+end
+
+"""
+    sigmoid_derivative(val::Number)
+
+Return the derivative of the sigmoid function 'S(x)', where x = 'val'.
+"""
+function sigmoid_derivative(val::Number)
+    return (Float64(val) * (Float64(1) - Float64(val)));
+end
+
+# The combinations() function below was adapted from
+# https://github.com/JuliaMath/Combinatorics.jl/blob/master/src/combinations.jl
+
+"""
+    combinations(array::AbstractVector, l::Integer)
+    combinations(tuple::Tuple, l::Integer)
+    combinations(set::Set, l::Integer)
+
+Return the 'l' length subsequences of the elements in the given collection of items.
+"""
+function combinations(array::AbstractVector, l::Integer)
+    local indices::AbstractVector = collect(1:l);
+    local visited::Tuple = ();
+    local current_combination::AbstractVector;
+    if (l == 0)
+        return ([],);
+    end
+
+    if (binomial(length(array), l) > 0)
+        while (indices[1] <= length(array) - l + 1)
+            current_combination = collect(array[subseq_i] for subseq_i in indices);
+            visited = (visited..., current_combination);
+            indices = copy(indices);
+            for i in reverse(1:length(indices))
+                indices[i] = indices[i] + 1;
+                if (indices[i] > (length(array) - (length(indices) - i)))
+                    continue;
+                end
+                for j in (i + 1):endof(indices)
+                    indices[j] = indices[j - 1] + 1;
+                end
+                break;
+            end
+        end
+        return visited;
+    else
+        return visited;
+    end
+end
+
+function combinations(tuple::Tuple, l::Integer)
+    local indices::AbstractVector = collect(1:l);
+    local visited::Tuple = ();
+    local current_combination::AbstractVector;
+    if (l == 0)
+        return ([],);
+    end
+
+    if (binomial(length(tuple), l) > 0)
+        while (indices[1] <= length(tuple) - l + 1)
+            current_combination = collect(tuple[subseq_i] for subseq_i in indices);
+            visited = (visited..., current_combination);
+            indices = copy(indices);
+            for i in reverse(1:length(indices))
+                indices[i] = indices[i] + 1;
+                if (indices[i] > (length(tuple) - (length(indices) - i)))
+                    continue;
+                end
+                for j in (i + 1):endof(indices)
+                    indices[j] = indices[j - 1] + 1;
+                end
+                break;
+            end
+        end
+        return visited;
+    else
+        return visited;
+    end
+end
+
+function combinations(set::Set, l::Integer)
+    local array::AbstractVector = collect(set);
+    local indices::AbstractVector = collect(1:l);
+    local visited::Tuple = ();
+    local current_combination::AbstractVector;
+    if (l == 0)
+        return ([],);
+    end
+
+    if (binomial(length(array), l) > 0)
+        while (indices[1] <= length(array) - l + 1)
+            current_combination = collect(array[subseq_i] for subseq_i in indices);
+            visited = (visited..., current_combination);
+            indices = copy(indices);
+            for i in reverse(1:length(indices))
+                indices[i] = indices[i] + 1;
+                if (indices[i] > (length(array) - (length(indices) - i)))
+                    continue;
+                end
+                for j in (i + 1):endof(indices)
+                    indices[j] = indices[j - 1] + 1;
+                end
+                break;
+            end
+        end
+        return visited;
+    else
+        return visited;
+    end
+end
+
+function iterable_cartesian_product(iterable_items::AbstractVector, current_index::Int64, current_permutation::AbstractVector, product_array::AbstractVector)
+    if (current_index == length(iterable_items))
+        push!(product_array, current_permutation);
+    elseif (current_index > length(iterable_items))
+        error("iterable_cartesian_product(): The current index ", current_index, " exceeds the length of the given array!");
+    else
+        if ((typeof(iterable_items[current_index + 1]) <: AbstractVector)
+            || (typeof(iterable_items[current_index + 1]) <: Tuple)
+            || (typeof(iterable_items[current_index + 1]) <: Set))
+            for item in iterable_items[current_index + 1]
+                iterable_cartesian_product(iterable_items, (current_index + 1), vcat(current_permutation, item), product_array);
+            end
+        else
+            error("iterable_cartesian_product(): iterable_items[", current_index + 1, "] is not iterable!");
+        end
+    end
+end
+
+function iterable_cartesian_product(iterable_items::Tuple, current_index::Int64, current_permutation::AbstractVector, product_array::AbstractVector)
+    if (current_index == length(iterable_items))
+        push!(product_array, current_permutation);
+    elseif (current_index > length(iterable_items))
+        error("iterable_cartesian_product(): The current index ", current_index, " exceeds the length of the given array!");
+    else
+        if ((typeof(iterable_items[current_index + 1]) <: AbstractVector)
+            || (typeof(iterable_items[current_index + 1]) <: Tuple)
+            || (typeof(iterable_items[current_index + 1]) <: Set))
+            for item in iterable_items[current_index + 1]
+                iterable_cartesian_product(iterable_items, (current_index + 1), vcat(current_permutation, item), product_array);
+            end
+        else
+            error("iterable_cartesian_product(): iterable_items[", current_index + 1, "] is not iterable!");
+        end
+    end
+end
+
+"""
+    iterable_cartesian_product(iterable_items)
+
+Return the cartesian product of given items in 'iterable_items' as an array.
+"""
+function iterable_cartesian_product(iterable_items::AbstractVector)
+    local product_array::AbstractVector = [];
+    iterable_cartesian_product(iterable_items, 0, [], product_array);
+    return product_array;
+end
+
+function iterable_cartesian_product(iterable_items::Tuple)
+    local product_array::AbstractVector = [];
+    iterable_cartesian_product(iterable_items, 0, [], product_array);
+    return product_array;
+end
+
+function iterable_cartesian_product(iterable_items::Set)
+    local product_array::AbstractVector = [];
+    iterable_cartesian_product((iterable_items...), 0, [], product_array);
+    return product_array;
+end
+
+"""
+    weighted_choice(choices::AbstractVector)
+
+Return an element from the given array 'choices' based on the choice and its corresponding weight.
+"""
+function weighted_choice(choices::AbstractVector)
+    local total::Float64 = sum(collect(choice[2] for choice in choices));
+    local r::Float64 = rand(RandomDeviceInstance) * total;
+    local upto::Float64 = 0.0;
+    for (choice, weight) in choices
+        if ((upto + weight) >= r)
+            return (choice, weight);
+        end
+        upto = upto + weight;
+    end
 end
 
 end

@@ -1,4 +1,4 @@
-import Base: ==, expand, length, in;
+import Base: ==, expand, length, in, search;
 
 export Problem, InstrumentedProblem,
         actions, get_result, goal_test, path_cost, value,
@@ -16,6 +16,9 @@ export Problem, InstrumentedProblem,
         astar_search, recursive_best_first_search,
         hill_climbing, exp_schedule, simulated_annealing,
         or_search, and_search, and_or_graph_search,
+        OnlineDFSAgentProgram, update_state, execute,
+        OnlineSearchProblem, LRTAStarAgentProgram,
+        learning_realtime_astar_cost,
         genetic_search, genetic_algorithm,
         NQueensProblem, conflict, conflicted,
         random_boggle, print_boggle, boggle_neighbors, int_sqrt,
@@ -38,20 +41,43 @@ type Problem <: AbstractProblem
     end
 end
 
+"""
+    actions{T <: AbstractProblem}(ap::T, state::String)
+
+Return an array of possible actions that can be executed in the given state 'state'.
+"""
 function actions{T <: AbstractProblem}(ap::T, state::String)
     println("actions() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
 
+"""
+    get_result{T <: AbstractProblem}(ap::T, state::String, action::String)
+
+Return the resulting state from executing the given action 'action' in the given state 'state'.
+"""
 function get_result{T <: AbstractProblem}(ap::T, state::String, action::String)
     println("get_result() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
 
+"""
+    goal_test{T <: AbstractProblem}(ap::T, state::String)
+
+Return a boolean value representing whether the given state 'state' is a goal state in the given
+problem 'ap'.
+"""
 function goal_test{T <: AbstractProblem}(ap::T, state::String)
     return ap.goal == state;
 end
 
+"""
+    path_cost{T <: AbstractProblem}(ap::T, cost::Float64, state1::String, action::String, state2::String)
+    path_cost{T <: AbstractProblem}(ap::T, cost::Float64, state1::AbstractVector, action::Int64, state2::AbstractVector)
+
+Return the cost of a solution path arriving at 'state2' from 'state1' with the given action 'action' and
+cost 'cost' to arrive at 'state1'. The default path_cost() method costs 1 for every step in a path.
+"""
 function path_cost{T <: AbstractProblem}(ap::T, cost::Float64, state1::String, action::String, state2::String)
     return cost + 1;
 end
@@ -60,6 +86,13 @@ function path_cost{T <: AbstractProblem}(ap::T, cost::Float64, state1::AbstractV
     return cost + 1;
 end
 
+"""
+    value{T <: AbstractProblem}(ap::T, state::String)
+
+Return a value for the given state 'state' in the given problem 'ap'.
+
+This value is used in optimization problems such as hill climbing or simulated annealing.
+"""
 function value{T <: AbstractProblem}(ap::T, state::String)
     println("value() is not implemented yet for ", typeof(ap), "!");
     nothing;
@@ -165,10 +198,20 @@ type Node{T}
     end
 end
 
+"""
+    expand{T <: AbstractProblem}(n::Node, ap::T)
+
+Return an array of nodes reachable by 1 step from the given node 'n' in the problem 'ap'.
+"""
 function expand{T <: AbstractProblem}(n::Node, ap::T)
     return collect(child_node(n, ap, act) for act in actions(ap, n.state));
 end
 
+"""
+    child_node{T <: AbstractProblem}(n::Node, ap::T, action::String)
+
+Return a child node for the given node 'n' in problem 'ap' after executing the action 'action' (Fig. 3.10).
+"""
 function child_node{T <: AbstractProblem}(n::Node, ap::T, action::String)
     local next_node = get_result(ap, n.state, action);
     return Node{typeof(next_node)}(next_node, parent=n, action=action, path_cost=path_cost(ap, n.path_cost, n.state, action, next_node));
@@ -184,11 +227,21 @@ function child_node{T <: AbstractProblem}(n::Node, ap::T, action::Tuple)
     return Node{typeof(next_node)}(next_node, parent=n, action=action, path_cost=path_cost(ap, n.path_cost, n.state, action, next_node));
 end
 
+"""
+    solution(n::Node)
+
+Return an array of actions to get from the root node of node 'n' to the given node 'n'.
+"""
 function solution(n::Node)
     local path_sequence = path(n);
     return [get(node.action) for node in path_sequence[2:length(path_sequence)]];
 end
 
+"""
+    path(n::Node)
+
+Return the path between the root node of node 'n' to the given node 'n' as an array of nodes.
+"""
 function path(n::Node)
     local node = n;
     local path_back = [];
@@ -196,7 +249,8 @@ function path(n::Node)
         push!(path_back, node);
         if (!isnull(node.parent))
             node = get(node.parent);
-        else     #the root node does not have a parent node
+        else
+            # The root node does not have a parent node.
             break;
         end
     end
@@ -376,18 +430,40 @@ function graph_search{T <: Queue}(problem::InstrumentedProblem, frontier::T)
     return nothing;
 end
 
+"""
+    breadth_first_tree_search{T <: AbstractProblem}(problem::T)
+
+Search the shallowest nodes in the search tree first.
+"""
 function breadth_first_tree_search{T <: AbstractProblem}(problem::T)
     return tree_search(problem, FIFOQueue());
 end
 
+"""
+    depth_first_tree_search{T <: AbstractProblem}(problem::T)
+
+Search the deepest nodes in the search tree first.
+"""
 function depth_first_tree_search{T <: AbstractProblem}(problem::T)
     return tree_search(problem, Stack());
 end
 
+"""
+    depth_first_graph_search{T <: AbstractProblem}(problem::T)
+
+Search the deepest nodes in the search tree first.
+"""
 function depth_first_graph_search{T <: AbstractProblem}(problem::T)
     return graph_search(problem, Stack());
 end
 
+"""
+    breadth_first_search{T <: AbstractProblem}(problem::T)
+    breadth_first_search(problem::InstrumentedProblem)
+
+Return a solution by using the breadth-first search algorithm (Fig. 3.11)
+on the given problem 'problem'. Otherwise, return 'nothing' on failure.
+"""
 function breadth_first_search{T <: AbstractProblem}(problem::T)
     local node = Node{typeof(problem.initial)}(problem.initial);
     if (goal_test(problem, node.state))
@@ -434,16 +510,27 @@ function breadth_first_search(problem::InstrumentedProblem)
     return nothing;
 end
 
+"""
+    best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
+
+Search the nodes in the given problem 'problem' by visiting the nodes with the lowest
+scores returned by f(). If f() is a heuristics estimate function to the goal state, then
+this function becomes greedy best first search. If f() is a function that gets the node's
+depth, then this function becomes breadth-first search.
+
+Returns a solution if found, otherwise returns 'nothing' on failure.
+
+This function uses f as a Function, because using f as an MemoizedFunction exhibits unusual
+behavior when relying on MemoizedFunction by producing unexpected results.
+"""
 function best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
-    #local mf = MemoizedFunction(f);
     local node = Node{typeof(problem.initial)}(problem.initial);
     if (goal_test(problem, node.state))
         return node;
     end
     local frontier = PQueue();
-    #push!(frontier, node, mf);
     push!(frontier, node, f);
-    local explored = Set{String}();
+    local explored = Set{typeof(problem.initial)}();
     while (length(frontier) != 0)
         node = pop!(frontier);
         if (goal_test(problem, node.state))
@@ -453,17 +540,14 @@ function best_first_graph_search{T <: AbstractProblem}(problem::T, f::Function)
         for child_node in expand(node, problem)
             if (!(child_node.state in explored) &&
                 !(child_node in collect(getindex(x, 2) for x in frontier.array)))
-                #push!(frontier, child_node, mf);
                 push!(frontier, child_node, f);
             elseif (child_node in [getindex(x, 2) for x in frontier.array])
-            #Recall that Nodes can share the same state and different values for other fields.
+                # Recall that Nodes can share the same state and different values for other fields.
                 local existing_node = pop!(collect(getindex(x, 2)
                                                     for x in frontier.array
                                                     if (getindex(x, 2) == child_node)));
-                #if (eval_memoized_function(mf, child_node) < eval_memoized_function(mf, existing_node))
                 if (f(child_node) < f(existing_node))
                     delete!(frontier, existing_node);
-                    #push!(frontier, child_node, mf);
                     push!(frontier, child_node, f);
                 end
             end
@@ -539,6 +623,24 @@ end
 
 const greedy_best_first_graph_search = best_first_graph_search;
 
+#=
+
+    Graph is a graph that consists of nodes (vertices) and edges (links).
+
+    The Graph constructor uses the keyword 'directed' to specify if the graph
+
+    is directed or undirected.
+
+
+    For an example Graph instance:
+
+        Graph(dict=Dict([("A", Dict([("B", 1), ("C", 2)]))]))
+
+    The example Graph is a directed graph with 3 vertices ("A", "B", and "C")
+
+    and link "A"=>"B" (length 1) and "A"=>"C" (length 2).
+
+=#
 type Graph{N}
     dict::Dict{N, Any}
     locations::Dict{N, Tuple{Any, Any}}
@@ -548,6 +650,8 @@ type Graph{N}
         local ng::Graph;
         if ((typeof(dict) <: Void) && (typeof(locations) <: Void))
             ng = new(Dict{Any, Any}(), Dict{Any, Tuple{Any, Any}}(), Bool(directed));
+        elseif (typeof(locations) <: Void)
+            ng = new(Dict{eltype(dict.keys), Any}(dict), Dict{Any, Tuple{Any, Any}}(), Bool(directed));
         else
             ng = new(Dict{eltype(dict.keys), Any}(dict), Dict{eltype(locations.keys), Tuple{Any, Any}}(locations), Bool(directed));
         end
@@ -570,6 +674,12 @@ function make_undirected(graph::Graph)
     end
 end
 
+"""
+    connect_nodes{N}(graph::Graph{N}, A::N, B::N; distance::Int64=Int64(1))
+
+Add a link between Node 'A' to Node 'B'. If the graph is undirected, then add
+the inverse link from Node 'B' to Node 'A'.
+"""
 function connect_nodes{N}(graph::Graph{N}, A::N, B::N; distance::Int64=Int64(1))
     get!(graph.dict, A, Dict{String, Int64}())[B]=distance;
     if (!graph.directed)
@@ -578,6 +688,12 @@ function connect_nodes{N}(graph::Graph{N}, A::N, B::N; distance::Int64=Int64(1))
     nothing;
 end
 
+"""
+    get_linked_nodes{N}(graph::Graph{N}, a::N; b::Union{Void, N}=nothing)
+
+Return a dictionary of nodes and their distances if the 'b' keyword is not given.
+Otherwise, return the distance between 'a' and 'b'.
+"""
 function get_linked_nodes{N}(graph::Graph{N}, a::N; b::Union{Void, N}=nothing)
     local linked = get!(graph.dict, a, Dict{Any, Any}());
     if (typeof(b) <: Void)
@@ -591,6 +707,13 @@ function get_nodes(graph::Graph)
     return collect(keys(graph.dict));
 end
 
+"""
+    UndirectedGraph{T <: Any}(dict::Dict{T, }, locations::Dict{T, Tuple{Any, Any}})
+    UndirectedGraph()
+
+Return an undirected graph from the given dictionary of links 'dict' and dictionary 
+of locations 'locations' if given.
+"""
 function UndirectedGraph{T <: Any}(dict::Dict{T, }, locations::Dict{T, Tuple{Any, Any}})
     return Graph{eltype(dict.keys)}(dict=dict, locations=locations, directed=false);
 end
@@ -599,6 +722,11 @@ function UndirectedGraph()
     return Graph{Any}(directed=false);
 end
 
+"""
+    RandomGraph()
+
+Return a random graph with the specified nodes and number of links.
+"""
 function RandomGraph(;nodes::Range=1:10,
                     min_links::Int64=2,
                     width::Int64=400,
@@ -628,7 +756,11 @@ function RandomGraph(;nodes::Range=1:10,
     return g;
 end
 
+#=
 
+    GraphProblem is the problem of searching a graph from one node to another node.
+
+=#
 type GraphProblem <: AbstractProblem
     initial::String
     goal::String
@@ -682,8 +814,16 @@ function initial_to_goal_distance(gp::InstrumentedProblem, n::Node)
     end
 end
 
+"""
+    astar_search(problem::GraphProblem; h::Union{Void, Function}=nothing)
+
+Apply the A* search (best-first graph search with f(n)=g(n)+h(n)) to the given problem 'problem'.
+If the 'h' keyword is not used, this function uses the function problem.h.
+
+This function uses mh as a Function, because using mh as an MemoizedFunction exhibits unusual
+behavior when relying on MemoizedFunction by producing unexpected results.
+"""
 function astar_search(problem::GraphProblem; h::Union{Void, Function}=nothing)
-    #local mh::MemoizedFunction; #memoized h(n) function
     local mh::Function;
     if (!(typeof(h) <: Void))
         mh = h;
@@ -692,8 +832,8 @@ function astar_search(problem::GraphProblem; h::Union{Void, Function}=nothing)
     end
     return best_first_graph_search(problem,
                                     (function(node::Node; h::Function=mh, prob::GraphProblem=problem)
-                                        #return node.path_cost + eval_memoized_function(h, prob, node);end));
-                                        return node.path_cost + h(prob, node);end));
+                                        return node.path_cost + h(prob, node);
+                                    end));
 end
 
 """
@@ -767,6 +907,12 @@ function recursive_best_first_search(problem::InstrumentedProblem; h::Union{Void
     return get(result);
 end
 
+"""
+    hill_climbing{T <: AbstractProblem}(problem::T)
+
+Return a state that is a local maximum for the given problem 'problem' by using
+the hill-climbing search algorithm (Fig. 4.2) on the initial state of the problem.
+"""
 function hill_climbing{T <: AbstractProblem}(problem::T)
     local current_node = Node{typeof(problem.initial)}(problem.initial);
     while (true)
@@ -786,16 +932,28 @@ function hill_climbing{T <: AbstractProblem}(problem::T)
     return current_node.state;
 end
 
+"""
+    exp_schedule(;kvar::Int64=20, delta::Float64=0.005, lmt::Int64=100)
+
+Return a scheduled time for simulated annealing.
+"""
 function exp_schedule(;kvar::Int64=20, delta::Float64=0.005, lmt::Int64=100)
     return (function(t::Real; k=kvar, d=delta, limit=lmt)
                 return if_((t < limit), (k * exp(-d * t)), 0);
             end);
 end
 
-function simulated_annealing{T <: AbstractProblem}(problem::T; schedule=exp_schedule)
+"""
+    simulated_annealing{T <: AbstractProblem}(problem::T; schedule::Function=exp_schedule())
+
+Return the solution node by applying the simulated annealing algorithm (Fig. 4.5) on the given
+problem 'problem' and schedule function 'schedule'. If a solution node can't be found,
+this function returns 'nothing' on failure.
+"""
+function simulated_annealing{T <: AbstractProblem}(problem::T; schedule::Function=exp_schedule())
     local current_node = Node{typeof(problem.initial)}(problem.initial);
     for t in 0:(typemax(Int64) - 1)
-        local temperature = schedule(t);
+        local temperature::Float64 = schedule(t);
         if (temperature == 0)
             return current_node;
         end
@@ -817,7 +975,6 @@ end
     and_search() and or_search() are used by and_or_graph_search().
 
 =#
-
 function or_search{T <: AbstractProblem}(problem::T, state::AbstractVector, path::AbstractVector)
     if (goal_test(problem, state))
         return [];
@@ -861,8 +1018,184 @@ function and_search{T <: AbstractVector}(problem::T, states::AbstractVector, pat
     return plan;
 end
 
+"""
+    and_or_graph_search{T <: AbstractProblem}(problem::T)
+
+Return a conditional plan by using the algorithm for searching and-or graphs (Fig. 4.11)
+on the given problem 'problem'. This function returns 'nothing' on failure.
+"""
 function and_or_graph_search{T <: AbstractProblem}(problem::T)
     return or_search(problem, problem.initial, []);
+end
+
+#=
+
+    OnlineDFSAgentProgram is a online depth first search agent (Fig. 4.21)
+
+    implementation of AgentProgram.
+
+=#
+type OnlineDFSAgentProgram <: AgentProgram
+    result::Dict
+    untried::Dict
+    unbacktracked::Dict
+    state::Nullable{String}
+    action::Nullable{String}
+    problem::AbstractProblem
+
+    function OnlineDFSAgentProgram{T <: AbstractProblem}(problem::T)
+        return new(Dict(), Dict(), Dict(), Nullable{String}(), Nullable{String}(), problem);
+    end
+end
+
+function update_state(odfsap::OnlineDFSAgentProgram, percept::String)
+    return percept;
+end
+
+function execute(odfsap::OnlineDFSAgentProgram, percept::String)
+    local s_prime::String = update_state(odfsap, percept);
+    if (goal_test(odfsap.problem, s_prime))
+        odfsap.action = Nullable{String}();
+    else
+        if (!(s_prime in keys(odfsap.untried)))
+            odfsap.untried[s_prime] = actions(odfsap.problem, s_prime);
+        end
+        if (!isnull(odfsap.state))
+            if (haskey(odfsap.result, (odfsap.state, odfsap.action)))
+                if (s_prime != odfsap.result[(odfsap.state, odfsap.action)])
+                    odfsap.result[(odfsap.state, odfsap.action)] = s_prime;
+                    unshift!(odfsap.unbacktracked[s_prime], odfsap.state);
+                end
+            else
+                if (s_prime != [])
+                    odfsap.result[(odfsap.state, odfsap.action)] = s_prime;
+                    unshift!(odfsap.unbacktracked[s_prime], odfsap.state);
+                end
+            end
+        end
+        if (length(odfsap.untried[s_prime]) == 0)
+            if (length(odfsap.unbacktracked[s_prime]) == 0)
+                odfsap.action = Nullable{String}();
+            else
+                first_item = shift!(odfsap.unbacktracked[s_prime]);
+                for (state, b) in keys(odfsap.result)
+                    if (odfsap.result[(state, b)] == first_item)
+                        odfsap.action = b;
+                        break;
+                    end
+                end
+            end
+        else
+            odfsap.action = shift!(odfsap.untried[s_prime]);
+        end
+    end
+    odfsap.state = s_prime;
+    return odfsap.action;
+end
+
+#=
+
+    OnlineSearchProblem is a AbstractProblem implementation of a online search problem
+
+    that can be solved by a online search agent.
+
+=#
+type OnlineSearchProblem <: AbstractProblem
+    initial::String
+    goal::String
+    graph::Graph
+    least_costs::Dict
+    h::Function
+
+    function OnlineSearchProblem(initial::String, goal::String, graph::Graph, least_costs::Dict)
+        return new(initial, goal, graph, least_costs, online_search_least_cost);
+    end
+end
+
+function actions(osp::OnlineSearchProblem, state::String)
+    return collect(keys(osp.graph.dict[state]));
+end
+
+function get_result(osp::OnlineSearchProblem, state::String, action::String)
+    return osp.graph.dict[state][action];
+end
+
+function online_search_least_cost(osp::OnlineSearchProblem, state::String)
+    return osp.least_costs[state];
+end
+
+function path_cost(osp::OnlineSearchProblem, state1::String, action::String, state2::String)
+    return 1;
+end
+
+function goal_test(osp::OnlineSearchProblem, state::String)
+    if (state == osp.goal)
+        return true;
+    else
+        return false;
+    end
+end
+
+#=
+
+    LRTAStarAgentProgram is an AgentProgram implementation of LRTA*-Agent (Fig. 4.24).
+
+    The 'result' field is not necessary as the given problem contains the results table.
+
+=#
+type LRTAStarAgentProgram <: AgentProgram
+    H::Dict
+    state::Nullable{String}
+    action::Nullable{String}
+    problem::AbstractProblem
+
+    function LRTAStarAgentProgram{T <: AbstractProblem}(problem::T)
+        return new(Dict(), Nullable{String}(), Nullable{String}(), problem);
+    end
+end
+
+function learning_realtime_astar_cost(lrtaap::LRTAStarAgentProgram, state::String, action::String, s_prime::String, H::Dict)
+    if (haskey(lrtaap.H, s_prime))
+        return path_cost(lrtaap.problem, state, action, s_prime) + lrtaap.H[s_prime];
+    else
+        return path_cost(lrtaap.problem, state, action, s_prime) + lrtaap.problem.h(lrtaap.problem, s_prime);
+    end
+end
+
+"""
+    execute(lrtaap::LRTAStarAgentProgram, s_prime::String)
+
+Return an action given the percept 's_prime' and by using the LRTA*-Agent
+program (Fig. 4.24). If the current state of the agent is at the goal
+state, return 'nothing'.
+"""
+function execute(lrtaap::LRTAStarAgentProgram, s_prime::String)
+    if (goal_test(lrtaap.problem, s_prime))
+        lrtaap.action = Nullable{String}();
+        return nothing;
+    else
+        if (!haskey(lrtaap.H, s_prime))
+            lrtaap.H[s_prime] = lrtaap.problem.h(lrtaap.problem, s_prime);
+        end
+        if (!isnull(lrtaap.state))
+            lrtaap.H[get(lrtaap.state)] = reduce(min, learning_realtime_astar_cost(lrtaap,
+                                                                        get(lrtaap.state),
+                                                                        b,
+                                                                        get_result(lrtaap.problem, get(lrtaap.state), b),
+                                                                        lrtaap.H)
+                                        for b in actions(lrtaap.problem, get(lrtaap.state)));
+        end
+        lrtaap.action = argmin(actions(lrtaap.problem, s_prime),
+                                (function(b::String)
+                                    return learning_realtime_astar_cost(lrtaap,
+                                                                        s_prime,
+                                                                        b,
+                                                                        get_result(lrtaap.problem, s_prime, b),
+                                                                        lrtaap.H);
+                                end));
+        lrtaap.state = s_prime;
+        return get(lrtaap.action);
+    end
 end
 
 function genetic_search{T <: AbstractProblem}(problem::T; ngen::Int64=1000, pmut::Float64=0.1, n::Int64=20)
@@ -892,6 +1225,7 @@ function genetic_algorithm{T <: AbstractVector}(population::T, fitness::Function
     return argmax(population, fitness);
 end
 
+# Simplified road map of Romania example (Fig. 3.2)
 romania = UndirectedGraph(Dict(
                             Pair("A", Dict("Z"=>75, "S"=>140, "T"=>118)),
                             Pair("B", Dict("U"=>85, "P"=>101, "G"=>90, "F"=>211)),
@@ -916,6 +1250,26 @@ romania = UndirectedGraph(Dict(
                                 )
                             );
 
+# One-dimensional state space example (Fig. 4.23)
+one_dim_state_space = Graph{String}(dict=Dict{String, Dict{String, String}}([Pair("State_1", Dict([Pair("Right", "State_2")])),
+                                        Pair("State_2", Dict([Pair("Right", "State_3"),
+                                                            Pair("Left", "State_1")])),
+                                        Pair("State_3", Dict([Pair("Right", "State_4"),
+                                                            Pair("Left", "State_2")])),
+                                        Pair("State_4", Dict([Pair("Right", "State_5"),
+                                                            Pair("Left", "State_3")])),
+                                        Pair("State_5", Dict([Pair("Right", "State_6"),
+                                                            Pair("Left", "State_4")])),
+                                        Pair("State_6", Dict([Pair("Left", "State_5")]))]));
+
+one_dim_state_space_least_costs = Dict([Pair("State_1", 8),
+                                        Pair("State_2", 9),
+                                        Pair("State_3", 2),
+                                        Pair("State_4", 2),
+                                        Pair("State_5", 4),
+                                        Pair("State_6", 3)]);
+
+# Principal states and territories of Australia example (Fig. 6.1)
 australia = UndirectedGraph(Dict(
                                 Pair("T",   Dict()),
                                 Pair("SA",  Dict("WA"=>1, "NT"=>1, "Q"=>1, "NSW"=>1, "V"=>1)),
@@ -927,6 +1281,17 @@ australia = UndirectedGraph(Dict(
                                 )
                             );
 
+#=
+
+    NQueensProblem is the problem of placing 'N' non-attacking queens on a 'N'x'N' chess board.
+
+    Each state is represented as an 'N' element array where the value of 'r' at index 'c' implies
+
+    that a queen occupies the position at row 'r' and column 'c'. The columns are values are filled
+
+    from left to right.
+
+=#
 type NQueensProblem <: AbstractProblem
     N::Int64
     initial::Array{Nullable{Int64}, 1}
@@ -1062,6 +1427,11 @@ function int_sqrt(n::Number)
     return Int64(sqrt(n));
 end
 
+#=
+
+    WordList contains an array of words.
+
+=#
 type WordList
     words::Array{String, 1}
     bounds::Dict{Char, Tuple{Any, Any}}
@@ -1100,7 +1470,13 @@ length(wl::WordList) = length(wl.words);
 
 in(prefix::String, wl::WordList) = getindex(lookup(wl, prefix), 2);
 
+#=
 
+    BoggleFinder contains the words found on the Boggle board
+
+    and the array of possible words for the Boggle board.
+
+=#
 type BoggleFinder
     wordlist::WordList
     scores::AbstractVector
@@ -1178,6 +1554,13 @@ end
 
 length(bf::BoggleFinder) = length(bf.found);
 
+"""
+    boggle_hill_climbing(;board::Union{Void, AbstractVector}=nothing, ntimes::Int64=100, verbose::Bool=true)
+
+Solve the inverse Boggle by using hill climbing (initially use a random Boggle board and changing it).
+
+Return the best Boggle board and its length.
+"""
 function boggle_hill_climbing(;board::Union{Void, AbstractVector}=nothing, ntimes::Int64=100, verbose::Bool=true)
     finder = BoggleFinder();
     if (typeof(board) <: Void)
@@ -1201,7 +1584,6 @@ function boggle_hill_climbing(;board::Union{Void, AbstractVector}=nothing, ntime
     end
     return board, best_length;
 end
-
 
 function mutate_boggle(board::AbstractArray)
     local i::Int64 = rand(RandomDeviceInstance, 1:length(board));

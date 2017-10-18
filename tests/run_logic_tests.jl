@@ -4,7 +4,7 @@ using Base.Test;
 
 using aimajulia;
 
-#The following Logic tests are from the aima-python doctests
+#The following logic tests are from the aima-python doctests
 
 x = Expression("x");
 
@@ -305,4 +305,14 @@ end
 @test differentiate(expr("x * x"), expr("x")) == expr("(x * 1) + (x * 1)");
 
 @test differentiate_simplify(expr("x * x"), expr("x")) == expr("2 * x");
+
+@test (constant_symbols(expr("x & y & z | A")) == Set([expr("A")]));
+
+@test (constant_symbols(expr("(x & B(z)) & Father(John) ==> Farmer(y) | A")) == Set(map(expr, ["A", "John"])));
+
+@test (predicate_symbols(expr("x & y & z | A")) == Set());
+
+@test (predicate_symbols(expr("(x & B(z)) & Father(John) ==> Farmer(y) | A")) == Set([("B", 1), ("Father", 1), ("Farmer", 1)]));
+
+@test (predicate_symbols(expr("(x & B(x, y, z)) & F(G(x, y), x) ==> P(Q(R(x, y)), x, y, z)")) == Set([("G", 2), ("P", 4), ("R", 2), ("B", 3), ("Q", 1), ("F", 2)]));
 
