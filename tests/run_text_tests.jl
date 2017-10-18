@@ -166,6 +166,14 @@ expected_trigrams = Dict([Pair((' ', 't', 'r'), 3),
                         end),
                         collect("orange apple lemon "))) == "oranges  apples  lemons  ");
 
+# Base.Test tests for decoding
+flatland = readstring("./aima-data/EN-text/flatland.txt");
+ring = ShiftCipherDecoder(flatland);
+
+@test (decode_text(ring, "Kyzj zj r jvtivk dvjjrxv.") == "This is a secret message.");
+
+@test (decode_text(ring, rot13("Hello, world!")) == "Hello, world!");
+
 # Base.Test tests for generating arrays of bigrams
 @test (bigrams("this") == [('t', 'h'), ('h', 'i'), ('i', 's')]);
 

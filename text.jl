@@ -3,7 +3,8 @@ export extract_words, canonicalize_text, UnigramWordModel, NgramWordModel, sampl
         UnigramCharModel, NgramCharModel,
         shift_encode, rot13, bigrams, viterbi_text_segmentation,
         DocumentMetadata,
-        AbstractInformationRetrievalSystem, InformationRetrievalSystem, UnixConsultant, execute_query;
+        AbstractInformationRetrievalSystem, InformationRetrievalSystem, UnixConsultant, execute_query,
+        ShiftCipherDecoder, score_text, decode_text;
 
 #=
 
@@ -473,7 +474,8 @@ end
 """
     execute_query{T <: AbstractInformationRetrievalSystem}(irs::T, query::String; n::Int64=10)
 
-Return an array of 'n' (score, document ID) Tuples for the best matches.
+Return an array of at most 'n' best matches (score, document ID) Tuples for the given
+query string 'query' and IR system 'irs'.
 
 If the query starts with 'learn: ', the following command within the query is executed.
 Then the command output is then indexed with index_document().
@@ -530,5 +532,34 @@ type UnixConsultant <: AbstractInformationRetrievalSystem
                                     if (endswith(filename, ".txt"))));
         return uc;
     end
+end
+
+function all_shift_ciphers(text::String)
+    return collect(shift_encode(text, i) for (i, letter) in enumerate(lowercase_alphabet));
+end
+
+type ShiftCipherDecoder
+    training_text::String
+    P2::CountingProbabilityDistribution
+
+    function ShiftCipherDecoder(training_text::String)
+        local canonicalized_text::String = canonicalize_text(training_text)
+        return new(canonicalized_text, CountingProbabilityDistribution(bigrams(canonicalized_text), default=1));
+    end
+end
+
+function score_text(scd::ShiftCipherDecoder, plaintext::String)
+    local score::Float64 = 1.0;
+    for bigram in bigrams(plaintext)
+        score = score * scd.P2[bigram];
+    end
+    return score;
+end
+
+function decode_text(scd::ShiftCipherDecoder, ciphertext::String)
+    return argmax(all_shift_ciphers(ciphertext),
+                    (function(shifted_text::String)
+                        return score_text(scd, shifted_text);
+                    end));
 end
 
