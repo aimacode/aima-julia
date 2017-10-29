@@ -7,7 +7,7 @@ export AbstractGame, Figure52Game, TicTacToeGame, ConnectFourGame,
         display,
         random_player, alphabeta_player, play_game;
 
-abstract AbstractGame;
+abstract type AbstractGame end;
 
 #=
 
@@ -17,7 +17,7 @@ abstract AbstractGame;
 
 =#
 
-type Game <: AbstractGame
+struct Game <: AbstractGame
     initial::String
 
     function Game(initial_state::String)
@@ -62,7 +62,7 @@ end
     Figure52Game is the game represented by the game tree in Fig. 5.2.
 
 =#
-type Figure52Game <: AbstractGame
+struct Figure52Game <: AbstractGame
     initial::String
     nodes::Dict
     utilities::Dict
@@ -112,7 +112,7 @@ function to_move(game::Figure52Game, state::String)
     return if_((state in ["B", "C", "D"]), "MIN", "MAX");
 end
 
-type TicTacToeState
+struct TicTacToeState
     turn::String
     utility::Int64
     board::Dict
@@ -128,7 +128,7 @@ end
     TicTacToeGame is a AbstractGame implementation of the Tic-tac-toe game.
 
 =#
-type TicTacToeGame <: AbstractGame
+struct TicTacToeGame <: AbstractGame
     initial::TicTacToeState
     h::Int64
     v::Int64
@@ -217,14 +217,14 @@ function k_in_row(game::TicTacToeGame, board::Dict, move::Tuple{Signed, Signed},
     return n >= game.k;
 end
 
-typealias ConnectFourState TicTacToeState;
+const ConnectFourState = TicTacToeState;
 
 #=
 
     ConnectFourGame is a AbstractGame implementation of the Connect Four game.
 
 =#
-type ConnectFourGame <: AbstractGame
+struct ConnectFourGame <: AbstractGame
     initial::ConnectFourState
     h::Int64
     v::Int64

@@ -2,7 +2,19 @@
 
 [![Build Status](https://travis-ci.org/aimacode/aima-julia.svg?branch=master)](https://travis-ci.org/aimacode/aima-julia)
 
-Julia (v0.5+) implementation of the algorithms found in "Artificial Intelligence: A Modern Approach".
+Julia (v0.6) implementation of the algorithms found in "Artificial Intelligence: A Modern Approach".
+
+This project is not intended to be a standard Julia package (i.e. the Julia package manager). We're looking for [solid contributors](CONTRIBUTING.md) to help.
+
+Structure of the Project
+------------------------
+
+When complete, this project will have Julia implementations for all the pseudocode algorithms in the book, as well as tests and examples of use. For each major topic, such as `nlp` (natural language processing), we provide the following files:
+
+- `nlp.jl`: Implementations of all the pseudocode algorithms, and necessary support functions/datatypes/data.
+- `tests/test_nlp.jl`: A lightweight test suite using Base.Test macros.
+- `nlp.ipynb`: A Jupyter (IJulia) notebook that explains and gives examples of how to use the code.
+- `nlp_apps.ipynb`: A Jupyter notebook that gives example applications of the code.
 
 Using aima-julia for portable purposes
 --------------------------------------
@@ -115,15 +127,6 @@ Running tests
 -------------
 
 All Base.Test tests for the aima-julia project can be found in the [tests](https://github.com/aimacode/aima-julia/tree/master/tests) directory.
-
-Conventions
------------
-
-* 4 spaces, not tabs
-
-* Please try to follow the style conventions of the file you are modifying.
-
-We like this [style guide](https://docs.julialang.org/en/release-0.5/manual/style-guide/).
 
 ## Acknowledgements
 

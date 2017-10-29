@@ -67,7 +67,7 @@ end
     DataSet is a data set used by machine learning algorithms.
 
 =#
-type DataSet
+mutable struct DataSet
     name::String
     source::String
     examples::AbstractMatrix
@@ -379,7 +379,7 @@ copy(ds::DataSet) = DataSet(identity(ds.name),
                             copy(ds.inputs),
                             identity(ds.target));
 
-abstract AbstractCountingProbabilityDistribution;
+abstract type AbstractCountingProbabilityDistribution end;
 
 #=
 
@@ -392,7 +392,7 @@ abstract AbstractCountingProbabilityDistribution;
     accessing the CountingProbabilityDistribution by the given key.
 
 =#
-type CountingProbabilityDistribution <: AbstractCountingProbabilityDistribution
+mutable struct CountingProbabilityDistribution <: AbstractCountingProbabilityDistribution
     dict::Dict
     number_of_observations::Int64
     default::Int64
@@ -480,12 +480,12 @@ function sample(cpd::CountingProbabilityDistribution)
     return get(cpd.sample_function)();
 end
 
-abstract AbstractLearner;
+abstract type AbstractLearner end;
 
-type PluralityLearner{T} <: AbstractLearner
+struct PluralityLearner{T} <: AbstractLearner
     most_popular::T
 
-    function PluralityLearner{T}(mp::T)
+    function PluralityLearner{T}(mp::T) where T
         return new(mp);
     end
 end
@@ -500,7 +500,7 @@ function predict(pl::PluralityLearner, example::AbstractVector)
     return pl.most_popular;
 end
 
-abstract AbstractNaiveBayesModel;
+abstract type AbstractNaiveBayesModel end;
 
 #=
 
@@ -509,7 +509,7 @@ abstract AbstractNaiveBayesModel;
     or a conditional probability model (if 'simple' keyword is given as true).
 
 =#
-type NaiveBayesLearner <: AbstractLearner
+struct NaiveBayesLearner <: AbstractLearner
     model::AbstractNaiveBayesModel
 
     function NaiveBayesLearner(ds::DataSet; continuous::Bool=true)
@@ -550,7 +550,7 @@ end
         (classification, probability)=>CountingProbabilityDistribution
 
 =#
-type NaiveBayesSimpleModel <: AbstractNaiveBayesModel
+struct NaiveBayesSimpleModel <: AbstractNaiveBayesModel
     target_distribution::Dict
     attributes_distributions::Dict
 
@@ -585,7 +585,7 @@ end
     on their corresponding target value.
 
 =#
-type NaiveBayesDiscreteModel <: AbstractNaiveBayesModel
+mutable struct NaiveBayesDiscreteModel <: AbstractNaiveBayesModel
     dataset::DataSet
     target_values::AbstractVector
     target_distribution::CountingProbabilityDistribution
@@ -625,7 +625,7 @@ end
     mean and deviations for the input attribute values for each target value.
 
 =#
-type NaiveBayesContinuousModel <: AbstractNaiveBayesModel
+mutable struct NaiveBayesContinuousModel <: AbstractNaiveBayesModel
     dataset::DataSet
     target_values::AbstractVector
     target_distribution::CountingProbabilityDistribution
@@ -659,7 +659,7 @@ end
     NearestNeighborLearner uses the k-nearest neighbors lookup for predictions.
 
 =#
-type NearestNeighborLearner <: AbstractLearner
+struct NearestNeighborLearner <: AbstractLearner
     dataset::DataSet
     k::Int64
 
@@ -686,12 +686,12 @@ function predict(nnl::NearestNeighborLearner, example::AbstractVector)
     return mode(dataset_example[nnl.dataset.target] for (distance, dataset_example) in best_distances);
 end
 
-abstract AbstractDecisionTreeNode;
+abstract type AbstractDecisionTreeNode end;
 
-type DecisionLeafNode{T} <: AbstractDecisionTreeNode
+struct DecisionLeafNode{T} <: AbstractDecisionTreeNode
     result::T
 
-    function DecisionLeafNode{T}(result::T)
+    function DecisionLeafNode{T}(result::T) where T
         return new(result);
     end
 end
@@ -702,7 +702,7 @@ end
 
 DecisionLeafNode(result) = DecisionLeafNode{typeof(result)}(result);
 
-type DecisionForkNode <: AbstractDecisionTreeNode
+struct DecisionForkNode <: AbstractDecisionTreeNode
     attribute::Int64
     attribute_name::Nullable
     default_child::Nullable{DecisionLeafNode}
@@ -774,7 +774,7 @@ Returns an empty matrix when vcat() returns an empty vector, otherwise return vc
 """
 function matrix_vcat(args::Vararg)
     if (length(args) == 0)
-        return Array{Any, 2}();
+        return Array{Any, 2}(0, 0);
     else
         return vcat(args...);
     end
@@ -828,7 +828,7 @@ Return a decision tree as a DecisionLeafNode or a DecisionForkNode by applying t
 learning algorithm (Fig. 18.5) on the given dataset 'dataset', example matrix 'example', attributes
 vector 'attributes', and parent examples 'parent_examples'.
 """
-function decision_tree_learning(dataset::DataSet, examples::AbstractMatrix, attributes::AbstractVector; parent_examples::AbstractMatrix=Array{Any, 2}())
+function decision_tree_learning(dataset::DataSet, examples::AbstractMatrix, attributes::AbstractVector; parent_examples::AbstractMatrix=Array{Any, 2}(0, 0))
     # examples is empty
     if (size(examples)[1] == 0)
         return plurality_value(dataset, parent_examples);
@@ -855,7 +855,7 @@ function decision_tree_learning(dataset::DataSet, examples::AbstractMatrix, attr
     end
 end
 
-type DecisionTreeLearner <: AbstractLearner
+struct DecisionTreeLearner <: AbstractLearner
     decision_tree::AbstractDecisionTreeNode
 
     function DecisionTreeLearner(dataset::DataSet)
@@ -900,7 +900,7 @@ function feature_bagging(dataset::DataSet; p::Float64=0.7)
     end
 end
 
-type RandomForest <: AbstractLearner
+struct RandomForest <: AbstractLearner
     predictors::Array{DecisionTreeLearner, 1}
 
     function RandomForest(dataset::DataSet; n::Int64=5)
@@ -944,7 +944,7 @@ function decision_list_learning(ds::DataSet, examples::Set)
     return append!([(t, output)], decision_list_learning(ds, setdiff(examples, examples_t)));
 end
 
-type DecisionListLearner <: AbstractLearner
+struct DecisionListLearner <: AbstractLearner
     decision_list::AbstractVector
 
     function DecisionListLearner(dataset::DataSet)
@@ -967,7 +967,7 @@ end
     NeuralNetworkUnit is an unit (node) in a multilayer neural network.
 
 =#
-type NeuralNetworkUnit
+mutable struct NeuralNetworkUnit
     weights::AbstractVector
     inputs::AbstractVector
     value::Nullable
@@ -1131,7 +1131,7 @@ end
     'learning_rate', and number of epochs (our criterion for stopping training) 'epochs'.
 
 =#
-type NeuralNetworkLearner <: AbstractLearner
+mutable struct NeuralNetworkLearner <: AbstractLearner
     network::AbstractVector
 
     function NeuralNetworkLearner(dataset::DataSet;
@@ -1190,7 +1190,7 @@ end
     dataset 'dataset'.
 
 =#
-type PerceptronLearner <: AbstractLearner
+mutable struct PerceptronLearner <: AbstractLearner
     network::AbstractVector
 
     function PerceptronLearner(dataset::DataSet;
@@ -1239,7 +1239,7 @@ end
     real numbers.
 
 =#
-type LinearRegressionLearner <: AbstractLearner
+struct LinearRegressionLearner <: AbstractLearner
     dataset::DataSet
     weights::AbstractVector
 
@@ -1284,7 +1284,7 @@ end
     learner constructors to vote on the best classification when predicting.
 
 =#
-type EnsembleLearner <: AbstractLearner
+struct EnsembleLearner <: AbstractLearner
     predictors::AbstractVector
 
     function EnsembleLearner(dataset::DataSet, learners::AbstractVector)
@@ -1307,7 +1307,7 @@ end
 Return the value from 'values' with the largest cumulative weight.
 """
 function weighted_mode(values::String, weights::AbstractVector)
-    local values_array::AbstractVector = map(String, (collect(char) for char in map(Char, values.data)));
+    local values_array::AbstractVector = map(String, (collect(char) for char in map(Char, Vector{UInt8}(values))));
     local weight_values::Dict = Dict();
     for (value, weight) in zip(values_array, weights)
         if (haskey(weight_values, value))
@@ -1430,7 +1430,7 @@ end
     AdaBoostLearner contains the weights and hypotheses generated by adaboost!().
 
 =#
-type AdaBoostLearner <: AbstractLearner
+struct AdaBoostLearner <: AbstractLearner
     h::AbstractVector
     z::AbstractVector
     hypothesis::Function

@@ -51,7 +51,7 @@ end
     mappings of percepts to actions.
 
 =#
-type TableDrivenAgentProgram <: AgentProgram
+struct TableDrivenAgentProgram <: AgentProgram
     isTracing::Bool
     percepts::Array{Tuple{Any, Any}, 1}
     table::Dict{Any, Any}
@@ -72,7 +72,7 @@ end
     in the two-state vacuum environment.
 
 =#
-type ReflexVacuumAgentProgram <: AgentProgram
+struct ReflexVacuumAgentProgram <: AgentProgram
     isTracing::Bool
 
     function ReflexVacuumAgentProgram(;trace::Bool=false)
@@ -87,7 +87,7 @@ end
     the model of the vacuum environment.
 
 =#
-type ModelBasedVacuumAgentProgram <: AgentProgram
+mutable struct ModelBasedVacuumAgentProgram <: AgentProgram
     isTracing::Bool
     model::Dict{Any, Any}
 
@@ -109,7 +109,7 @@ end
     all possible actions in the environment of the agent.
 
 =#
-type RandomAgentProgram <: AgentProgram
+struct RandomAgentProgram <: AgentProgram
     isTracing::Bool
     actions::Array{String, 1}
 
@@ -118,7 +118,7 @@ type RandomAgentProgram <: AgentProgram
     end
 end
 
-type Rule   # condition-action rules
+struct Rule   # condition-action rules
     condition::String
     action::String
 
@@ -134,7 +134,7 @@ end
     a set of condition-action rules.
 
 =#
-type SimpleReflexAgentProgram <: AgentProgram
+struct SimpleReflexAgentProgram <: AgentProgram
     isTracing::Bool
     rules::Array{Rule, 1}
 
@@ -152,7 +152,7 @@ end
     a set of condition-action rules and the model of the environment.
 
 =#
-type ModelBasedReflexAgentProgram <: AgentProgram
+mutable struct ModelBasedReflexAgentProgram <: AgentProgram
     isTracing::Bool
     state::Dict{Any, Any}
     model::Dict{Any, Any}
@@ -175,12 +175,12 @@ end
 =#
 
 # Declare EnvironmentObject as a supertype for EnvironmentObject implementations
-abstract EnvironmentObject;
+abstract type EnvironmentObject end;
 
 # The EnvironmentAgent implementations exist in the environment like other EnvironmentObjects such as Gold or Dirt
-abstract EnvironmentAgent <: EnvironmentObject;
+abstract type EnvironmentAgent <: EnvironmentObject end;
 
-type Agent <: EnvironmentAgent
+mutable struct Agent <: EnvironmentAgent
     alive::Bool
     performance::Float64
     bump::Bool
@@ -204,7 +204,7 @@ type Agent <: EnvironmentAgent
     end
 end
 
-type Wumpus <: EnvironmentAgent
+mutable struct Wumpus <: EnvironmentAgent
     alive::Bool
     performance::Float64
     bump::Bool
@@ -228,7 +228,7 @@ type Wumpus <: EnvironmentAgent
     end
 end
 
-type Explorer <: EnvironmentAgent
+mutable struct Explorer <: EnvironmentAgent
     alive::Bool
     performance::Float64
     bump::Bool
@@ -267,9 +267,9 @@ end
 
 =#
 
-abstract Obstacle <: EnvironmentObject
+abstract type Obstacle <: EnvironmentObject end;
 
-type Wall <: Obstacle
+mutable struct Wall <: Obstacle
     location::Tuple{Any, Any}
 
     function Wall()
@@ -283,7 +283,7 @@ end
 
 =#
 
-type Dirt <: EnvironmentObject
+mutable struct Dirt <: EnvironmentObject
     location::Tuple{Any, Any}
 
     function Dirt()
@@ -297,7 +297,7 @@ end
 
 =#
 
-type Gold <: EnvironmentObject
+mutable struct Gold <: EnvironmentObject
     location::Tuple{Any, Any}
 
     function Gold()
@@ -305,7 +305,7 @@ type Gold <: EnvironmentObject
     end
 end
 
-type Pit <: EnvironmentObject
+mutable struct Pit <: EnvironmentObject
     location::Tuple{Any, Any}
 
     function Pit()
@@ -313,7 +313,7 @@ type Pit <: EnvironmentObject
     end
 end
 
-type Arrow <: EnvironmentObject
+mutable struct Arrow <: EnvironmentObject
     location::Tuple{Any, Any}
 
     function Array()
@@ -547,9 +547,9 @@ function RandomVacuumAgent()
 end
 
 # Declare Environment as a supertype for Environment implementations
-abstract Environment;
+abstract type Environment end;
 
-abstract TwoDimensionalEnvironment <: Environment;
+abstract type TwoDimensionalEnvironment <: Environment end;
 
 #=
 
@@ -560,7 +560,7 @@ abstract TwoDimensionalEnvironment <: Environment;
     This environment does not update agent performance measures.
 
 =#
-type XYEnvironment <: TwoDimensionalEnvironment
+mutable struct XYEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
     width::Float64
@@ -582,7 +582,7 @@ end
 
     are updated when Dirt is removed or a non-NoOp action is executed.
 =#
-type VacuumEnvironment <: TwoDimensionalEnvironment
+mutable struct VacuumEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}                 #agents found in this field should also be found in the objects field
     width::Float64
@@ -603,7 +603,7 @@ end
     The status of those locations can be either "Dirty" or "Clean".
 
 =#
-type TrivialVacuumEnvironment <: Environment
+mutable struct TrivialVacuumEnvironment <: Environment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Agent, 1}
     status::Dict{Tuple{Any, Any}, String}
@@ -626,7 +626,7 @@ end
     WumpusEnvironment is a 2-dimensional Environment implementation of the Wumpus World.
 
 =#
-type WumpusEnvironment <: TwoDimensionalEnvironment
+mutable struct WumpusEnvironment <: TwoDimensionalEnvironment
     objects::Array{EnvironmentObject, 1}
     agents::Array{Array, 1}
     width::Float64

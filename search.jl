@@ -32,7 +32,7 @@ export Problem, InstrumentedProblem,
     Problem is a abstract problem that contains a initial state and goal state.
 
 =#
-type Problem <: AbstractProblem
+mutable struct Problem <: AbstractProblem
     initial::String
     goal::Nullable{String}
 
@@ -107,7 +107,7 @@ end
     compare_searchers() and execute_searcher().
 
 =#
-type InstrumentedProblem <: AbstractProblem
+mutable struct InstrumentedProblem <: AbstractProblem
     problem::AbstractProblem
     actions::Int64
     results::Int64
@@ -177,8 +177,8 @@ function format_instrumented_results(ap::InstrumentedProblem)
     return @sprintf("<%4d/%4d/%4d/%s>", ap.actions, ap.goal_tests, ap.results, string(get(ap.found)));
 end
 
-#A node should not exist without a state.
-type Node{T}
+# A node should not exist without a state.
+mutable struct Node{T}
     state::T
     path_cost::Float64
     depth::UInt32
@@ -186,7 +186,7 @@ type Node{T}
     parent::Nullable{Node}
     f::Float64
 
-    function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, String, Int64, Tuple}=nothing, path_cost::Float64=0.0, f::Union{Void, Float64}=nothing)
+    function Node{T}(state::T; parent::Union{Void, Node}=nothing, action::Union{Void, String, Int64, Tuple}=nothing, path_cost::Float64=0.0, f::Union{Void, Float64}=nothing) where T
         nn = new(state, path_cost, UInt32(0), Nullable(action), Nullable{Node}(parent));
         if (typeof(parent) <: Node)
             nn.depth = UInt32(parent.depth + 1);
@@ -287,7 +287,7 @@ end
     SimpleProblemSolvingAgentProgram is a abstract problem solving agent (Fig. 3.1).
 
 =#
-type SimpleProblemSolvingAgentProgram <: AgentProgram
+mutable struct SimpleProblemSolvingAgentProgram <: AgentProgram
     state::Nullable{String}
     goal::Nullable{String}
     seq::Array{String, 1}
@@ -332,7 +332,7 @@ function search{T <: AbstractProblem}(spsap::SimpleProblemSolvingAgentProgram, p
     nothing;
 end
 
-type GAState
+struct GAState
     genes::Array{Any, 1}
 
     function GAState(genes::Array{Any, 1})
@@ -641,12 +641,12 @@ const greedy_best_first_graph_search = best_first_graph_search;
     and link "A"=>"B" (length 1) and "A"=>"C" (length 2).
 
 =#
-type Graph{N}
+struct Graph{N}
     dict::Dict{N, Any}
     locations::Dict{N, Tuple{Any, Any}}
     directed::Bool
 
-    function Graph{N}(;dict::Union{Void, Dict{N, }}=nothing, locations::Union{Void, Dict{N, Tuple{Any, Any}}}=nothing, directed::Bool=true)
+    function Graph{N}(;dict::Union{Void, Dict{N, }}=nothing, locations::Union{Void, Dict{N, Tuple{Any, Any}}}=nothing, directed::Bool=true) where N
         local ng::Graph;
         if ((typeof(dict) <: Void) && (typeof(locations) <: Void))
             ng = new(Dict{Any, Any}(), Dict{Any, Tuple{Any, Any}}(), Bool(directed));
@@ -661,7 +661,7 @@ type Graph{N}
         return ng;
     end
 
-    function Graph{N}(graph::Graph{N})
+    function Graph{N}(graph::Graph{N}) where N
         return new(Dict{Any, Any}(graph.dict), Dict{String, Tuple{Any, Any}}(graph.locations), Bool(graph.directed));
     end
 end
@@ -675,12 +675,12 @@ function make_undirected(graph::Graph)
 end
 
 """
-    connect_nodes{N}(graph::Graph{N}, A::N, B::N; distance::Int64=Int64(1))
+    connect_nodes(graph::Graph{N}, A::N, B::N; distance::Int64=Int64(1)) where N
 
 Add a link between Node 'A' to Node 'B'. If the graph is undirected, then add
 the inverse link from Node 'B' to Node 'A'.
 """
-function connect_nodes{N}(graph::Graph{N}, A::N, B::N; distance::Int64=Int64(1))
+function connect_nodes(graph::Graph{N}, A::N, B::N; distance::Int64=Int64(1)) where N
     get!(graph.dict, A, Dict{String, Int64}())[B]=distance;
     if (!graph.directed)
         get!(graph.dict, B, Dict{String, Int64}())[A]=distance;
@@ -689,12 +689,12 @@ function connect_nodes{N}(graph::Graph{N}, A::N, B::N; distance::Int64=Int64(1))
 end
 
 """
-    get_linked_nodes{N}(graph::Graph{N}, a::N; b::Union{Void, N}=nothing)
+    get_linked_nodes(graph::Graph{N}, a::N; b::Union{Void, N}=nothing) where N
 
 Return a dictionary of nodes and their distances if the 'b' keyword is not given.
 Otherwise, return the distance between 'a' and 'b'.
 """
-function get_linked_nodes{N}(graph::Graph{N}, a::N; b::Union{Void, N}=nothing)
+function get_linked_nodes(graph::Graph{N}, a::N; b::Union{Void, N}=nothing) where N
     local linked = get!(graph.dict, a, Dict{Any, Any}());
     if (typeof(b) <: Void)
         return linked;
@@ -708,13 +708,13 @@ function get_nodes(graph::Graph)
 end
 
 """
-    UndirectedGraph{T <: Any}(dict::Dict{T, }, locations::Dict{T, Tuple{Any, Any}})
+    UndirectedGraph(dict::Dict{T, }, locations::Dict{T, Tuple{Any, Any}}) where T
     UndirectedGraph()
 
 Return an undirected graph from the given dictionary of links 'dict' and dictionary 
 of locations 'locations' if given.
 """
-function UndirectedGraph{T <: Any}(dict::Dict{T, }, locations::Dict{T, Tuple{Any, Any}})
+function UndirectedGraph(dict::Dict{T, }, locations::Dict{T, Tuple{Any, Any}}) where T
     return Graph{eltype(dict.keys)}(dict=dict, locations=locations, directed=false);
 end
 
@@ -761,7 +761,7 @@ end
     GraphProblem is the problem of searching a graph from one node to another node.
 
 =#
-type GraphProblem <: AbstractProblem
+struct GraphProblem <: AbstractProblem
     initial::String
     goal::String
     graph::Graph
@@ -1035,7 +1035,7 @@ end
     implementation of AgentProgram.
 
 =#
-type OnlineDFSAgentProgram <: AgentProgram
+mutable struct OnlineDFSAgentProgram <: AgentProgram
     result::Dict
     untried::Dict
     unbacktracked::Dict
@@ -1100,7 +1100,7 @@ end
     that can be solved by a online search agent.
 
 =#
-type OnlineSearchProblem <: AbstractProblem
+struct OnlineSearchProblem <: AbstractProblem
     initial::String
     goal::String
     graph::Graph
@@ -1143,7 +1143,7 @@ end
     The 'result' field is not necessary as the given problem contains the results table.
 
 =#
-type LRTAStarAgentProgram <: AgentProgram
+mutable struct LRTAStarAgentProgram <: AgentProgram
     H::Dict
     state::Nullable{String}
     action::Nullable{String}
@@ -1292,7 +1292,7 @@ australia = UndirectedGraph(Dict(
     from left to right.
 
 =#
-type NQueensProblem <: AbstractProblem
+struct NQueensProblem <: AbstractProblem
     N::Int64
     initial::Array{Nullable{Int64}, 1}
 
@@ -1365,9 +1365,9 @@ end
 boyan_best = collect("RSTCSDEIAEGNLRPEATESMSSID");
 
 function print_boggle(board::Array{Char, 1})
-    local nn = length(board);
-    local n = int_sqrt(nn);
-    local board_str = "";
+    local nn::Int64 = length(board);
+    local n::Int64 = int_sqrt(nn);
+    local board_str::String = "";
     for i in 0:(nn - 1)
         if ((i % n == 0) && (i > 0))
             board_str = board_str * "\n";
@@ -1386,8 +1386,8 @@ function boggle_neighbors(nn::Int64; cache::Dict=Dict{Any, Any}())
     if haskey(cache, nn)
         return cache[nn];
     end
-    local n = int_sqrt(nn)
-    local neighbors = Array(Any, nn);
+    local n::Int64 = int_sqrt(nn)
+    local neighbors::AbstractVector = Array{Any, 1}(nn);
     for i in 0:(nn - 1)
         neighbors[i + 1] = Array{Int64, 1}([]);
         on_top::Bool = (i < n);
@@ -1432,7 +1432,7 @@ end
     WordList contains an array of words.
 
 =#
-type WordList
+struct WordList
     words::Array{String, 1}
     bounds::Dict{Char, Tuple{Any, Any}}
 
@@ -1477,7 +1477,7 @@ in(prefix::String, wl::WordList) = getindex(lookup(wl, prefix), 2);
     and the array of possible words for the Boggle board.
 
 =#
-type BoggleFinder
+mutable struct BoggleFinder
     wordlist::WordList
     scores::AbstractVector
     found::Dict

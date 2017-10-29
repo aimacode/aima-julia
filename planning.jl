@@ -18,9 +18,9 @@ export AbstractPDDL,
         HighLevelPDDL, refinements, hierarchical_search,
         job_shop_scheduling_pddl, job_shop_scheduling_pddl_goal_test;
 
-abstract AbstractPDDL;
+abstract type AbstractPDDL end;
 
-abstract AbstractPlanningAction;
+abstract type AbstractPlanningAction end;
 
 #=
 
@@ -29,7 +29,7 @@ abstract AbstractPlanningAction;
     Preconditions and effects consists of either positive and negated literals.
 
 =#
-type PlanningAction <: AbstractPlanningAction
+struct PlanningAction <: AbstractPlanningAction
     name::String
     arguments::Tuple
     precondition_positive::Array{Expression, 1}
@@ -103,7 +103,7 @@ end
     if the current state of the problem is at the goal state.
 
 =#
-type PDDL <: AbstractPDDL
+struct PDDL <: AbstractPDDL
     kb::FirstOrderLogicKnowledgeBase
     actions::Array{PlanningAction, 1}
     goal_test::Function
@@ -344,7 +344,7 @@ function have_cake_and_eat_cake_too_pddl()
     return PDDL(initial, [eat_cake, bake_cake], have_cake_and_eat_cake_too_pddl_goal_test);
 end
 
-type PlanningLevel
+mutable struct PlanningLevel
     positive_kb::FirstOrderLogicKnowledgeBase
     current_state_positive::Array{Expression, 1}    #current state of the planning problem
     current_state_negated::Array{Expression, 1}     #current state of the planning problem
@@ -486,7 +486,7 @@ function build_level_links(level::PlanningLevel, actions::AbstractVector, object
         for argument in possible_arguments
             if (check_precondition(action, level.positive_kb, argument))
                 for (number, symbol) in enumerate(action.arguments)
-                    if (!islower(symbol.operator))
+                    if (!all(islower, symbol.operator))
                         argument = Tuple((argument[1:(number - 1)]..., symbol, argument[(number + 1):end]...));
                     end
                 end
@@ -562,7 +562,7 @@ end
     and negated knowledge base.
 
 =#
-type PlanningGraph
+struct PlanningGraph
     pddl::AbstractPDDL
     levels::Array{PlanningLevel, 1}
     objects::Set{Expression}
@@ -601,7 +601,7 @@ end
     and 'solution' variables of a given Graphplan planning problem.
 
 =#
-type GraphPlanProblem
+struct GraphPlanProblem
     graph::PlanningGraph
     nogoods::AbstractVector
     solution::AbstractVector
@@ -784,7 +784,7 @@ end
     PlanningHighLevelAction (HLA) is an action schema with resource constraints and refinements.
 
 =#
-type PlanningHighLevelAction <: AbstractPlanningAction
+mutable struct PlanningHighLevelAction <: AbstractPlanningAction
     name::String
     arguments::Tuple
     precondition_positive::Array{Expression, 1}
@@ -893,7 +893,7 @@ end
     in addition to the states, action schemas, and the goal test found in the PDDL datatype.
 
 =#
-type HighLevelPDDL <: AbstractPDDL 
+struct HighLevelPDDL <: AbstractPDDL 
     kb::FirstOrderLogicKnowledgeBase
     actions::Array{PlanningHighLevelAction, 1}
     goal_test::Function

@@ -25,9 +25,9 @@ export hash, ==, show,
         is_number, differentiate, simplify, differentiate_simplify,
         constant_symbols, predicate_symbols;
 
-abstract AgentProgram;      #declare AgentProgram as a supertype for AgentProgram implementations
+abstract type AgentProgram end;      #declare AgentProgram as a supertype for AgentProgram implementations
 
-immutable Expression
+struct Expression
 	operator::String
 	arguments::Tuple
 end
@@ -44,12 +44,12 @@ end
 
 # Hashing Expressions and n-Tuple of Expression(s).
 
-hash(e::Expression, h::UInt) = ((hash(e.operator) $ hash(e.arguments)) $ h);
+hash(e::Expression, h::UInt) = xor(xor(hash(e.operator), hash(e.arguments)), h);
 
-hash(t_e::Tuple{Vararg{Expression}}, h::UInt) = reduce($, vcat(map(hash, collect(t_e)), h));
+hash(t_e::Tuple{Vararg{Expression}}, h::UInt) = reduce(xor, vcat(map(hash, collect(t_e)), h));
 
 # Julia does not allow for custom infix operators such as '==>', '<==', '<=>', etc.
-# In addition, bitwise xor looks different between Julia ($) and Python (^).
+# In addition, bitwise xor looks different between Julia ($/⊻) and Python (^).
 
 ==(e1::Expression, e2::Expression) = ((e1.operator == e2.operator) && (e1.arguments == e2.arguments));
 
@@ -70,7 +70,7 @@ function show(io::IO, e::Expression)
     nothing;
 end
 
-abstract AbstractKnowledgeBase;
+abstract type AbstractKnowledgeBase end;
 
 function tell{T <: AbstractKnowledgeBase}(kb::T, e::Expression)
     println("tell() is not implemented yet for ", typeof(kb), "!");
@@ -92,7 +92,7 @@ end
     PropositionalKnowledgeBase is a knowledge base of propositional logic.
 
 =#
-type PropositionalKnowledgeBase <: AbstractKnowledgeBase
+struct PropositionalKnowledgeBase <: AbstractKnowledgeBase
     clauses::Array{Expression, 1}
 
     function PropositionalKnowledgeBase()
@@ -140,7 +140,7 @@ end
     logic definite clauses.
 
 =#
-type FirstOrderLogicKnowledgeBase <: AbstractKnowledgeBase
+struct FirstOrderLogicKnowledgeBase <: AbstractKnowledgeBase
     clauses::Array{Expression, 1}
 
     function FirstOrderLogicKnowledgeBase()
@@ -188,7 +188,7 @@ end
     KnowledgeBaseAgentProgram is a generic knowledge-based implementation of AgentProgram (Fig 7.1).
 
 =#
-type KnowledgeBaseAgentProgram <: AgentProgram
+mutable struct KnowledgeBaseAgentProgram <: AgentProgram
     isTracing::Bool
     knowledge_base::AbstractKnowledgeBase
     t::UInt64
@@ -227,7 +227,7 @@ end
     PropositionalDefiniteKnowledgeBase is a knowledge base of propositional definite clause logic.
 
 =#
-type PropositionalDefiniteKnowledgeBase <: AbstractKnowledgeBase
+struct PropositionalDefiniteKnowledgeBase <: AbstractKnowledgeBase
     clauses::Array{Expression, 1}
 
     function PropositionalDefiniteKnowledgeBase()
@@ -446,7 +446,7 @@ end
     HybridWumpusAgentProgram is a hybrid Wumpus implementation of AgentProgram (Fig. 7.20).
 
 =#
-type HybridWumpusAgentProgram <: AgentProgram
+mutable struct HybridWumpusAgentProgram <: AgentProgram
     isTracing::Bool
     kb::AbstractKnowledgeBase
     t::UInt64
@@ -470,7 +470,7 @@ end
 function translate_to_sat{T}(initial::T, transition::Dict, goal::T, time::Int64, state_dict::Dict, action_dict::Dict)
     local clauses::Array{Expression, 1} = Array{Expression, 1}();
     local states::AbstractVector = collect(keys(transition));
-    local state_count_iterator = countfrom();
+    local state_count_iterator = Base.Iterators.countfrom();
     local state_number::Int64 = -1;
     for state in states
         for t in 0:time
@@ -480,7 +480,7 @@ function translate_to_sat{T}(initial::T, transition::Dict, goal::T, time::Int64,
     end
     push!(clauses, state_dict[(initial, 0)]);
     push!(clauses, state_dict[(goal, time)]);
-    local transition_count_iterator = countfrom();
+    local transition_count_iterator = Base.Iterators.countfrom();
     local transition_number = -1;
     for state in states
         for action in keys(transition[state])
@@ -1101,7 +1101,7 @@ function substitute(dict::Dict, e::Expression)
 end
 
 # This number is used to generate new variables in standardize_variables().
-standardize_variables_counter = [countfrom(BigInt(1)), BigInt(-1)];
+standardize_variables_counter = [Base.Iterators.countfrom(BigInt(1)), BigInt(-1)];
 
 function standardize_variables(e, counter::AbstractVector; dict::Union{Void, Dict}=nothing)
     return e;
@@ -1216,7 +1216,7 @@ function is_number(n::String)   # Not to be confused with isnumber() from Julia'
     if (length(n) == 0)
         return false;
     else
-        if (isnumber(strip(n)))
+        if (all(isnumber, strip(n)))
             return true;
         else
             local period_count = count((function(c::Char)
@@ -1227,7 +1227,7 @@ function is_number(n::String)   # Not to be confused with isnumber() from Julia'
                 if (decimal_index == UInt64(0))
                     error("is_number(): Could not find decimal point!");
                 else
-                    return (isnumber(n[1:(decimal_index - UInt64(1))]) && isnumber(n[(decimal_index + UInt64(1)):end]))
+                    return (all(isnumber, n[1:(decimal_index - UInt64(1))]) && all(isnumber, n[(decimal_index + UInt64(1)):end]))
                 end
             else
                 return false
@@ -1376,7 +1376,7 @@ function differentiate_simplify(y::Expression, x::Expression)
     return simplify(differentiate(y, x));
 end
 
-type ExpressionNode
+mutable struct ExpressionNode
     value::Nullable{String}
     parent::Nullable{ExpressionNode}
     children::Array{ExpressionNode, 1}
@@ -1472,19 +1472,18 @@ function identify_tokens(s::String)
     return queue;
 end
 
-#Parenthesize any arguments that are not enclosed by parentheses
+# Parenthesize any arguments that are not enclosed by parentheses
 function parenthesize_arguments(tokens::AbstractVector) 
     local existing_parenthesis::Int64 = 0;
     local comma_indices::Array{Int64, 1} = Array{Int64, 1}();
-    #keep track of opening and closing parentheses indices
-    #keep track of comma indices at the same tree level
-    #this function runs after parenthesize_tokens()
+    # keep track of opening and closing parentheses indices
+    # keep track of comma indices at the same tree level
+    # this function runs after parenthesize_tokens()
     for index in 1:length(tokens)
         if (tokens[index] == ",")
             push!(comma_indices, index);
         end
     end
-    #for comma_index in reverse(comma_indices)
     for i in reverse(1:length(comma_indices))
         ####println("index to modify: ", comma_indices[i], " token: ", tokens[comma_indices[i]],
         ####        " comma indices: ", comma_indices, " tokens: ", tokens...);
@@ -1762,7 +1761,7 @@ function construct_expression_tree(tokens::AbstractVector)
 end
 
 function prune_nodes(node::ExpressionNode)
-    #remove valueless nodes that have 1 child
+    # remove valueless nodes that have 1 child
     for child in node.children
         prune_nodes(child);
     end

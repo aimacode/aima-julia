@@ -343,7 +343,7 @@ end
     constant symbols, and predicate symbols used by foil().
 
 =#
-type FOILKnowledgeBase <: AbstractKnowledgeBase
+mutable struct FOILKnowledgeBase <: AbstractKnowledgeBase
     fol_kb::FirstOrderLogicKnowledgeBase
     constant_symbols::Set
     predicate_symbols::Set

@@ -14,10 +14,10 @@ export ConstantFunctionDict, CSPDict, CSP, NQueensCSP, SudokuCSP, ZebraCSP,
 
 #Constraint Satisfaction Problems (CSP)
 
-type ConstantFunctionDict{V}
+struct ConstantFunctionDict{V}
     value::V
 
-    function ConstantFunctionDict{V}(val::V)
+    function ConstantFunctionDict{V}(val::V) where V
         return new(val);
     end
 end
@@ -28,7 +28,7 @@ copy(cfd::ConstantFunctionDict) = ConstantFunctionDict{typeof(cfd.value)}(cfd.va
 
 deepcopy(cfd::ConstantFunctionDict) = ConstantFunctionDict{typeof(cfd.value)}(deepcopy(cfd.value));
 
-type CSPDict
+mutable struct CSPDict
     dict::Nullable
 
     function CSPDict(dictionary::Union{Dict, ConstantFunctionDict})
@@ -81,7 +81,7 @@ function in(pair::Pair, dict::CSPDict)
     end
 end
 
-abstract AbstractCSP <: AbstractProblem;
+abstract type AbstractCSP <: AbstractProblem end;
 
 #=
 
@@ -92,7 +92,7 @@ abstract AbstractCSP <: AbstractProblem;
     of some search algorithms.
 
 =#
-type CSP <: AbstractCSP
+mutable struct CSP <: AbstractCSP
 	vars::AbstractVector
 	domains::CSPDict
 	neighbors::CSPDict
@@ -575,7 +575,7 @@ end
     NQueensCSP is a N-Queens Constraint Satisfaction Problem implementation of AbstractProblem and AbstractCSP.
 
 =#
-type NQueensCSP <: AbstractCSP
+mutable struct NQueensCSP <: AbstractCSP
     vars::AbstractVector
     domains::CSPDict
     neighbors::CSPDict
@@ -674,14 +674,14 @@ easy_sudoku_grid = "..3.2.6..9..3.5..1..18.64....81.29..7.......8..67.82....26.9
 
 harder_sudoku_grid = "4173698.5.3..........7......2.....6.....8.4......1.......6.3.7.5..2.....1.4......";
 
-type SudokuInitialState
+struct SudokuInitialState
     index_grid::AbstractVector
     boxes::AbstractVector
     rows::AbstractVector
     cols::AbstractVector
 
     function SudokuInitialState()
-        local index_iter = countfrom();
+        local index_iter = Base.Iterators.countfrom();
         local index_position::AbstractVector = [0];
         local index_grid = collect(collect(collect(collect((function(it, ip)
                                                                 ip[1]=next(it, ip[1])[2];
@@ -706,7 +706,7 @@ sudoku_indices = SudokuInitialState();
     SudokuCSP is a Sudoku Constraint Satisfaction Problem implementation of AbstractProblem and AbstractCSP.
 
 =#
-type SudokuCSP <: AbstractCSP
+mutable struct SudokuCSP <: AbstractCSP
     vars::AbstractVector
     domains::CSPDict
     neighbors::CSPDict
@@ -729,7 +729,7 @@ type SudokuCSP <: AbstractCSP
         end
         local domains = Dict(collect(Pair(key,
                                         if_((number_str in ["1", "2", "3", "4", "5", "6", "7", "8", "9"]),
-                                            [Int64(number_str.data[1]) - 48],
+                                            [Int64(Vector{UInt8}(number_str)[1]) - 48],
                                             [1, 2, 3, 4, 5, 6, 7, 8, 9]))
                                     for (key, number_str) in zip(reduce(vcat, sudoku_indices.rows), squares)));
         #Sort the keys of 'domains' when creating the 'vars' field of the new SudokuCSP problem.
@@ -762,7 +762,7 @@ function display(problem::SudokuCSP, assignment::Dict)
             "\n------+-------+------\n");
 end
 
-type ZebraInitialState
+struct ZebraInitialState
     colors::Array{String, 1}
     pets::Array{String, 1}
     drinks::Array{String, 1}
@@ -826,7 +826,7 @@ end
     ZebraCSP is a Zebra Constraint Satisfaction Problem implementation of AbstractProblem and AbstractCSP.
 
 =#
-type ZebraCSP <: AbstractCSP
+mutable struct ZebraCSP <: AbstractCSP
     vars::AbstractVector
     domains::CSPDict
     neighbors::CSPDict
