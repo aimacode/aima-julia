@@ -4,7 +4,9 @@
 
 Julia (v0.6) implementation of the algorithms found in "Artificial Intelligence: A Modern Approach".
 
-This project is not intended to be a standard Julia package (i.e. the Julia package manager). We're looking for [solid contributors](CONTRIBUTING.md) to help.
+This project is not intended to be a standard Julia package (i.e. the Julia package manager). 
+
+We're looking for [solid contributors](CONTRIBUTING.md) to help.
 
 Structure of the Project
 ------------------------
@@ -126,7 +128,7 @@ Index of Algorithms
 Running tests
 -------------
 
-All Base.Test tests for the aima-julia project can be found in the [tests](https://github.com/aimacode/aima-julia/tree/master/tests) directory.
+All `Base.Test` tests for the aima-julia project can be found in the [tests](https://github.com/aimacode/aima-julia/tree/master/tests) directory.
 
 ## Acknowledgements
 
