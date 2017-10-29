@@ -40,7 +40,7 @@ end
     Grammar consists of a set of rules and a lexicon.
 
 =#
-type Grammar
+struct Grammar
     name::String
     rules::Dict
     lexicon::Dict
@@ -168,7 +168,7 @@ end
     ProbabilityGrammar consists of a set of rules and a lexicon.
 
 =#
-type ProbabilityGrammar
+struct ProbabilityGrammar
     name::String
     rules::Dict
     lexicon::Dict
@@ -354,7 +354,7 @@ end
     of words to uncover the phrase structure.
 
 =#
-type Chart
+mutable struct Chart
     trace::Bool
     grammar::Grammar
     chart::AbstractVector
@@ -531,7 +531,7 @@ end
     Page consists of an address, an array of inlinks, an array of outlinks, a hub score, and an authority score.
 
 =#
-type Page
+mutable struct Page
     address::String
     inlinks::AbstractVector
     outlinks::AbstractVector
@@ -698,7 +698,7 @@ end
     ConvergenceDetector contains the hub history and authorities history for a set of pages.
 
 =#
-type ConvergenceDetector
+struct ConvergenceDetector
     hub_history::AbstractVector
     authority_history::AbstractVector
 

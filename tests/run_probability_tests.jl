@@ -117,12 +117,12 @@ umbrella_hmm = HiddenMarkovModel(umbrella_transition, umbrella_sensor);
 umbrella_evidence = [true, true, false, true, true];    # Umbrella observation sequence (Fig. 15.5b)
 
 @test (repr(forward_backward(umbrella_hmm, umbrella_evidence, umbrella_prior)) ==
-        "Array{Float64,1}[[0.646936,0.353064],[0.867339,0.132661],[0.820419,0.179581],[0.307484,0.692516],[0.820419,0.179581],[0.867339,0.132661]]");
+        "Array{Float64,1}[[0.646936, 0.353064], [0.867339, 0.132661], [0.820419, 0.179581], [0.307484, 0.692516], [0.820419, 0.179581], [0.867339, 0.132661]]");
 
 umbrella_evidence = [true, false, true, false, true];
 
 @test (repr(forward_backward(umbrella_hmm, umbrella_evidence, umbrella_prior)) ==
-        "Array{Float64,1}[[0.587074,0.412926],[0.717684,0.282316],[0.2324,0.7676],[0.607195,0.392805],[0.2324,0.7676],[0.717684,0.282316]]");
+        "Array{Float64,1}[[0.587074, 0.412926], [0.717684, 0.282316], [0.2324, 0.7676], [0.607195, 0.392805], [0.2324, 0.7676], [0.717684, 0.282316]]");
 
 umbrella_prior = [0.5, 0.5];
 umbrella_transition = [[0.7, 0.3], [0.3, 0.7]];
@@ -133,7 +133,7 @@ e_t = false;
 t = 4;
 d = 2;
 
-@test (repr(fixed_lag_smoothing(e_t, umbrella_hmm, d, umbrella_evidence; t=t)) == "[0.111111,0.888889]");
+@test (repr(fixed_lag_smoothing(e_t, umbrella_hmm, d, umbrella_evidence; t=t)) == "[0.111111, 0.888889]");
 
 d = 5;
 
@@ -143,7 +143,7 @@ umbrella_evidence = [true, true, false, true, true];
 e_t = true;
 d = 1;
 
-@test (repr(fixed_lag_smoothing(e_t, umbrella_hmm, d, umbrella_evidence; t=t)) == "[0.993865,0.00613497]");
+@test (repr(fixed_lag_smoothing(e_t, umbrella_hmm, d, umbrella_evidence; t=t)) == "[0.993865, 0.00613497]");
 
 N = 10;
 umbrella_evidence = true;
@@ -188,7 +188,7 @@ probability_cavity = enumerate_joint_ask("Cavity", Dict([Pair("Toothache", true)
 @test (0.4 - 0.001 < probability_cavity[false] < 0.4 + 0.001);
 
 # Seed the RNG for Monte Carlo localization Base.Tests
-mt_rng = MersenneTwister(sum("aima-julia".data));
+mt_rng = MersenneTwister(sum(Vector{UInt8}("aima-julia")));
 
 m = MonteCarloLocalizationMap([0 0 0 0 0 0 0 0 0 0 1 1 1 0 0 1 0;
                                 0 0 0 0 0 0 0 0 0 0 1 1 1 0 1 1 0;

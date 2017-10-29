@@ -7,8 +7,7 @@ import Base.push!,
         Base.next,
         Base.done,
         Base.length,
-        Base.delete!,
-        Base.combinations;
+        Base.delete!;
 
 export if_, Queue, FIFOQueue, Stack, PQueue, push!, pop!, extend!, delete!,
         start, next, done, length,
@@ -72,7 +71,7 @@ function vector_add_tuples(a::Tuple, b::Tuple)
     return map(+, a, b);
 end
 
-abstract AbstractProblem;
+abstract type AbstractProblem end;
 
 RandomDeviceInstance = RandomDevice();
 
@@ -84,14 +83,14 @@ RandomDeviceInstance = RandomDevice();
 
 =#
 
-abstract Queue;
+abstract type Queue end;
 
 #=
 
     Stack is a Last In First Out (LIFO) Queue implementation.
 
 =#
-type Stack <: Queue
+struct Stack <: Queue
     array::Array{Any, 1}
 
     function Stack()
@@ -113,7 +112,7 @@ done(s::Stack, i) = done(s.array, i);
     FIFOQueue is a First In First Out (FIFO) Queue implementation.
 
 =#
-type FIFOQueue <: Queue
+struct FIFOQueue <: Queue
     array::Array{Any, 1}
 
     function FIFOQueue()
@@ -141,7 +140,7 @@ done(fq::FIFOQueue, i) = done(fq.array, i);
         -the second element is the item.
 
 =#
-type PQueue <: Queue
+struct PQueue <: Queue
     array::Array{Tuple{Any, Any}, 1}
     order::Base.Order.Ordering
 
@@ -167,7 +166,7 @@ done(pq::PQueue, i) = done(pq.array, i);
 
 =#
 
-type MemoizedFunction
+struct MemoizedFunction
     f::Function     #original function
     values::Dict{Tuple{Vararg}, Any}
 

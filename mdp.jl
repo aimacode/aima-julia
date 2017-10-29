@@ -5,7 +5,7 @@ export AbstractMarkovDecisionProcess, MarkovDecisionProcess,
         value_iteration, expected_utility, optimal_policy,
         policy_evaluation, policy_iteration;
 
-abstract AbstractMarkovDecisionProcess;
+abstract type AbstractMarkovDecisionProcess end;
 
 #=
 
@@ -20,7 +20,7 @@ abstract AbstractMarkovDecisionProcess;
     over future rewards.
 
 =#
-type MarkovDecisionProcess{T} <: AbstractMarkovDecisionProcess
+struct MarkovDecisionProcess{T} <: AbstractMarkovDecisionProcess
     initial::T
     states::Set{T}
     actions::Set{T}
@@ -29,7 +29,7 @@ type MarkovDecisionProcess{T} <: AbstractMarkovDecisionProcess
     gamma::Float64
     reward::Dict
 
-    function MarkovDecisionProcess{T}(initial::T, actions_list::Set{T}, terminal_states::Set{T}, transitions::Dict, states::Union{Void, Set{T}}, gamma::Float64)
+    function MarkovDecisionProcess{T}(initial::T, actions_list::Set{T}, terminal_states::Set{T}, transitions::Dict, states::Union{Void, Set{T}}, gamma::Float64) where T
         if (!(0 < gamma <= 1))
             error("MarkovDecisionProcess(): The gamma variable of an MDP must be between 0 and 1, the constructor was given ", gamma, "!");
         end
@@ -89,7 +89,7 @@ end
     by a null.
 
 =#
-type GridMarkovDecisionProcess <: AbstractMarkovDecisionProcess
+struct GridMarkovDecisionProcess <: AbstractMarkovDecisionProcess
     initial::Tuple{Int64, Int64}
     states::Set{Tuple{Int64, Int64}}
     actions::Set{Tuple{Int64, Int64}}

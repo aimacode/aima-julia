@@ -21,7 +21,7 @@ export getindex, setindex!, values,
     DecisionTheoreticAgentProgram is a decision-theoretic agent (Fig. 13.1).
 
 =#
-type DecisionTheoreticAgentProgram <: AgentProgram
+mutable struct DecisionTheoreticAgentProgram <: AgentProgram
     state::String
     goal::Nullable{String}
     actions::AbstractVector
@@ -44,7 +44,7 @@ function update_state(dtap::DecisionTheoreticAgentProgram, state::String, percep
     nothing;
 end
 
-abstract AbstractProbabilityDistribution;
+abstract type AbstractProbabilityDistribution end;
 
 #=
 
@@ -53,7 +53,7 @@ abstract AbstractProbabilityDistribution;
     variable 'variable_name'.
 
 =#
-type ProbabilityDistribution <: AbstractProbabilityDistribution
+struct ProbabilityDistribution <: AbstractProbabilityDistribution
     variable_name::String
     probabilities::Dict
     values::Array{Float64, 1}
@@ -131,7 +131,7 @@ end
     variables in 'variables'.
 
 =#
-type JointProbabilityDistribution <: AbstractProbabilityDistribution
+struct JointProbabilityDistribution <: AbstractProbabilityDistribution
     variables::AbstractVector
     probabilities::Dict
     values::Dict{Any, AbstractVector}
@@ -202,7 +202,7 @@ end
     the conditional probability distribution 'cpt' for the variable 'variable'.
 
 =#
-type BayesianNetworkNode
+struct BayesianNetworkNode
     variable::String
     parents::Array{String, 1}
     cpt::Dict
@@ -307,7 +307,7 @@ end
     BayesianNetwork is a Bayesian network that contains only boolean variable nodes.
 
 =#
-type BayesianNetwork
+struct BayesianNetwork
     variables::AbstractVector
     nodes::Array{BayesianNetworkNode, 1}
 
@@ -455,7 +455,7 @@ end
 # Factors are used in variable elimination when evaluating expression
 # representations of Bayesian networks.
 
-type Factor
+struct Factor
     variables::AbstractVector
     cpt::Dict
 
@@ -694,7 +694,7 @@ function gibbs_ask(X::String, e::Dict, bn::BayesianNetwork, N::Int64)
     return ProbabilityDistribution(variable_name=X, frequencies=counts);
 end
 
-type HiddenMarkovModel
+struct HiddenMarkovModel
     transition_model::AbstractVector
     sensor_model::AbstractVector
     prior::AbstractVector
@@ -838,7 +838,7 @@ end
     The indices of empty cells in the environment are collected during initialization.
 
 =#
-type MonteCarloLocalizationMap
+struct MonteCarloLocalizationMap
     map::AbstractMatrix
     empty::AbstractVector
     rng::Nullable{MersenneTwister}

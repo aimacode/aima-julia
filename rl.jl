@@ -9,11 +9,11 @@ export PassiveADPAgentMDP, PassiveADPAgentProgram,
     that consists of a MarkovDecisionProcess 'mdp'.
 
 =#
-type PassiveADPAgentMDP{T} <: AbstractMarkovDecisionProcess
+struct PassiveADPAgentMDP{T} <: AbstractMarkovDecisionProcess
 	mdp::MarkovDecisionProcess{T}
 
 
-    function PassiveADPAgentMDP{T}(initial::T, actions_list::Set{T}, terminal_states::Set{T}, gamma::Float64)
+    function PassiveADPAgentMDP{T}(initial::T, actions_list::Set{T}, terminal_states::Set{T}, gamma::Float64) where T
 		return new(MarkovDecisionProcess(initial, actions_list, terminal_states, Dict(), gamma=gamma));
 	end
 end
@@ -80,7 +80,7 @@ end
     adaptive dynamic programming (Fig. 21.2).
 
 =#
-type PassiveADPAgentProgram <: AgentProgram
+mutable struct PassiveADPAgentProgram <: AgentProgram
     state::Nullable
     action::Nullable
     U::Dict
@@ -144,7 +144,7 @@ end
     utility estimates by using temporal differences (Fig. 21.4).
 
 =#
-type PassiveTDAgentProgram <: AgentProgram
+mutable struct PassiveTDAgentProgram <: AgentProgram
     state::Nullable
     action::Nullable
     reward::Nullable
@@ -232,7 +232,7 @@ end
     its neighbor.
 
 =#
-type QLearningAgentProgram <: AgentProgram
+mutable struct QLearningAgentProgram <: AgentProgram
     state::Nullable
     action::Nullable
     reward::Nullable

@@ -12,7 +12,7 @@ export extract_words, canonicalize_text, UnigramWordModel, NgramWordModel, sampl
     UnigramWordModel is a probability distribution for counting observations of words.
 
 =#
-type UnigramWordModel <: AbstractCountingProbabilityDistribution
+mutable struct UnigramWordModel <: AbstractCountingProbabilityDistribution
     dict::Dict
     number_of_observations::Int64
     default::Int64
@@ -60,7 +60,7 @@ end
     consisting of consecutive words.
 
 =#
-type NgramWordModel <: AbstractCountingProbabilityDistribution
+mutable struct NgramWordModel <: AbstractCountingProbabilityDistribution
     dict::Dict
     number_of_observations::Int64
     default::Int64
@@ -139,7 +139,7 @@ end
     UnigramCharModel is a probability distribution for counting observations of characters (letters).
 
 =#
-type UnigramCharModel <: AbstractCountingProbabilityDistribution
+mutable struct UnigramCharModel <: AbstractCountingProbabilityDistribution
     dict::Dict
     number_of_observations::Int64
     default::Int64
@@ -194,7 +194,7 @@ end
     consisting of consecutive characters.
 
 =#
-type NgramCharModel <: AbstractCountingProbabilityDistribution
+mutable struct NgramCharModel <: AbstractCountingProbabilityDistribution
     dict::Dict
     number_of_observations::Int64
     default::Int64
@@ -240,7 +240,7 @@ end
 Add Tuples of 'n' consecutive characters as observations for probability distribution 'ncm'.
 """
 function add_sequence(ncm::NgramCharModel, words::AbstractVector)
-    for word in map(*, repeated(" ", length(words)), words)
+    for word in map(*, Base.Iterators.repeated(" ", length(words)), words)
         for i in 1:(length(word) - ncm.n + 1)
             local t::Tuple = Tuple((word[i:(i + ncm.n - 1)]...));
             add(ncm, t);
@@ -391,7 +391,7 @@ end
     DocumentMetadata is the metadata for a document.
 
 =#
-type DocumentMetadata
+struct DocumentMetadata
     title::String
     url::String
     number_of_words::Int64
@@ -401,7 +401,7 @@ type DocumentMetadata
     end
 end
 
-abstract AbstractInformationRetrievalSystem;
+abstract type AbstractInformationRetrievalSystem end;
 
 #=
 
@@ -410,7 +410,7 @@ abstract AbstractInformationRetrievalSystem;
     that consists of an index, a set of stop words, and the metadata for the documents.
 
 =#
-type InformationRetrievalSystem <: AbstractInformationRetrievalSystem
+struct InformationRetrievalSystem <: AbstractInformationRetrievalSystem
     index::Dict
     stop_words::Set
     documents::AbstractVector
@@ -513,7 +513,7 @@ end
     pages which consists of an index, a set of stop words, and the metadata for the documents.
 
 =#
-type UnixConsultant <: AbstractInformationRetrievalSystem
+struct UnixConsultant <: AbstractInformationRetrievalSystem
     index::Dict
     stop_words::Set
     documents::AbstractVector
@@ -548,7 +548,7 @@ end
     the highest scoring decoded text.
 
 =#
-type ShiftCipherDecoder
+struct ShiftCipherDecoder
     training_text::String
     P2::CountingProbabilityDistribution
 
@@ -602,7 +602,7 @@ end
     array of letter to letter mappings (ie. ('z', 'e') represents that the letter 'z' will translate to 'e').
 
 =#
-type PermutationCipherDecoder
+mutable struct PermutationCipherDecoder
     P_words::UnigramWordModel
     P1::UnigramWordModel
     P2::NgramWordModel
@@ -669,7 +669,7 @@ end
     are 26! possible encoding permutations.
 
 =#
-type PermutationCipherDecoderProblem <: AbstractProblem
+struct PermutationCipherDecoderProblem <: AbstractProblem
     initial::AbstractVector
     decoder::PermutationCipherDecoder
 
@@ -699,11 +699,11 @@ function actions(pcdp::PermutationCipherDecoderProblem, state::AbstractVector)
                                         (function(c::Char)
                                             return pcdp.decoder.P1[c];
                                         end));
-    return collect(zip(repeated(plain_character, length(target_list)), target_list));
+    return collect(zip(Base.Iterators.repeated(plain_character, length(target_list)), target_list));
 end
 
 """
-    get_result{T <: AbstractProblem}(ap::T, state::String, action::String)
+    get_result(pcdp::PermutationCipherDecoderProblem, state::AbstractVector, action::Tuple)
 
 Return the resulting state from executing the given action 'action' in the given state 'state'.
 """

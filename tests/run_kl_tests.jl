@@ -27,7 +27,7 @@ initial_h = [Dict([Pair("Alternate", "Yes")])];
 
 h = current_best_learning(restaurant, initial_h);
 
-@test (map(guess_example_value, restaurant, repeated(h)) == [true, false, true, true, false, true, false, true, false, false, false, true]);
+@test (map(guess_example_value, restaurant, Base.Iterators.repeated(h)) == [true, false, true, true, false, true, false, true, false, false, false, true]);
 
 animal_umbrellas = [Dict([("Species", "Cat"), ("Rain", "Yes"), ("Coat", "No"), ("GOAL", true)]),
                     Dict([("Species", "Cat"), ("Rain", "Yes"), ("Coat", "Yes"), ("GOAL", true)]),
@@ -41,7 +41,7 @@ initial_h = [Dict([Pair("Species", "Cat")])];
 
 h = current_best_learning(animal_umbrellas, initial_h);
 
-@test (map(guess_example_value, animal_umbrellas, repeated(h)) == [true, true, true, false, false, false, true]);
+@test (map(guess_example_value, animal_umbrellas, Base.Iterators.repeated(h)) == [true, true, true, false, false, false, true]);
 
 party = [Dict([("Pizza", "Yes"), ("Soda", "No"), ("GOAL", true)]),
         Dict([("Pizza", "Yes"), ("Soda", "Yes"), ("GOAL", true)]),
@@ -51,7 +51,7 @@ initial_h = [Dict([Pair("Pizza", "Yes")])];
 
 h = current_best_learning(party, initial_h);
 
-@test (map(guess_example_value, party, repeated(h)) == [true, true, false]);
+@test (map(guess_example_value, party, Base.Iterators.repeated(h)) == [true, true, false]);
 
 party = [Dict([("Pizza", "Yes"), ("Soda", "No"), ("GOAL", true)]),
         Dict([("Pizza", "Yes"), ("Soda", "Yes"), ("GOAL", true)]),
@@ -66,7 +66,7 @@ version_space = version_space_learning(party);
                     end
                 end
                 return false;
-            end), party, repeated(version_space)) == [true, true, false]);
+            end), party, Base.Iterators.repeated(version_space)) == [true, true, false]);
 
 @test ([Dict([Pair("Pizza", "Yes")])] in version_space);
 

@@ -149,9 +149,9 @@ retract(prop_kb, expr("E"));
 plr_results = pl_resolve(to_conjunctive_normal_form(expr("A | B | C")),
                         to_conjunctive_normal_form(expr("~B | ~C | F")));
 
-@test pretty_set(Set{Expression}(disjuncts(plr_results[1]))) == "Set(aimajulia.Expression[A,C,F,~(C)])";
+@test pretty_set(Set{Expression}(disjuncts(plr_results[1]))) == "Set(aimajulia.Expression[A, C, F, ~(C)])";
 
-@test pretty_set(Set{Expression}(disjuncts(plr_results[2]))) == "Set(aimajulia.Expression[A,B,F,~(B)])";
+@test pretty_set(Set{Expression}(disjuncts(plr_results[2]))) == "Set(aimajulia.Expression[A, B, F, ~(B)])";
 
 # Use PropositionalKnowledgeBase to represent the Wumpus World (Fig. 7.4)
 
