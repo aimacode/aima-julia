@@ -28,13 +28,13 @@ Avoid using `RandomDevice()`. Try using `aimajulia.RandomDeviceInstance` (can be
 ## Haskell-like type assertion, Haskell/Lisp Functional Programming
 
 - When writing functions, the arguments should be type asserted (with exception to functions like getindex() for the Dict DataType).
-- The use of collect(), map(), reduce(), mapreduce(), and anonymous functions are recommended.
+- The use of `collect()`, `map()`, `reduce()`, `mapreduce()`, and anonymous functions are recommended.
 - When declaring type definitions, try to assert the type of the fields.
 
 ## Porting to Julia from Python
 
 - Use comprehensions when possible. In addition, use `Iterators` when dealing with Python generator expressions (collecting the items if required).
-- String formatting can be accomplished with `sprintf()` and string concatenation (using the `*` operator or passing the `*` operator to reduce()).
+- String formatting can be accomplished with `sprintf()` and string concatenation (using the `*` operator or passing the `*` operator to `reduce()`).
 - Division between 2 real numbers results in a float.
 - Julia has native matrices, avoid using arrays of arrays unless required.
 - Add more tests in `test_*.jl` files. Strive for terseness; it is ok to group multiple asserts into one function. Move most tests to `test_*.jl`, but it is fine to have a single doctest example in the docstring of a function in the `.jl` file, if the purpose of the doctest is to explain how to use the function, rather than test the implementation.
@@ -52,7 +52,7 @@ In this project we use Jupyter/IJulia Notebooks to showcase the algorithms in th
 - Proofread the notebooks for grammar mistakes, typos, or general errors.
 - Move visualization and unrelated to the algorithm code from notebooks to `notebook.jl` (a file used to store code for the notebooks, like visualization and other miscellaneous stuff). Make sure the notebooks still work and have their outputs showing!
 - Replace the `%psource` magic notebook command with the function `psource` from `notebook.jl` where needed. Examples where this is useful are a) when we want to show code for algorithm implementation and b) when we have consecutive cells with the magic keyword (in this case, if the code is large, it's best to leave the output hidden).
-- Add the function pseudocode(algorithm_name) in algorithm sections. The function prints the pseudocode of the algorithm. You can see some example usage in knowledge.ipynb.
+- Add the function pseudocode(algorithm_name) in algorithm sections. The function prints the pseudocode of the algorithm. You can see some example usage in `knowledge.ipynb`.
 - Edit existing sections for algorithms to add more information and/or examples.
 - Add visualizations for algorithms. The visualization code should go in notebook.jl to keep things clean.
 - Add new sections for algorithms not yet covered. The general format we use in the notebooks is the following: First start with an overview of the algorithm, printing the pseudocode and explaining how it works. Then, add some implementation details, including showing the code (using psource). Finally, add examples for the implementations, showing how the algorithms work. Don't fret with adding complex, real-world examples; the project is meant for educational purposes. You can of course choose another format if something better suits an algorithm.
