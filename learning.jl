@@ -565,7 +565,7 @@ end
 function predict(nbsm::NaiveBayesSimpleModel, example::AbstractVector)
     return argmax(collect(keys(nbsm.target_distribution)),
                 (function(target)
-                    local attribute_distribution = nbsm.attributes_distributions[target];
+                    local attribute_distribution::AbstractCountingProbabilityDistribution = nbsm.attributes_distributions[target];
                     return (nbsm.target_distribution[target] * prod(attribute_distribution[attribute] for attribute in example));
                 end));
 end
@@ -573,7 +573,7 @@ end
 function predict(nbsm::NaiveBayesSimpleModel, example::String)
     return argmax(collect(keys(nbsm.target_distribution)),
                 (function(target)
-                    local attribute_distribution::CountingProbabilityDistribution = nbsm.attributes_distributions[target];
+                    local attribute_distribution::AbstractCountingProbabilityDistribution = nbsm.attributes_distributions[target];
                     return (nbsm.target_distribution[target] * prod(attribute_distribution[attribute] for attribute in example));
                 end));
 end
