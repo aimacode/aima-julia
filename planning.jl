@@ -37,7 +37,7 @@ struct PlanningAction <: AbstractPlanningAction
     effect_add_list::Array{Expression, 1}
     effect_delete_list::Array{Expression, 1}
 
-    function PlanningAction(action::Expression, precondition::Tuple{Vararg{Array{Expression, 1}, 2}}, effect::Tuple{Vararg{Array{Expression, 1}, 2}})
+    function PlanningAction(action::Expression, precondition::Tuple{Vararg{Array, 2}}, effect::Tuple{Vararg{Array, 2}})
         return new(action.operator, action.arguments, precondition[1], precondition[2], effect[1], effect[2]);
     end
 end
@@ -1083,4 +1083,3 @@ function job_shop_scheduling_pddl()
     local job_group_2::Array{PlanningHighLevelAction, 1} = [add_engine_2, add_wheels_2, inspect_2];
     return HighLevelPDDL(initial, [add_engine_1, add_engine_2, add_wheels_1, add_wheels_2, inspect_1, inspect_2], job_shop_scheduling_pddl_goal_test, jobs=[job_group_1, job_group_2], resources=resources);
 end
-
