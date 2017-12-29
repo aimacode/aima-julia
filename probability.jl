@@ -5,7 +5,7 @@ export getindex, setindex!, values,
         AbstractProbabilityDistribution,
         ProbabilityDistribution, normalize, show_approximation, event_values,
         JointProbabilityDistribution, enumerate_joint, enumerate_joint_ask,
-        BayesianNetworkNode, probability, sample,
+        BayesianNetworkNode, probability, sample, make_factor,
         BayesianNetwork, add_node, variable_node, variable_values,
         enumeration_ask, elimination_ask,
         Factor, pointwise_product, sum_out,
@@ -13,7 +13,8 @@ export getindex, setindex!, values,
         gibbs_ask,
         HiddenMarkovModel, sensor_distribution, forward_backward,
         fixed_lag_smoothing, particle_filtering,
-        MonteCarloLocalizationMap, ray_cast, monte_carlo_localization;
+        MonteCarloLocalizationMap, ray_cast, monte_carlo_localization,
+        burglary_network, sprinkler_network, weighted_sample;
 
 
 #=
