@@ -430,7 +430,13 @@ end
 Index the document by its text 'text' and URL 'url'.
 """
 function index_document(irs::T, text::String, url::String) where {T <: AbstractInformationRetrievalSystem}
-    local title::String = strip(text[1:(findfirst("\n", text).stop)]);
+    local first_newline::Union{Nothing, UnitRange} = findfirst("\n", text)
+    local title::String;
+    if (first_newline === nothing)
+        title = strip(text);
+    else
+        title = strip(text[1:first_newline.stop]);
+    end
     local document_words::AbstractVector = extract_words(text);
     push!(irs.documents, DocumentMetadata(title, url, length(document_words)));
     local document_id::Int64 = length(irs.documents);
