@@ -23,7 +23,7 @@ In more detail:
 
 ## Writing and Running Tests
 
-For aima-julia, Julia tests should avoid the `@testset` macro for greater modularity. For example, in Machine Learning, the trained neural network might fail during a `@test` for accuracy. The training should still be evaluated, so its corresponding test will be a custom Julia function that those not assert a threshold on accuracy.
+For aima-julia, Julia tests should avoid the `@testset` macro for greater modularity. For example, in Machine Learning, the trained neural network might fail during a `@test` for accuracy. The training should still be evaluated, so its corresponding test will be a custom Julia function that does not assert a threshold on accuracy.
 
 ## RandomDevice()
 
