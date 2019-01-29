@@ -1,10 +1,11 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
+using Printf;
 
-using aimajulia;
+using Main.aimajulia;
 
-using aimajulia.utils;
+using Main.aimajulia.utils;
 
 #The following text tests are from the aima-python doctests
 
@@ -167,14 +168,14 @@ expected_trigrams = Dict([Pair((' ', 't', 'r'), 3),
                         collect("orange apple lemon "))) == "oranges  apples  lemons  ");
 
 # Base.Test tests for decoding
-flatland = readstring("./aima-data/EN-text/flatland.txt");
+flatland = read("./aima-data/EN-text/flatland.txt", String);
 ring = ShiftCipherDecoder(flatland);
 
 @test (decode_text(ring, "Kyzj zj r jvtivk dvjjrxv.") == "This is a secret message.");
 
 @test (decode_text(ring, rot13("Hello, world!")) == "Hello, world!");
 
-gutenberg = readstring("./aima-data/gutenberg.txt");
+gutenberg = read("./aima-data/gutenberg.txt", String);
 pd = PermutationCipherDecoder(canonicalize_text(gutenberg));
 
 @test (decode_text(pd, "aba") in ("ece", "ete", "tat", "tit", "txt"));
@@ -198,7 +199,7 @@ segmented_text, p = viterbi_text_segmentation("itiseasytoreadwordswithoutspaces"
 # Base.Test tests for IR systems
 uc = UnixConsultant();
 
-function check_query{T <: AbstractInformationRetrievalSystem}(irs::T, results::AbstractVector, expected::AbstractVector)
+function check_query(irs::T, results::AbstractVector, expected::AbstractVector) where {T <: AbstractInformationRetrievalSystem}
     @test (length(results) == length(expected));
     for (i, (score, id)) in enumerate(results)
         expected_score, expected_url = expected[i];
@@ -249,7 +250,7 @@ check_query(uc,
             (0.4200, "aima-data/MAN/dd.txt"),
             (0.1285, "aima-data/MAN/who.txt")]);
 
-if (!is_windows())  # Windows 7/8 does not install a date executable by default
+if (!Sys.iswindows())  # Windows 7/8 does not install a date executable by default
     check_query(uc, execute_query(uc, "learn: date"), []);
 end
 

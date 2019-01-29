@@ -1,8 +1,8 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
 
-using aimajulia;
+using Main.aimajulia;
 
 #The following logic tests are from the aima-python doctests
 
@@ -38,9 +38,9 @@ z = Expression("z");
 
 @test tt_true("(P ==> Q) <=> (~P | Q)") == true;
 
-@test typeof(pl_true(Expression("P"))) <: Void;
+@test typeof(pl_true(Expression("P"))) <: Nothing;
 
-@test typeof(pl_true(expr("P | P"))) <: Void;
+@test typeof(pl_true(expr("P | P"))) <: Nothing;
 
 @test pl_true(expr("P | Q"), model=Dict([Pair(Expression("P"), true)])) == true;
 
@@ -61,11 +61,11 @@ z = Expression("z");
 
 @test typeof(pl_true(expr("(A | B) & (C | D)"),
                 model=Dict([Pair(Expression("A"), true),
-                            Pair(Expression("D"), false)]))) <: Void;
+                            Pair(Expression("D"), false)]))) <: Nothing;
 
 @test pl_true(Expression("P"), model=Dict([Pair(Expression("P"), false)])) == false;
 
-@test typeof(pl_true(expr("P | ~P"))) <: Void;
+@test typeof(pl_true(expr("P | ~P"))) <: Nothing;
 
 @test eliminate_implications(expr("A ==> (~B <== C)")) == expr("(~B | ~C) | ~A");
 
@@ -149,9 +149,9 @@ retract(prop_kb, expr("E"));
 plr_results = pl_resolve(to_conjunctive_normal_form(expr("A | B | C")),
                         to_conjunctive_normal_form(expr("~B | ~C | F")));
 
-@test pretty_set(Set{Expression}(disjuncts(plr_results[1]))) == "Set(aimajulia.Expression[A, C, F, ~(C)])";
+@test pretty_set(Set{Expression}(disjuncts(plr_results[1]))) == "Set(Expression[A, C, F, ~(C)])";
 
-@test pretty_set(Set{Expression}(disjuncts(plr_results[2]))) == "Set(aimajulia.Expression[A, B, F, ~(B)])";
+@test pretty_set(Set{Expression}(disjuncts(plr_results[2]))) == "Set(Expression[A, B, F, ~(B)])";
 
 # Use PropositionalKnowledgeBase to represent the Wumpus World (Fig. 7.4)
 
@@ -221,7 +221,7 @@ tell(kb_wumpus, expr("B21"));
 
 function walksat_test(clauses::Array{Expression, 1}; solutions::Dict=Dict())
     local sln = walksat(clauses);
-    if (!(typeof(sln) <: Void)) #found a satisfiable solution
+    if (!(typeof(sln) <: Nothing)) #found a satisfiable solution
         @test all(collect(pl_true(clause, model=sln) for clause in clauses));
         if (length(solutions) != 0)
             @test all(collect(pl_true(clause, model=solutions) for clause in clauses));
@@ -241,17 +241,17 @@ walksat_test(map(expr, ["A & B", "C | D", "~(D | P)"]), solutions=Dict([Pair(Exp
                                                             Pair(Expression("D"), false),
                                                             Pair(Expression("P"), false),]));
 
-@test (typeof(walksat(map(expr, ["A & ~A"]), p=0.5, max_flips=100)) <: Void);
+@test (typeof(walksat(map(expr, ["A & ~A"]), p=0.5, max_flips=100)) <: Nothing);
 
-@test (typeof(walksat(map(expr, ["A | B", "~A", "~(B | C)", "C | D", "P | Q"]), p=0.5, max_flips=100)) <: Void);
+@test (typeof(walksat(map(expr, ["A | B", "~A", "~(B | C)", "C | D", "P | Q"]), p=0.5, max_flips=100)) <: Nothing);
 
-@test (typeof(walksat(map(expr, ["A | B", "B & C", "C | D", "D & A", "P", "~P"]), p=0.5, max_flips=100)) <: Void);
+@test (typeof(walksat(map(expr, ["A | B", "B & C", "C | D", "D & A", "P", "~P"]), p=0.5, max_flips=100)) <: Nothing);
 
 transition = Dict([Pair("A", Dict([Pair("Left", "A"), Pair("Right", "B")])),
                     Pair("B", Dict([Pair("Left", "A"), Pair("Right", "C")])),
                     Pair("C", Dict([Pair("Left", "B"), Pair("Right", "C")]))]);
 
-@test (typeof(sat_plan("A", transition,"C", 2)) <: Void);
+@test (typeof(sat_plan("A", transition,"C", 2)) <: Nothing);
 
 @test sat_plan("A", transition, "B", 3) == ["Right"];
 
@@ -278,9 +278,9 @@ transition = Dict([Pair((0, 0), Dict([Pair("Right", (0, 1)), Pair("Down", (1, 0)
                             Pair(Expression("y"), Expression("0"))]),
                     expr("F(x) + y"))) == "(F(42) + 0)";
 
-function fol_bc_ask_query(q::Expression; kb::Union{Void, AbstractKnowledgeBase}=nothing)
+function fol_bc_ask_query(q::Expression; kb::Union{Nothing, AbstractKnowledgeBase}=nothing)
     local answers::Tuple;
-    if (typeof(kb) <: Void)
+    if (typeof(kb) <: Nothing)
         answers = fol_bc_ask(aimajulia.test_fol_kb, q);
     else
         answers = fol_bc_ask(kb, q);

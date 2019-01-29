@@ -2,7 +2,7 @@ module aimajulia;
 
 include("utils.jl");
 
-using aimajulia.utils;
+using .utils;
 
 AIMAJULIA_DIRECTORY = Base.source_dir();
 

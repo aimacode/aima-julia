@@ -193,14 +193,14 @@ function current_best_learning(examples::AbstractVector, h::AbstractVector, prio
     elseif (example_is_false_positive(example, h))
         for h_prime in specializations(prior_examples, h)
             h_prime_prime = current_best_learning(examples[2:end], h_prime, prior_examples);
-            if (!(typeof(h_prime_prime) <: Void))
+            if (!(typeof(h_prime_prime) <: Nothing))
                 return h_prime_prime;
             end
         end
     elseif (example_is_false_negative(example, h))
         for h_prime in generalizations(prior_examples, h)
             h_prime_prime = current_best_learning(examples[2:end], h_prime, prior_examples);
-            if (!(typeof(h_prime_prime) <: Void))
+            if (!(typeof(h_prime_prime) <: Nothing))
                 return h_prime_prime;
             end
         end
@@ -306,7 +306,7 @@ function is_consistent_determination(A::AbstractVector, E::AbstractVector)
     local H::Dict = Dict();
 
     for example in E
-        local attribute_values::Tuple = Tuple((collect(example[attribute] for attribute in A)...));
+        local attribute_values::Tuple = Tuple((collect(example[attribute] for attribute in A)...,));
         if (haskey(H, attribute_values))
             if (H[attribute_values] != example["GOAL"])
                 return false;
@@ -437,7 +437,7 @@ function new_literals(fkb::FOILKnowledgeBase, clause::Tuple{Expression, Abstract
                                                 for i in 1:(arity - 1)));
         for arguments in iterable_cartesian_product(fill(union(share_known_variables, new_variables), arity))
             if (any((variable in share_known_variables) for variable in arguments))
-                result = Tuple((result..., Expression(predicate, arguments...)));
+                result = Tuple((result..., Expression(predicate, arguments...,)));
             end
         end
     end
@@ -454,7 +454,7 @@ function choose_literal(fkb::FOILKnowledgeBase, literals::Tuple, examples::Tuple
                                             local examples_positive::Int64 = length(examples[1]);
                                             local examples_negative::Int64 = length(examples[2]);
                                             local extended_examples::AbstractVector = collect(vcat(collect(extend_example(fkb, example, literal)
-                                                                                                            for example in examples[i])...)
+                                                                                                            for example in examples[i])...,)
                                                                                             for i in 1:2);
                                             local extended_examples_positive::Int64 = length(extended_examples[1]);
                                             local extended_examples_negative::Int64 = length(extended_examples[2]);
@@ -498,8 +498,8 @@ function new_clause(fkb::FOILKnowledgeBase, examples::Tuple{AbstractVector, Abst
         local literal::Expression = choose_literal(fkb, new_literals(fkb, clause), extended_examples);
         push!(clause[2], literal);
         extended_examples = (collect(vcat(collect(extend_example(fkb, example, literal)
-                                        for example in extended_examples[i])...)
-                            for i in 1:2)...);
+                                                for example in extended_examples[i])...,)
+                                    for i in 1:2)...,);
     end
     return (clause, extended_examples[1]);
 end

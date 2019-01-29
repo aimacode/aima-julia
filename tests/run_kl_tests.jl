@@ -1,10 +1,10 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
 
-using aimajulia;
+using Main.aimajulia;
 
-using aimajulia.utils;
+using Main.aimajulia.utils;
 
 #The following learning with knowledge tests are from the aima-python doctests
 

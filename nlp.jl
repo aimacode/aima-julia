@@ -8,11 +8,11 @@ export Rules, Lexicon, Grammar,
         ConvergenceDetector, detect_convergence, get_inlinks, get_outlinks, HITS;
 
 """
-    Rules{T <: Pair}(rules_array::Array{T})
+    Rules(rules_array::Array{T}) where {T <: Pair}
 
 Return a Dict of mappings for symbols (lexical categories) to alternative sequences.
 """
-function Rules{T <: Pair}(rules_array::Array{T, 1})
+function Rules(rules_array::Array{T, 1}) where {T <: Pair}
     local rules::Dict = Dict();
     for (lhs, rhs) in rules_array
         rules[lhs] = collect(map(String, split(strip(ss))) for ss in map(String, split(rhs, ['|'])));
@@ -21,13 +21,13 @@ function Rules{T <: Pair}(rules_array::Array{T, 1})
 end
 
 """
-    Lexicon{T <: Pair}(rules_array::Array{T})
+    Lexicon(rules_array::Array{T}) where {T <: Pair}
 
 Return a Dict of mappings for symbols (lexical categories) to alternative words.
 
 The lexicon is the list of allowable words.
 """
-function Lexicon{T <: Pair}(rules_array::Array{T, 1})
+function Lexicon(rules_array::Array{T, 1}) where {T <: Pair}
     local rules::Dict = Dict();
     for (lhs, rhs) in rules_array
         rules[lhs] = collect(strip(ss) for ss in map(String, split(rhs, "|")));
@@ -123,11 +123,11 @@ function generate_random_sentence(g::Grammar)
 end
 
 """
-    ProbabilityRules{T <: Pair}(rules_array::Array{T})
+    ProbabilityRules(rules_array::Array{T}) where {T <: Pair}
 
 Return a Dict of mappings for symbols (lexical categories) to alternative sequences with probabilities.
 """
-function ProbabilityRules{T <: Pair}(rules_array::Array{T, 1})
+function ProbabilityRules(rules_array::Array{T, 1}) where {T <: Pair}
     local rules::Dict = Dict();
     for (lhs, rhs) in rules_array
         rules[lhs] = [];
@@ -142,13 +142,13 @@ function ProbabilityRules{T <: Pair}(rules_array::Array{T, 1})
 end
 
 """
-    ProbabilityLexicon{T <: Pair}(rules_array::Array{T})
+    ProbabilityLexicon(rules_array::Array{T}) where {T <: Pair}
 
 Return a Dict of mappings for symbols (lexical categories) to alternative words with probabilities.
 
 The lexicon is the list of allowable words.
 """
-function ProbabilityLexicon{T <: Pair}(rules_array::Array{T, 1})
+function ProbabilityLexicon(rules_array::Array{T, 1}) where {T <: Pair}
     local rules::Dict = Dict();
     for (lhs, rhs) in rules_array
         rules[lhs] = [];
@@ -266,7 +266,7 @@ end
 
 module nlp
 
-using aimajulia;
+using ..aimajulia;
 
 epsilon_0 = Grammar("ε_0",
                     Rules(      # Grammar for ε_0 (Fig. 22.4 2nd edition)
@@ -557,7 +557,7 @@ function load_page_html(addresses::AbstractVector)
         download(address, tmp_file[1]);
         local raw_html::String = String(read(tmp_file[1]));
         rm(tmp_file[1]);
-        local html::String = replace(raw_html, @r_str("<head>(.*)</head>", "s"), "");
+        local html::String = replace(raw_html, @r_str("<head>(.*)</head>", "s")=>"");
         content[address] = html;
     end
     return content;
@@ -666,7 +666,7 @@ function relevant_pages(query::String, pages_index::Dict, pages_content::Dict)
     for query_word in query_words
         local hit_list::Set = Set();
         for address in keys(pages_index)
-            if (contains(lowercase(pages_content[address]), lowercase(query_word)))
+            if (occursin(lowercase(query_word), lowercase(pages_content[address])))
                 push!(hit_list, address);
             end
         end

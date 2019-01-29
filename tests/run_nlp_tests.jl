@@ -1,10 +1,10 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
 
-using aimajulia;
+using Main.aimajulia;
 
-using aimajulia.utils;
+using Main.aimajulia.utils;
 
 #The following nlp tests are from the aima-python doctests
 
@@ -96,7 +96,7 @@ page = load_page_html([address]);
 
 page_html = page[address];
 
-@test ((!contains(page_html, "<head>")) && (!contains(page_html, "</head>")));
+@test ((!occursin("<head>", page_html)) && (!occursin("</head>", page_html)));
 
 test_html_1 = ("Keyword String 1: A man is a male human."
                 *"Keyword String 2: Like most other male mammals, a man inherits an"
@@ -107,11 +107,11 @@ test_html_1 = ("Keyword String 1: A man is a male human."
                 *"href=\"/wiki/TestLiving\" href=\"/wiki/TestMan\">");
 test_html_2 = "a mom and a dad";
 test_html_3 = "<!DOCTYPE html><html><head><title>Page Title</title></head><body><p>AIMA book</p></body></html>";
-no_head_test_html_3 = replace(test_html_3, @r_str("<head>(.*)</head>", "s"), "");
+no_head_test_html_3 = replace(test_html_3, @r_str("<head>(.*)</head>", "s")=>"");
 
-@test ((!contains(no_head_test_html_3, "<head>")) && (!contains(no_head_test_html_3, "</head>")));
+@test ((!occursin("<head>", no_head_test_html_3)) && (!occursin("</head>", no_head_test_html_3)));
 
-@test ((contains(test_html_3, "AIMA book")) && (contains(no_head_test_html_3, "AIMA book")));
+@test ((occursin("AIMA book", test_html_3)) && (occursin("AIMA book", no_head_test_html_3)));
 
 page_A = Page("A", inlinks=["B", "C", "E"], outlinks=["D"], hub=1, authority=6);
 page_B = Page("B", inlinks=["E"], outlinks=["A", "C", "D"], hub=2, authority=5);

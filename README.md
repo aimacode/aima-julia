@@ -2,7 +2,7 @@
 
 [![Build Status](https://travis-ci.org/aimacode/aima-julia.svg?branch=master)](https://travis-ci.org/aimacode/aima-julia)
 
-Julia (v0.6) implementation of the algorithms found in "Artificial Intelligence: A Modern Approach".
+Julia (v1.1) implementation of the algorithms found in "Artificial Intelligence: A Modern Approach".
 
 This project is not intended to be a standard Julia package (i.e. the Julia package manager). 
 
@@ -25,7 +25,7 @@ Include the following lines in all files within the same directory.
 
 ~~~
 include("aimajulia.jl");
-using aimajulia;
+using Main.aimajulia;
 ~~~
 
 Index of Algorithms
@@ -128,7 +128,7 @@ Index of Algorithms
 Running tests
 -------------
 
-All `Base.Test` tests for the aima-julia project can be found in the [tests](https://github.com/aimacode/aima-julia/tree/master/tests) directory.
+All `Test` tests for the aima-julia project can be found in the [tests](https://github.com/aimacode/aima-julia/tree/master/tests) directory.
 
 ## Acknowledgements
 

@@ -1,6 +1,7 @@
 
 import Base: get, getindex, getkey,
-            deepcopy, copy, haskey, in, display;
+            deepcopy, copy, haskey,
+            in, display;
 
 export ConstantFunctionDict, CSPDict, CSP, NQueensCSP, SudokuCSP, ZebraCSP,
     get, getkey, getindex, deepcopy, copy, haskey, in,
@@ -29,55 +30,55 @@ copy(cfd::ConstantFunctionDict) = ConstantFunctionDict{typeof(cfd.value)}(cfd.va
 deepcopy(cfd::ConstantFunctionDict) = ConstantFunctionDict{typeof(cfd.value)}(deepcopy(cfd.value));
 
 mutable struct CSPDict
-    dict::Nullable
+    dict::Union{Nothing, Dict, ConstantFunctionDict}
 
-    function CSPDict(dictionary::Union{Dict, ConstantFunctionDict})
-        return new(Nullable(dictionary));
+    function CSPDict(dictionary::Union{Nothing, Dict, ConstantFunctionDict})
+        return new(dictionary);
     end
 end
 
 function getindex(dict::CSPDict, key)
-    if (eltype(dict.dict) <: ConstantFunctionDict)
-        return get(dict.dict).value;
+    if (typeof(dict.dict) <: ConstantFunctionDict)
+        return dict.dict.value;
     else
-        return getindex(get(dict.dict), key);
+        return getindex(dict.dict, key);
     end
 end
 
 function getkey(dict::CSPDict, key, default)
-    if (eltype(dict.dict) <: ConstantFunctionDict)
-        return get(dict.dict).value;
+    if (typeof(dict.dict) <: ConstantFunctionDict)
+        return dict.dict.value;
     else
-        return getkey(get(dict.dict), key, default);
+        return getkey(dict.dict, key, default);
     end
 end
  
 function get(dict::CSPDict, key, default)
-    if (eltype(dict.dict) <: ConstantFunctionDict)
-        return get(dict.dict).value;
+    if (typeof(dict.dict) <: ConstantFunctionDict)
+        return dict.dict.value;
     else
-        return get(get(dict.dict), key, default);
+        return get(dict.dict, key, default);
     end
 end
 
 function haskey(dict::CSPDict, key)
-    if (eltype(dict.dict) <: ConstantFunctionDict)
+    if (typeof(dict.dict) <: ConstantFunctionDict)
         return true;
     else
-        return haskey(get(dict.dict), key);
+        return haskey(dict.dict, key);
     end
 end
 
 function in(pair::Pair, dict::CSPDict)
-    if (eltype(dict.dict) <: ConstantFunctionDict)
-        if (getindex(pair, 2) == get(dict.dict).value)
+    if (typeof(dict.dict) <: ConstantFunctionDict)
+        if (getindex(pair, 2) == dict.dict.value)
             return true;
         else
             return false;
         end
     else
         #Call in() function from dict.jl(0.5)/associative.jl(0.6~nightly).
-        return in(pair, get(dict.dict));
+        return in(pair, dict.dict);
     end
 end
 
@@ -98,12 +99,12 @@ mutable struct CSP <: AbstractCSP
 	neighbors::CSPDict
 	constraints::Function
 	initial::Tuple
-	current_domains::Nullable{Dict}
+	current_domains::Union{Nothing, Dict}
 	nassigns::Int64
 
     function CSP(vars::AbstractVector, domains::CSPDict, neighbors::CSPDict, constraints::Function;
-                initial::Tuple=(), current_domains::Union{Void, Dict}=nothing, nassigns::Int64=0)
-        return new(vars, domains, neighbors, constraints, initial, Nullable{Dict}(current_domains), nassigns)
+                initial::Tuple=(), current_domains::Union{Nothing, Dict}=nothing, nassigns::Int64=0)
+        return new(vars, domains, neighbors, constraints, initial, current_domains, nassigns)
     end
 end
 
@@ -112,7 +113,7 @@ end
 
 Overwrite (if an value exists already) assignment[key] with 'val'.
 """
-function assign{T <: AbstractCSP}(problem::T, key, val, assignment::Dict)
+function assign(problem::T, key, val, assignment::Dict) where {T <: AbstractCSP}
     assignment[key] = val;
     problem.nassigns = problem.nassigns + 1;
     nothing;
@@ -123,14 +124,14 @@ end
 
 Delete the existing (key, val) pair from 'assignment'.
 """
-function unassign{T <: AbstractCSP}(problem::T, key, assignment::Dict)
+function unassign(problem::T, key, assignment::Dict) where {T <: AbstractCSP}
     if (haskey(assignment, key))
         delete!(assignment, key);
     end
     nothing;
 end
 
-function nconflicts{T <: AbstractCSP}(problem::T, key, val, assignment::Dict)
+function nconflicts(problem::T, key, val, assignment::Dict) where {T <: AbstractCSP}
     return count(
                 (function(second_key)
                     return (haskey(assignment, second_key) &&
@@ -139,12 +140,12 @@ function nconflicts{T <: AbstractCSP}(problem::T, key, val, assignment::Dict)
                 problem.neighbors[key]);
 end
 
-function display{T <: AbstractCSP}(problem::T, assignment::Dict)
+function display(problem::T, assignment::Dict) where {T <: AbstractCSP}
     println("CSP: ", problem, " with assignment: ", assignment);
     nothing;
 end
 
-function actions{T <: AbstractCSP}(problem::T, state::Tuple)
+function actions(problem::T, state::Tuple) where {T <: AbstractCSP}
     if (length(state) == length(problem.vars))
         return [];
     else
@@ -159,11 +160,11 @@ function actions{T <: AbstractCSP}(problem::T, state::Tuple)
     end
 end
 
-function get_result{T <: AbstractCSP}(problem::T, state::Tuple, action::Tuple)
+function get_result(problem::T, state::Tuple, action::Tuple) where {T <: AbstractCSP}
     return (state..., action);
 end
 
-function goal_test{T <: AbstractCSP}(problem::T, state::Tuple)
+function goal_test(problem::T, state::Tuple) where {T <: AbstractCSP}
     let
         local assignment = Dict(state);
         return (length(assignment) == length(problem.vars) &&
@@ -175,7 +176,7 @@ function goal_test{T <: AbstractCSP}(problem::T, state::Tuple)
     end
 end
 
-function goal_test{T <: AbstractCSP}(problem::T, state::Dict)
+function goal_test(problem::T, state::Dict) where {T <: AbstractCSP}
     let
         local assignment = deepcopy(state);
         return (length(assignment) == length(problem.vars) &&
@@ -186,66 +187,66 @@ function goal_test{T <: AbstractCSP}(problem::T, state::Dict)
     end
 end
 
-function path_cost{T <: AbstractCSP}(problem::T, cost::Float64, state1::Tuple, action::Tuple, state2::Tuple)
+function path_cost(problem::T, cost::Float64, state1::Tuple, action::Tuple, state2::Tuple) where {T <: AbstractCSP}
     return cost + 1;
 end
 
-function support_pruning{T <: AbstractCSP}(problem::T)
-    if (isnull(problem.current_domains))
-        problem.current_domains = Nullable{Dict}(Dict(collect(Pair(key, collect(problem.domains[key])) for key in problem.vars)));
+function support_pruning(problem::T) where {T <: AbstractCSP}
+    if (problem.current_domains === nothing)
+        problem.current_domains = Dict(collect(Pair(key, collect(problem.domains[key])) for key in problem.vars));
     end
     nothing;
 end
 
-function suppose{T <: AbstractCSP}(problem::T, key, val)
+function suppose(problem::T, key, val) where {T <: AbstractCSP}
     support_pruning(problem);
-    local removals::AbstractVector = collect(Pair(key, a) for a in get(problem.current_domains)[key]
+    local removals::AbstractVector = collect(Pair(key, a) for a in problem.current_domains[key]
                                             if (a != val));
-    get(problem.current_domains)[key] = [val];
+    problem.current_domains[key] = [val];
     return removals;
 end
 
-function prune{T <: AbstractCSP}(problem::T, key, value, removals)
+function prune(problem::T, key, value, removals) where {T <: AbstractCSP}
     local not_removed::Bool = true;
-    for (i, element) in enumerate(get(problem.current_domains)[key])
+    for (i, element) in enumerate(problem.current_domains[key])
         if (element == value)
-            deleteat!(get(problem.current_domains)[key], i);
+            deleteat!(problem.current_domains[key], i);
             not_removed = false;
             break;
         end
     end
     if (not_removed)
-        error("Could not find ", value, " in ", get(problem.current_domains)[key], " for key '", key, "' to be removed!");
+        error("Could not find ", value, " in ", problem.current_domains[key], " for key '", key, "' to be removed!");
     end
-    if (!(typeof(removals) <: Void))
+    if (!(typeof(removals) <: Nothing))
         push!(removals, Pair(key, value));
     end
     nothing;
 end
 
-function choices{T <: AbstractCSP}(problem::T, key)
-    if (!isnull(problem.current_domains))
-        return get(problem.current_domains)[key];
+function choices(problem::T, key) where {T <: AbstractCSP}
+    if (!(problem.current_domains === nothing))
+        return problem.current_domains[key];
     else
         return problem.domains[key];
     end
 end
 
-function infer_assignment{T <: AbstractCSP}(problem::T)
+function infer_assignment(problem::T) where {T <: AbstractCSP}
     support_pruning(problem);
-    return Dict(collect(Pair(key, get(problem.current_domains)[key][1])
+    return Dict(collect(Pair(key, problem.current_domains[key][1])
                         for key in problem.vars
-                            if (1 == length(get(problem.current_domains)[key]))));
+                            if (1 == length(problem.current_domains[key]))));
 end
 
-function restore{T <: AbstractCSP}(problem::T, removals::AbstractVector)
+function restore(problem::T, removals::AbstractVector) where {T <: AbstractCSP}
     for (key, val) in removals
-        push!(get(problem.current_domains)[key], val);
+        push!(problem.current_domains[key], val);
     end
     nothing;
 end
 
-function conflicted_variables{T <: AbstractCSP}(problem::T, current_assignment::Dict)
+function conflicted_variables(problem::T, current_assignment::Dict) where {T <: AbstractCSP}
     return collect(var for var in problem.vars
                     if (nconflicts(problem, var, current_assignment[var], current_assignment) > 0));
 end
@@ -257,17 +258,17 @@ Solve the given problem by applying the arc-consitency algorithm AC-3 (Fig 6.3) 
 given contraint satisfaction problem. Return a boolean indicating whether every arc in
 the problem is arc-consistent.
 """
-function AC3{T <: AbstractCSP}(problem::T; queue::Union{Void, AbstractVector}=nothing, removals::Union{Void, AbstractVector}=nothing)
-    if (typeof(queue) <: Void)
+function AC3(problem::T; queue::Union{Nothing, AbstractVector}=nothing, removals::Union{Nothing, AbstractVector}=nothing) where {T <: AbstractCSP}
+    if (typeof(queue) <: Nothing)
         queue = collect((X_i, X_k) for X_i in problem.vars for X_k in problem.neighbors[X_i]);
     end
     support_pruning(problem);
     while (length(queue) != 0)
-        local X = shift!(queue);    #Remove the first item from queue
+        local X = popfirst!(queue);    #Remove the first item from queue
         local X_i = getindex(X, 1);
         local X_j = getindex(X, 2);
         if (revise(problem, X_i, X_j, removals))
-            if (!haskey(get(problem.current_domains), X_i))
+            if (!haskey(problem.current_domains, X_i))
                 return false;
             end
             for X_k in problem.neighbors[X_i]
@@ -280,13 +281,13 @@ function AC3{T <: AbstractCSP}(problem::T; queue::Union{Void, AbstractVector}=no
     return true;
 end
 
-function revise{T <: AbstractCSP}(problem::T, X_i, X_j, removals::Union{Void, AbstractVector})
+function revise(problem::T, X_i, X_j, removals::Union{Nothing, AbstractVector}) where {T <: AbstractCSP}
     local revised::Bool = false;
-    for x in deepcopy(get(problem.current_domains)[X_i])
+    for x in deepcopy(problem.current_domains[X_i])
         if (all((function(y)
                     return !problem.constraints(X_i, x, X_j, y);
                 end),
-                get(problem.current_domains)[X_j]))
+                problem.current_domains[X_j]))
             prune(problem, X_i, x, removals);
             revised = true;
         end
@@ -294,23 +295,23 @@ function revise{T <: AbstractCSP}(problem::T, X_i, X_j, removals::Union{Void, Ab
     return revised;
 end
 
-function first_unassigned_variable{T <: AbstractCSP}(problem::T, assignment::Dict)
+function first_unassigned_variable(problem::T, assignment::Dict) where {T <: AbstractCSP}
     return getindex(problem.vars, findfirst((function(var)
                         return !haskey(assignment, var);
                     end),
                     problem.vars));
 end
 
-function minimum_remaining_values{T <: AbstractCSP}(problem::T, assignment::Dict)
+function minimum_remaining_values(problem::T, assignment::Dict) where {T <: AbstractCSP}
     return argmin_random_tie(collect(v for v in problem.vars if !haskey(assignment, v)),
                             (function(var)
                                 return num_legal_values(problem, var, assignment);
                             end));
 end
 
-function num_legal_values{T <: AbstractCSP}(problem::T, var, assignment::Dict)
-    if (!isnull(problem.current_domains))
-        return length(get(problem.current_domains)[var]);
+function num_legal_values(problem::T, var, assignment::Dict) where {T <: AbstractCSP}
+    if (!(problem.current_domains === nothing))
+        return length(problem.current_domains[var]);
     else
         return count((function(val)
                         return (nconflicts(problem, var, val, assignment) == 0);
@@ -319,30 +320,30 @@ function num_legal_values{T <: AbstractCSP}(problem::T, var, assignment::Dict)
     end
 end
 
-function unordered_domain_values{T <: AbstractCSP}(problem::T, var, assignment::Dict)
+function unordered_domain_values(problem::T, var, assignment::Dict) where {T <: AbstractCSP}
     return choices(problem, var);
 end
 
-function least_constraining_values{T <: AbstractCSP}(problem::T, var, assignment::Dict)
+function least_constraining_values(problem::T, var, assignment::Dict) where {T <: AbstractCSP}
     return sort!(deepcopy(choices(problem, var)),
                 lt=(function(val)
                        return nconflicts(problem, var, val, assignment);                                 
                     end));
 end
 
-function no_inference{T <: AbstractCSP}(problem::T, var, value, assignment::Dict, removals::Union{Void, AbstractVector})
+function no_inference(problem::T, var, value, assignment::Dict, removals::Union{Nothing, AbstractVector}) where {T <: AbstractCSP}
     return true;
 end
 
-function forward_checking{T <: AbstractCSP}(problem::T, var, value, assignment::Dict, removals::Union{Void, AbstractVector})
+function forward_checking(problem::T, var, value, assignment::Dict, removals::Union{Nothing, AbstractVector}) where {T <: AbstractCSP}
     for B in problem.neighbors[var]
         if (!haskey(assignment, B))
-            for b in copy(get(problem.current_domains)[B])
+            for b in copy(problem.current_domains[B])
                 if (!problem.constraints(var, value, B, b))
                     prune(problem, B, b, removals);
                 end
             end
-            if (length(get(problem.current_domains)[B]) == 0)
+            if (length(problem.current_domains[B]) == 0)
                 return false;
             end
         end
@@ -350,14 +351,14 @@ function forward_checking{T <: AbstractCSP}(problem::T, var, value, assignment::
     return true;
 end
 
-function maintain_arc_consistency{T <: AbstractCSP}(problem::T, var, value, assignment::Dict, removals::Union{Void, AbstractVector})
+function maintain_arc_consistency(problem::T, var, value, assignment::Dict, removals::Union{Nothing, AbstractVector}) where {T <: AbstractCSP}
     return AC3(problem, queue=collect((X, var) for X in problem.neighbors[var]), removals=removals);
 end
 
-function backtrack{T <: AbstractCSP}(problem::T, assignment::Dict;
-                                    select_unassigned_variable::Function=first_unassigned_variable,
-                                    order_domain_values::Function=unordered_domain_values,
-                                    inference::Function=no_inference)
+function backtrack(problem::T, assignment::Dict;
+                    select_unassigned_variable::Function=first_unassigned_variable,
+                    order_domain_values::Function=unordered_domain_values,
+                    inference::Function=no_inference) where {T <: AbstractCSP}
     if (length(assignment) == length(problem.vars))
         return assignment;
     end
@@ -371,7 +372,7 @@ function backtrack{T <: AbstractCSP}(problem::T, assignment::Dict;
                                     select_unassigned_variable=select_unassigned_variable,
                                     order_domain_values=order_domain_values,
                                     inference=inference);
-                if (!(typeof(result) <: Void))
+                if (!(typeof(result) <: Nothing))
                     return result;
                 end
             end
@@ -388,15 +389,15 @@ end
 Search the given problem by using the backtracking search algorithm (Fig 6.5) and return the solution
 if any are found.
 """
-function backtracking_search{T <: AbstractCSP}(problem::T;
-                                                select_unassigned_variable::Function=first_unassigned_variable,
-                                                order_domain_values::Function=unordered_domain_values,
-                                                inference::Function=no_inference)
+function backtracking_search(problem::T;
+                            select_unassigned_variable::Function=first_unassigned_variable,
+                            order_domain_values::Function=unordered_domain_values,
+                            inference::Function=no_inference) where {T <: AbstractCSP}
     local result = backtrack(problem, Dict(),
                             select_unassigned_variable=select_unassigned_variable,
                                     order_domain_values=order_domain_values,
                                     inference=inference);
-    if (!(typeof(result) <: Void || goal_test(problem, result)))
+    if (!(typeof(result) <: Nothing || goal_test(problem, result)))
         error("BacktrackingSearchError: Unexpected result!")
     end
     return result;
@@ -409,7 +410,7 @@ function parse_neighbors(neighbors::String; vars::AbstractVector=[])
     end
     local specs::AbstractVector = collect(map(String, split(spec, [':'])) for spec in split(neighbors, [';']));
     for (A, A_n) in specs
-        A = strip(A);
+        A = String(strip(A));
         if (!haskey(new_dict, A))
             new_dict[A] = [];
         end
@@ -424,18 +425,18 @@ function parse_neighbors(neighbors::String; vars::AbstractVector=[])
     return new_dict;
 end
 
-function different_values_constraint{T1, T2}(A::T1, a::T2, B::T1, b::T2)
+function different_values_constraint(A::T1, a::T2, B::T1, b::T2) where {T1, T2}
     return (a != b);
 end
 
-function min_conflicts_value{T <: AbstractCSP}(problem::T, var::String, current_assignment::Dict)
+function min_conflicts_value(problem::T, var::String, current_assignment::Dict) where {T <: AbstractCSP}
     return argmin_random_tie(problem.domains[var],
                             (function(val)
                                 return nconflicts(problem, var, val, current_assignment);
                             end));
 end
 
-function min_conflicts_value{T <: AbstractCSP}(problem::T, var::Int64, current_assignment::Dict)
+function min_conflicts_value(problem::T, var::Int64, current_assignment::Dict) where {T <: AbstractCSP}
     return argmin_random_tie(problem.domains[var],
                             (function(val)
                                 return nconflicts(problem, var, val, current_assignment);
@@ -448,7 +449,7 @@ end
 Search the given problem by using the min-conflicts algorithm (Fig. 6.8) and return the solution
 if any are found.
 """
-function min_conflicts{T <: AbstractCSP}(problem::T; max_steps::Int64=100000)
+function min_conflicts(problem::T; max_steps::Int64=100000) where {T <: AbstractCSP}
     local current::Dict = Dict();
     for var in problem.vars
         val = min_conflicts_value(problem, var, current);
@@ -472,7 +473,7 @@ end
 Attempt to solve the given problem using the Tree CSP Solver algorithm (Fig. 6.11) and return
 the solution if any are found.
 """
-function tree_csp_solver{T <: AbstractCSP}(problem::T)
+function tree_csp_solver(problem::T) where {T <: AbstractCSP}
     local num_of_vars = length(problem.vars);
     local assignment = Dict();
     local root = problem.vars[1];
@@ -483,10 +484,10 @@ function tree_csp_solver{T <: AbstractCSP}(problem::T)
         end
     end
     for X_i in X
-        if (length(get(problem.current_domains)[X_i]) == 0)
+        if (length(problem.current_domains[X_i]) == 0)
             return nothing;
         end
-        assignment[X_i] = get(problem.current_domains)[X_i][1];
+        assignment[X_i] = problem.current_domains[X_i][1];
     end
     return assignment;
 end
@@ -500,7 +501,7 @@ calling topological_sort_postorder_dfs on vertices returned by problem.neighbors
 
 The dictionary returned does not have keys (vertices) that do not have a parent vertex.
 """
-function topological_sort{T <: AbstractCSP}(problem::T, root::String)
+function topological_sort(problem::T, root::String) where {T <: AbstractCSP}
     local sorted_nodes = [];
     local parents = Dict();
     local visited = Dict();
@@ -517,7 +518,7 @@ function topological_sort_postorder_dfs(vertex::String,
                                         neighbors::CSPDict,
                                         parents::Dict,
                                         sorted_vertices::AbstractVector,
-                                        parent::Union{Void, String})
+                                        parent::Union{Nothing, String})
     visited[vertex] = true;
     for w in neighbors[vertex]
         if (!visited[w])
@@ -525,13 +526,13 @@ function topological_sort_postorder_dfs(vertex::String,
         end
     end
     insert!(sorted_vertices, 1, vertex);
-    if (!(typeof(parent) <: Void))
+    if (!(typeof(parent) <: Nothing))
         parents[vertex] = parent;
     end
     nothing;
 end
 
-function make_arc_consistent{T <: AbstractCSP}(problem::T, parent::Dict, X_j)
+function make_arc_consistent(problem::T, parent::Dict, X_j) where {T <: AbstractCSP}
     println("make_arc_consistent() is not implemented yet for ", typeof(problem), "!");
     nothing;
 end
@@ -581,19 +582,19 @@ mutable struct NQueensCSP <: AbstractCSP
     neighbors::CSPDict
     constraints::Function
     initial::Tuple
-    current_domains::Nullable{Dict}
+    current_domains::Union{Nothing, Dict}
     nassigns::Int64
     rows::AbstractVector
     backslash_diagonals::AbstractVector
     slash_diagonals::AbstractVector
 
-    function NQueensCSP(n::Int64; initial::Tuple=(), current_domains::Union{Void, Dict}=nothing, nassigns::Int64=0)
+    function NQueensCSP(n::Int64; initial::Tuple=(), current_domains::Union{Nothing, Dict}=nothing, nassigns::Int64=0)
         return new(collect(1:n),
                     CSPDict(ConstantFunctionDict(collect(1:n))),
                     CSPDict(ConstantFunctionDict(collect(1:n))),
                     queen_constraint,
                     initial,
-                    Nullable{Dict}(current_domains),
+                    current_domains,
                     nassigns,
                     fill(0, n),
                     fill(0, ((2 * n) - 1)),
@@ -615,7 +616,7 @@ end
 function assign(problem::NQueensCSP, key::Int64, val::Int64, assignment::Dict)
     local old_val = get(assignment, key, nothing);
     if (old_val != val)
-        if (!(typeof(old_val) <: Void))
+        if (!(typeof(old_val) <: Nothing))
             record_conflict(problem, assignment, key, old_val, -1);
         end
         record_conflict(problem, assignment, key, val, 1);
@@ -684,7 +685,7 @@ struct SudokuInitialState
         local index_iter = Base.Iterators.countfrom();
         local index_position::AbstractVector = [0];
         local index_grid = collect(collect(collect(collect((function(it, ip)
-                                                                ip[1]=next(it, ip[1])[2];
+                                                                ip[1]=iterate(it, ip[1])[2];
                                                                 return ip[1];
                                                             end)(index_iter, index_position) for x in 1:3)
                                                     for y in 1:3)
@@ -692,9 +693,9 @@ struct SudokuInitialState
                                     for box_y in 1:3);
         local boxes = reduce(vcat, collect(collect(reduce(vcat, row) for row in box_row) for box_row in index_grid));
         local rows = reduce(vcat, collect(collect(reduce(vcat, collect(uneval))
-                                                for uneval in zip(box_row...))
+                                                for uneval in zip(box_row...,))
                                         for box_row in index_grid));
-        local cols = collect(collect(eval_tuple) for eval_tuple in zip(rows...));
+        local cols = collect(collect(eval_tuple) for eval_tuple in zip(rows...,));
         return new(index_grid, boxes, rows, cols);
     end
 end
@@ -712,10 +713,10 @@ mutable struct SudokuCSP <: AbstractCSP
     neighbors::CSPDict
     constraints::Function
     initial::Tuple
-    current_domains::Nullable{Dict}
+    current_domains::Union{Nothing, Dict}
     nassigns::Int64
 
-    function SudokuCSP(grid::String; initial::Tuple=(), current_domains::Union{Void, Dict}=nothing, nassigns::Int64=0)
+    function SudokuCSP(grid::String; initial::Tuple=(), current_domains::Union{Nothing, Dict}=nothing, nassigns::Int64=0)
         local neighbors = Dict{Int64, Any}(collect(Pair(cell, Set()) for cell in reduce(vcat, sudoku_indices.rows)));
         for unit in map(Set, vcat(sudoku_indices.boxes, sudoku_indices.rows, sudoku_indices.cols))
             for cell in unit
@@ -723,7 +724,7 @@ mutable struct SudokuCSP <: AbstractCSP
             end
         end
 
-        local squares = map(String, matchall(r"\d|\.", grid));
+        local squares = map(String, collect(m.match for m in eachmatch(r"\d|\.", grid)));
         if (length(squares) != length(reduce(vcat, sudoku_indices.rows)))
             error("SudokuCSPError: Invalid Sudoku grid!")
         end
@@ -735,7 +736,7 @@ mutable struct SudokuCSP <: AbstractCSP
         #Sort the keys of 'domains' when creating the 'vars' field of the new SudokuCSP problem.
         #Otherwise, backtracking search on SudokuCSP will run indefinitely.
         return new(sort(collect(keys(domains))), CSPDict(domains), CSPDict(neighbors), different_values_constraint,
-                    initial, Nullable{Dict}(current_domains), nassigns);
+                    initial, current_domains, nassigns);
     end
 end
 
@@ -832,10 +833,10 @@ mutable struct ZebraCSP <: AbstractCSP
     neighbors::CSPDict
     constraints::Function
     initial::Tuple
-    current_domains::Nullable{Dict}
+    current_domains::Union{Nothing, Dict}
     nassigns::Int64
 
-    function ZebraCSP(;initial::Tuple=(), current_domains::Union{Void, Dict}=nothing, nassigns::Int64=0)
+    function ZebraCSP(;initial::Tuple=(), current_domains::Union{Nothing, Dict}=nothing, nassigns::Int64=0)
         local vars = vcat(zebra_constants.colors,
                         zebra_constants.pets,
                         zebra_constants.drinks,
@@ -870,7 +871,7 @@ mutable struct ZebraCSP <: AbstractCSP
                 end
             end
         end
-        return new(vars, CSPDict(domains), CSPDict(neighbors), zebra_constraint, initial, Nullable{Dict}(current_domains), nassigns);
+        return new(vars, CSPDict(domains), CSPDict(neighbors), zebra_constraint, initial, current_domains, nassigns);
     end
 end
 
