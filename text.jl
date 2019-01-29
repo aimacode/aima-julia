@@ -484,7 +484,7 @@ Then the command output is then indexed with index_document().
 function execute_query(irs::T, query::String; n::Int64=10) where {T <: AbstractInformationRetrievalSystem}
     if (startswith(query, "learn:"))
         local truncated_query::String = strip(query[7:end]);
-        local document_text::String = strip(readstring(`$truncated_query`));
+        local document_text::String = strip(read(pipeline(stdin, `$truncated_query`), String));
         index_document(irs, document_text, query);
         return [];
     end
