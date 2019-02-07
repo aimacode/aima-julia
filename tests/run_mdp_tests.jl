@@ -1,8 +1,8 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
 
-using aimajulia;
+using Main.aimajulia;
 
 #The following mdp tests are from the aima-python doctests
 
@@ -23,9 +23,9 @@ mdp = MarkovDecisionProcess("A", Set(["a1", "a2"]), Set(["C"]), tm, states=Set([
 
 pi = optimal_policy(aimajulia.sequential_decision_environment, value_iteration(aimajulia.sequential_decision_environment, epsilon=0.01));
 
-@test (repr(pi) == "Dict{Any,Any}(Pair{Any,Any}((2, 3), (1, 0)),Pair{Any,Any}((2, 1), (1, 0)),Pair{Any,Any}((3, 1), (0, 1)),Pair{Any,Any}((1, 4), (0, -1)),Pair{Any,Any}((3, 3), (0, 1)),Pair{Any,Any}((1, 3), (1, 0)),Pair{Any,Any}((3, 2), (0, 1)),Pair{Any,Any}((2, 4), nothing),Pair{Any,Any}((1, 1), (1, 0)),Pair{Any,Any}((1, 2), (0, 1)),Pair{Any,Any}((3, 4), nothing))");
+@test (repr(pi) == "Dict{Any,Any}((2, 3)=>(1, 0),(2, 1)=>(1, 0),(3, 1)=>(0, 1),(1, 4)=>(0, -1),(3, 3)=>(0, 1),(1, 3)=>(1, 0),(3, 2)=>(0, 1),(2, 4)=>nothing,(1, 1)=>(1, 0),(1, 2)=>(0, 1),(3, 4)=>nothing)");
 
-@test (repr(to_arrows(aimajulia.sequential_decision_environment, pi)) == "Nullable{String}[\"v\" \">\" \"v\" \"<\"; \"v\" #NULL \"v\" \".\"; \">\" \">\" \">\" \".\"]");
+@test (repr(to_arrows(aimajulia.sequential_decision_environment, pi)) == "Union{Nothing, String}[\"v\" \">\" \"v\" \"<\"; \"v\" nothing \"v\" \".\"; \">\" \">\" \">\" \".\"]");
 
 @test (policy_iteration(aimajulia.sequential_decision_environment) == 
         Dict([Pair((2,3),(1,0)),

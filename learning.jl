@@ -1,4 +1,6 @@
 
+using DelimitedFiles
+
 import Base: getindex, copy;
 
 export euclidean_distance, mean_square_error, root_mean_square_error,
@@ -59,7 +61,7 @@ the mean 'mean' and standard deviation 'standard_deviation'.
 """
 function gaussian(mean::Number, standard_deviation::Number, x::Number)
     return ((Float64(1)/(sqrt(2 * pi) * Float64(standard_deviation))) *
-            (e^(-0.5*((Float64(x) - Float64(mean))/Float64(standard_deviation))^2)));
+            (Base.MathConstants.e^(-0.5*((Float64(x) - Float64(mean))/Float64(standard_deviation))^2)));
 end
 
 #=
@@ -79,19 +81,19 @@ mutable struct DataSet
     inputs::AbstractVector
     target::Int64
 
-    function DataSet(;name::String="", source::String="", attributes::Union{Void, AbstractVector}=nothing,
-                    attributes_names::Union{Void, String, AbstractVector}=nothing,
-                    examples::Union{Void, String, AbstractMatrix}=nothing,
-                    values::Union{Void, AbstractVector}=nothing,
-                    inputs::Union{Void, String, AbstractVector}=nothing, target::Union{Int64, String}=-1,
+    function DataSet(;name::String="", source::String="", attributes::Union{Nothing, AbstractVector}=nothing,
+                    attributes_names::Union{Nothing, String, AbstractVector}=nothing,
+                    examples::Union{Nothing, String, AbstractMatrix}=nothing,
+                    values::Union{Nothing, AbstractVector}=nothing,
+                    inputs::Union{Nothing, String, AbstractVector}=nothing, target::Union{Int64, String}=-1,
                     exclude::AbstractVector=[], distance::Function=mean_boolean_error)
         # Use a matrix instead of array of arrays
         local examples_array::AbstractMatrix;
         if (typeof(examples) <: String)
-            examples_array = readcsv(examples);
-        elseif (typeof(examples) <: Void)
+            examples_array = readdlm(examples, ',');
+        elseif (typeof(examples) <: Nothing)
             # 'name'.csv must be in current directory.
-            examples_array = readcsv(name*".csv");
+            examples_array = readdlm(name*".csv", ',');
         else
             examples_array = examples;
         end
@@ -104,7 +106,7 @@ mutable struct DataSet
                             end),
                             examples_array);
         local attributes_array::AbstractVector;
-        if (typeof(attributes) <: Void)
+        if (typeof(attributes) <: Nothing)
             attributes_array = collect(1:getindex(size(examples_array), 2));
         else
             attributes_array = attributes;
@@ -112,14 +114,14 @@ mutable struct DataSet
         local attributes_names_array::AbstractVector;
         if (typeof(attributes_names) <: String)
             attributes_names_array = map(String, split(attributes_names));
-        elseif (!(typeof(attributes_names) <: Void) && (length(attributes_names) != 0))
+        elseif (!(typeof(attributes_names) <: Nothing) && (length(attributes_names) != 0))
             attributes_names_array = attributes_names;
         else
             attributes_names_array = attributes_array;
         end
         local values_is_set::Bool;
         local new_values::AbstractVector;
-        if (typeof(values) <: Void)
+        if (typeof(values) <: Nothing)
             values_is_set = false;
             new_values = [];
         else
@@ -152,7 +154,7 @@ mutable struct DataSet
     end
 end
 
-function set_problem(ds::DataSet, target::Int64, inputs::Void, exclude::AbstractVector)
+function set_problem(ds::DataSet, target::Int64, inputs::Nothing, exclude::AbstractVector)
     ds.target = attribute_index(ds, target);
     local mapped_exclude::AbstractVector = map(attribute_index, (ds for i in exclude), exclude);
     ds.inputs = collect(a for a in ds.attributes if ((a != ds.target) && (!(a in mapped_exclude))));
@@ -171,7 +173,7 @@ function set_problem(ds::DataSet, target::Int64, inputs::AbstractVector, exclude
     nothing;
 end
 
-function set_problem(ds::DataSet, target::String, inputs::Void, exclude::AbstractVector)
+function set_problem(ds::DataSet, target::String, inputs::Nothing, exclude::AbstractVector)
     ds.target = attribute_index(ds, target);
     local mapped_exclude::AbstractVector = map(attribute_index, (ds for i in exclude), exclude);
     ds.inputs = collect(a for a in ds.attributes if ((a != ds.target) && (!(a in mapped_exclude))));
@@ -263,7 +265,7 @@ function remove_examples(ds::DataSet)
             push!(update_examples, transpose(ds.examples[i, :]));
         end
     end
-    ds.examples = reduce(vcat, Array{Any, 2}(), updated_examples);
+    ds.examples = reduce(vcat, Array{Any, 2}(undef, 0, 0), updated_examples);
     update_values(ds);
 end
 
@@ -274,7 +276,7 @@ function remove_examples(ds::DataSet, value::String)
             push!(update_examples, transpose(ds.examples[i, :]));
         end
     end
-    ds.examples = reduce(vcat, Array{Any, 2}(), updated_examples);
+    ds.examples = reduce(vcat, Array{Any, 2}(undef, 0, 0), updated_examples);
     update_values(ds);
 end
 
@@ -294,12 +296,12 @@ function sanitize(ds::DataSet, example::AbstractVector)
 end
 
 """
-    classes_to_numbers(ds::DataSet, classes::Void)
+    classes_to_numbers(ds::DataSet, classes::Nothing)
     classes_to_numbers(ds::DataSet, classes::AbstractVector)
 
 Set the classifications of each example in ds.examples as numbers based on the given 'classes'.
 """
-function classes_to_numbers(ds::DataSet, classes::Void)
+function classes_to_numbers(ds::DataSet, classes::Nothing)
     local new_classes::AbstractVector = sort(ds.values[ds.target]);
     for i in 1:size(ds.examples)[1]
         local index_val::Int64 = utils.index(new_classes, ds.examples[i, ds.target]);
@@ -396,10 +398,10 @@ mutable struct CountingProbabilityDistribution <: AbstractCountingProbabilityDis
     dict::Dict
     number_of_observations::Int64
     default::Int64
-    sample_function::Nullable{Function}
+    sample_function::Union{Nothing, Function}
 
     function CountingProbabilityDistribution(observations::AbstractVector; default::Int64=0)
-        local cpd::CountingProbabilityDistribution = new(Dict(), 0, default, Nullable{Function}());
+        local cpd::CountingProbabilityDistribution = new(Dict(), 0, default, nothing);
         for observation in observations
             add(cpd, observation);
         end
@@ -407,57 +409,57 @@ mutable struct CountingProbabilityDistribution <: AbstractCountingProbabilityDis
     end
 
     function CountingProbabilityDistribution(; default::Int64=0)
-        local cpd::CountingProbabilityDistribution = new(Dict(), 0, default, Nullable{Function}());
+        local cpd::CountingProbabilityDistribution = new(Dict(), 0, default, nothing);
         return cpd;
     end
 end
 
 """
-    add{T <: AbstractCountingProbabilityDistribution}(cpd::T, observation)
+    add(cpd::T, observation) where {T <: AbstractCountingProbabilityDistribution}
 
 Add observation 'observation' to the probability distribution 'cpd'.
 """
-function add{T <: AbstractCountingProbabilityDistribution}(cpd::T, observation)
+function add(cpd::T, observation) where {T <: AbstractCountingProbabilityDistribution}
     smooth_for_observation(cpd, observation);
     cpd.dict[observation] = cpd.dict[observation] + 1;
     cpd.number_of_observations = cpd.number_of_observations + 1;
-    cpd.sample_function = Nullable{Function}();
+    cpd.sample_function = nothing;
     nothing;
 end
 
 """
-    smooth_for_observation{T <: AbstractCountingProbabilityDistribution}(cpd::T, observation)
+    smooth_for_observation(cpd::T, observation) where {T <: AbstractCountingProbabilityDistribution}
 
 Initialize observation 'observation' in the distribution 'cpd' if the observation doesn't
 exist in the distribution yet.
 """
-function smooth_for_observation{T <: AbstractCountingProbabilityDistribution}(cpd::T, observation)
+function smooth_for_observation(cpd::T, observation) where {T <: AbstractCountingProbabilityDistribution}
     if (!(observation in keys(cpd.dict)))
         cpd.dict[observation] = cpd.default;
         cpd.number_of_observations = cpd.number_of_observations + cpd.default;
-        cpd.sample_function = Nullable{Function}();
+        cpd.sample_function = nothing;
     end
     nothing;
 end
 
 """
-    getindex{T <: AbstractCountingProbabilityDistribution}(cpd::T, key)
+    getindex(cpd::T, key) where {T <: AbstractCountingProbabilityDistribution}
 
 Return the probability of the given 'key'.
 """
-function getindex{T <: AbstractCountingProbabilityDistribution}(cpd::T, key)
+function getindex(cpd::T, key) where {T <: AbstractCountingProbabilityDistribution}
     smooth_for_observation(cpd, key);
     return (Float64(cpd.dict[key]) / Float64(cpd.number_of_observations));
 end
 
 """
-    top{T <: AbstractCountingProbabilityDistribution}(cpd::T, n::Int64)
+    top(cpd::T, n::Int64) where {T <: AbstractCountingProbabilityDistribution}
 
 Return an array of (observation_count, observation) tuples such that the array
 does not exceed length 'n'.
 """
-function top{T <: AbstractCountingProbabilityDistribution}(cpd::T, n::Int64)
-    local observations::AbstractVector = sort(collect(reverse((i...)) for i in cpd.dict),
+function top(cpd::T, n::Int64) where {T <: AbstractCountingProbabilityDistribution}
+    local observations::AbstractVector = sort(collect(reverse((i...,)) for i in cpd.dict),
                                                 lt=(function(p1::Tuple{Number, Any}, p2::Tuple{Number, Any})
                                                         return (p1[1] > p2[1]);
                                                     end));
@@ -474,10 +476,10 @@ end
 Return a random sample from the probability distribution 'cpd'.
 """
 function sample(cpd::CountingProbabilityDistribution)
-    if (isnull(cpd.sample_function))
+    if (cpd.sample_function === nothing)
         cpd.sample_function = weighted_sampler(collect(keys(cpd.dict)), collect(values(cpd.dict)));
     end
-    return get(cpd.sample_function)();
+    return cpd.sample_function();
 end
 
 abstract type AbstractLearner end;
@@ -704,27 +706,27 @@ DecisionLeafNode(result) = DecisionLeafNode{typeof(result)}(result);
 
 struct DecisionForkNode <: AbstractDecisionTreeNode
     attribute::Int64
-    attribute_name::Nullable
-    default_child::Nullable{DecisionLeafNode}
+    attribute_name::Union{Nothing, Int64, String}
+    default_child::Union{Nothing, DecisionLeafNode}
     branches::Dict
 
     function DecisionForkNode(attribute::Int64;
-                        attribute_name::Union{Int64, String, Void}=nothing,
-                        default_child::Union{DecisionLeafNode, Void}=nothing,
-                        branches::Union{Dict, Void}=nothing)
-        local new_attribute_name::Nullable;
+                        attribute_name::Union{Int64, String, Nothing}=nothing,
+                        default_child::Union{DecisionLeafNode, Nothing}=nothing,
+                        branches::Union{Dict, Nothing}=nothing)
+        local new_attribute_name::Union{Nothing, Int64, String};
         local new_branches::Dict;
-        if (typeof(attribute_name) <: Void)
-            new_attribute_name = Nullable(attribute);
+        if (typeof(attribute_name) <: Nothing)
+            new_attribute_name = attribute;
         else
-            new_attribute_name = Nullable(attribute_name);
+            new_attribute_name = attribute_name;
         end
-        if (typeof(branches) <: Void)
+        if (typeof(branches) <: Nothing)
             new_branches = Dict();
         else
             new_branches = branches;
         end
-        return new(attribute, new_attribute_name, Nullable{DecisionLeafNode}(default_child), new_branches);
+        return new(attribute, new_attribute_name, default_child, new_branches);
     end
 end
 
@@ -733,7 +735,7 @@ function classify(df::DecisionForkNode, example::AbstractVector)
     if (haskey(df.branches, attribute_value))
         return classify(df.branches[attribute_value], example);
     else
-        return classify(get(df.default_child), example);
+        return classify(df.default_child, example);
     end
 end
 
@@ -774,9 +776,9 @@ Returns an empty matrix when vcat() returns an empty vector, otherwise return vc
 """
 function matrix_vcat(args::Vararg)
     if (length(args) == 0)
-        return Array{Any, 2}(0, 0);
+        return Array{Any, 2}(undef, 0, 0);
     else
-        return vcat(args...);
+        return vcat(args...,);
     end
 end
 
@@ -788,7 +790,7 @@ Return a Base.Generator of (value_i, examples_i) tuples for each value of 'attri
 function filter_examples_by_attribute(dataset::DataSet, attribute::Int64, examples::AbstractMatrix)
     return ((value, matrix_vcat((reshape(ex_i, (1, length(ex_i)))
                                                     for ex_i in (examples[i,:] for i in 1:size(examples)[1])
-                                                    if (ex_i[attribute] == value))...))
+                                                    if (ex_i[attribute] == value))...,))
             for value in dataset.values[attribute]);
 end
 
@@ -822,13 +824,13 @@ function plurality_value(dataset::DataSet, examples::AbstractMatrix)
 end
 
 """
-    decision_tree_learning(dataset::DataSet, examples::AbstractMatrix, attributes::AbstractVector; parent_examples::AbstractMatrix=Array{Any, 2}())
+    decision_tree_learning(dataset::DataSet, examples::AbstractMatrix, attributes::AbstractVector; parent_examples::AbstractMatrix=Array{Any, 2}(undef, 0, 0))
 
 Return a decision tree as a DecisionLeafNode or a DecisionForkNode by applying the decision-tree
 learning algorithm (Fig. 18.5) on the given dataset 'dataset', example matrix 'example', attributes
 vector 'attributes', and parent examples 'parent_examples'.
 """
-function decision_tree_learning(dataset::DataSet, examples::AbstractMatrix, attributes::AbstractVector; parent_examples::AbstractMatrix=Array{Any, 2}(0, 0))
+function decision_tree_learning(dataset::DataSet, examples::AbstractMatrix, attributes::AbstractVector; parent_examples::AbstractMatrix=Array{Any, 2}(undef, 0, 0))
     # examples is empty
     if (size(examples)[1] == 0)
         return plurality_value(dataset, parent_examples);
@@ -938,7 +940,7 @@ function decision_list_learning(ds::DataSet, examples::Set)
     local t::Function;
     local examples_t::Set;
     t, output, examples_t = find_test_outcomes_from_examples(ds, examples);
-    if (typeof(t) <: Void)
+    if (typeof(t) <: Nothing)
         error("decision_list_learning(): Could not find valid test 't'!");
     end
     return append!([(t, output)], decision_list_learning(ds, setdiff(examples, examples_t)));
@@ -970,15 +972,15 @@ end
 mutable struct NeuralNetworkUnit
     weights::AbstractVector
     inputs::AbstractVector
-    value::Nullable
+    value   # can be any DataType, but check for Nothing DataType later
     activation::Function
 
     function NeuralNetworkUnit()
-        return new([], [], Nullable(nothing), sigmoid);
+        return new([], [], nothing, sigmoid);
     end
 
     function NeuralNetworkUnit(weights::AbstractVector, inputs::AbstractVector)
-        return new(weights, inputs, Nullable(nothing), sigmoid);
+        return new(weights, inputs, nothing, sigmoid);
     end
 end
 
@@ -1072,16 +1074,16 @@ function back_propagation_learning!(dataset::DataSet, network::AbstractVector, l
 
             # Activate the input layer.
             for (v, u) in zip(input_value, input_units)
-                u.value = Nullable(v);
+                u.value = v;
             end
 
             # Propagate the inputs forward.
             for layer in network[2:end]
                 for unit in layer
-                    local in_j::Real = dot(collect(get(unit_input.value)
-                                            for unit_input in unit.inputs),
-                                            unit.weights);
-                    unit.value = Nullable(unit.activation(in_j));
+                    local in_j::Real = dot(collect(unit_input.value
+                                                    for unit_input in unit.inputs),
+                                                    unit.weights);
+                    unit.value = unit.activation(in_j);
                 end
             end
 
@@ -1089,9 +1091,9 @@ function back_propagation_learning!(dataset::DataSet, network::AbstractVector, l
             local delta::AbstractVector = collect([] for i in 1:length(network));
 
             # Compute the errors of the mean squared error function.
-            local errors::AbstractVector = collect((target_value[i] - get(output_units[i].value))
+            local errors::AbstractVector = collect((target_value[i] - output_units[i].value)
                                                 for i in 1:num_output_units);
-            delta[end] = collect((sigmoid_derivative(get(output_units[i].value)) * errors[i])
+            delta[end] = collect((sigmoid_derivative(output_units[i].value) * errors[i])
                                 for i in 1:num_output_units);
 
             # Propagate the deltas backward from ouput layer to input layer.
@@ -1104,14 +1106,14 @@ function back_propagation_learning!(dataset::DataSet, network::AbstractVector, l
                                     for unit in next_layer)
                             for j in 1:num_hidden_units);
 
-                delta[i] = collect((sigmoid_derivative(get(layer[j].value)) * dot(w[j], delta[i + 1]))
+                delta[i] = collect((sigmoid_derivative(layer[j].value) * dot(w[j], delta[i + 1]))
                                     for j in 1:num_hidden_units);
             end
 
             # Update every weight in network by using the deltas.
             for i in 2:length(network)
                 layer = network[i];
-                local previous_layer_values::AbstractVector = collect(get(unit.value) for unit in network[i - 1]);
+                local previous_layer_values::AbstractVector = collect(unit.value for unit in network[i - 1]);
                 local num_units::Int64 = length(layer);
                 for j in 1:num_units
                     layer[j].weights = (layer[j].weights + ((learning_rate * delta[i][j]) * previous_layer_values));
@@ -1157,22 +1159,22 @@ function predict(nnl::NeuralNetworkLearner, example::AbstractVector)
 
     # Set the values of the input units to the values of example.
     for (v, u) in zip(example, input_units)
-        u.value = Nullable(v);
+        u.value = v;
     end
 
     # Propagate the example values forward.
     for layer in nnl.network[2:end]
         for unit in layer
-            local in_j::Real = dot(collect(get(unit_input.value)
-                                    for unit_input in unit.inputs),
-                                    unit.weights);
-            unit.value = Nullable(unit.activation(in_j));
+            local in_j::Real = dot(collect(unit_input.value
+                                            for unit_input in unit.inputs),
+                                            unit.weights);
+            unit.value = unit.activation(in_j);
         end
     end
 
     local prediction::Int64 = utils.index(nnl.network[end], argmax(nnl.network[end],
                                                                     (function(unit::NeuralNetworkUnit)
-                                                                        return get(unit.value);
+                                                                        return unit.value;
                                                                     end)));
     if (prediction < 0)
         error("predict(): NeuralNetworkLearner returned invalid array index '", prediction, "'!");
@@ -1216,12 +1218,12 @@ function predict(pl::PerceptronLearner, example::AbstractVector)
 
     # Propagate the example values forward.
     for unit in output_units
-        unit.value = Nullable(unit.activation(dot(example, unit.weights)));
+        unit.value = unit.activation(dot(example, unit.weights));
     end
 
     local prediction::Int64 = utils.index(pl.network[end], argmax(pl.network[end],
                                                                 (function(unit::NeuralNetworkUnit)
-                                                                    return get(unit.value);
+                                                                    return unit.value;
                                                                 end)));
     if (prediction < 0)
         error("predict(): PerceptronLearner returned invalid array index '", prediction, "'!");
@@ -1307,7 +1309,7 @@ end
 Return the value from 'values' with the largest cumulative weight.
 """
 function weighted_mode(values::String, weights::AbstractVector)
-    local values_array::AbstractVector = map(String, (collect(char) for char in map(Char, Vector{UInt8}(values))));
+    local values_array::AbstractVector = map(String, collect([c] for c in map(Char, Vector{UInt8}(values))));
     local weight_values::Dict = Dict();
     for (value, weight) in zip(values_array, weights)
         if (haskey(weight_values, value))
@@ -1377,8 +1379,10 @@ function weighted_replicate(seq::AbstractVector, weights::AbstractVector, n::Int
                                                         for weight in normalized_weights);
     local fractions::Array{Float64, 1} = collect(((weight * n) % 1) for weight in normalized_weights);
 
-    return append!(reduce(vcat, [], collect(fill(x, num_x)
-                                            for (x, num_x) in zip(seq, integer_multiples))),
+    return append!(reduce(vcat, 
+                            collect(fill(x, num_x)
+                                    for (x, num_x) in zip(seq, integer_multiples)),
+                            init=[]),
                     weighted_sample_with_replacement(seq, fractions, (n - sum(integer_multiples))));
 end
 
@@ -1393,17 +1397,17 @@ function weighted_replicate(seq::AbstractMatrix, weights::AbstractVector, n::Int
     local fractions::Array{Float64, 1} = collect(((weight * n) % 1) for weight in normalized_weights);
 
     local integer_weighted::AbstractMatrix = vcat(collect(vcat((reshape(x, 1, length(x))
-                                                                for i in 1:num_x)...)
+                                                                for i in 1:num_x)...,)
                                                 for (x, num_x) in zip((seq[i, :]
                                                                         for i in 1:size(seq)[1]),
                                                                         integer_multiples)
-                                                if (num_x > 0))...);
+                                                if (num_x > 0))...,);
     if ((n - sum(integer_multiples)) > 0)
         local fraction_weighted::AbstractMatrix = vcat(collect(reshape(sample, 1, length(sample))
                                                                 for sample in weighted_sample_with_replacement(
                                                                     collect(seq[i, :] for i in 1:size(seq)[1]),
                                                                     fractions,
-                                                                    (n - sum(integer_multiples))))...);
+                                                                    (n - sum(integer_multiples))))...,);
 
         return vcat(integer_weighted, fraction_weighted);
     else
@@ -1489,7 +1493,7 @@ function grade_learner(learner::AbstractLearner, tests::AbstractVector)
 end
 
 """
-    error_ratio(learner::AbstractLearner, dataset::DataSet, examples::Union{Void, AbstractMatrix}=nothing, verbose::Int64=0)
+    error_ratio(learner::AbstractLearner, dataset::DataSet, examples::Union{Nothing, AbstractMatrix}=nothing, verbose::Int64=0)
 
 Return the proportion of examples that were not correctly predicted.
 
@@ -1497,9 +1501,9 @@ If 'verbose' is set to 0, this function will not print extra messages.
 If 'verbose' is set to 1, this function will print messages when a prediction fails.
 If 'verbose' is set to 2 or more, this function will print messages for each prediction made.
 """
-function error_ratio(learner::AbstractLearner, dataset::DataSet, examples::Union{Void, AbstractMatrix}=nothing, verbose::Int64=0)
+function error_ratio(learner::AbstractLearner, dataset::DataSet, examples::Union{Nothing, AbstractMatrix}=nothing, verbose::Int64=0)
     local new_examples::AbstractMatrix;
-    if (typeof(examples) <: Void)
+    if (typeof(examples) <: Nothing)
         new_examples = dataset.examples;
     else
         new_examples = examples;
@@ -1667,12 +1671,12 @@ zoo_dataset = DataSet(name="zoo", examples="./aima-data/zoo.csv", target="type",
 iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
 
 """
-    RestaurantDataSet(;examples::Union{Void, String, AbstractMatrix}=nothing)
+    RestaurantDataSet(;examples::Union{Nothing, String, AbstractMatrix}=nothing)
 
 Return a new DataSet based on the restaurant waiting examples (Fig. 18.3).
 """
-function RestaurantDataSet(;examples::Union{Void, String, AbstractMatrix}=nothing)
-    if (typeof(examples) <: Void)
+function RestaurantDataSet(;examples::Union{Nothing, String, AbstractMatrix}=nothing)
+    if (typeof(examples) <: Nothing)
         return DataSet(name="restaurant", target="Wait", examples="./aima-data/restaurant.csv",
                         attributes_names=["Alternate", "Bar", "Fri/Sat", "Hungry", "Patrons", "Price",
                                         "Raining", "Reservation", "Type", "WaitEstimate", "Wait"]);
@@ -1736,7 +1740,7 @@ function SyntheticRestaurantDataSet(n::Int64)
         new_example[restaurant_dataset.target] = classify(waiting_decision_tree, new_example);
         push!(examples_array, reshape(new_example, (1, length(new_example))));
     end
-    return RestaurantDataSet(examples=Array{Any, 2}(matrix_vcat(examples_array...)));
+    return RestaurantDataSet(examples=Array{Any, 2}(matrix_vcat(examples_array...,)));
 end
 
 function SyntheticRestaurantDataSet()
@@ -1749,7 +1753,7 @@ function SyntheticRestaurantDataSet()
         new_example[restaurant_dataset.target] = classify(waiting_decision_tree, new_example);
         push!(examples_array, reshape(new_example, (1, length(new_example))));
     end
-    return RestaurantDataSet(examples=Array{Any, 2}(matrix_vcat(examples_array...)));
+    return RestaurantDataSet(examples=Array{Any, 2}(matrix_vcat(examples_array...,)));
 end
 
 # The following artificial DataSets are generated randomly.
@@ -1768,7 +1772,7 @@ function MajorityDataSet(k::Int64, n::Int64)
         push!(bits, Int64(sum(bits)>(k/2)));
         push!(examples_array, reshape(bits, (1, length(bits))));
     end
-    return DataSet(name="majority", examples=Array{Any, 2}(matrix_vcat(examples_array...)));
+    return DataSet(name="majority", examples=Array{Any, 2}(matrix_vcat(examples_array...,)));
 end
 
 """
@@ -1786,7 +1790,7 @@ function ParityDataSet(k::Int64, n::Int64; name::String="parity")
         push!(bits, Int64(sum(bits) % 2));
         push!(examples_array, reshape(bits, (1, length(bits))));
     end
-    return DataSet(name=name, examples=Array{Any, 2}(matrix_vcat(examples_array...)));
+    return DataSet(name=name, examples=Array{Any, 2}(matrix_vcat(examples_array...,)));
 end
 
 """
@@ -1818,6 +1822,6 @@ function ContinuousXorDataSet(n::Int64)
         push!(example, (Int64(floor(x)) != Int64(floor(y))));
         push!(examples_array, reshape(example, (1, length(example))));
     end
-    return DataSet(name="continuous xor", examples=Array{Any, 2}(matrix_vcat(examples_array...)));
+    return DataSet(name="continuous xor", examples=Array{Any, 2}(matrix_vcat(examples_array...,)));
 end
 

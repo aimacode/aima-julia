@@ -1,16 +1,16 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
 
-using aimajulia;
+using Main.aimajulia;
 
-using aimajulia.utils;
+using Main.aimajulia.utils;
 
 # The following util functions' tests are from the aima-python utils.py doctest
 
 na = [1, 8, 2, 7, 5, 6, -99, 99, 4, 3, 0];
 
-function qtest(qf::DataType; order::Union{Bool, Base.Order.Ordering}=false, f::Union{Void, Function, MemoizedFunction}=nothing)
+function qtest(qf::DataType; order::Union{Bool, Base.Order.Ordering}=false, f::Union{Nothing, Function, MemoizedFunction}=nothing)
 	if (!(qf <: PQueue))
 		q = qf();
 		extend!(q, na);
@@ -18,14 +18,14 @@ function qtest(qf::DataType; order::Union{Bool, Base.Order.Ordering}=false, f::U
 			@test num in q;
 		end
 		@test !(42 in q);
-		return [pop!(q) for i in range(0, length(q))];
+		return [pop!(q) for i in range(1, stop=length(q))];
 	else
 		if (order == false)
 			q = qf();
 		else
 			q = qf(order=order);
 		end
-		if (!(typeof(f) <: Void))
+		if (!(typeof(f) <: Nothing))
 			extend!(q, na, f);
 		else
 			extend!(q, na, (function(item) return item; end));
@@ -34,7 +34,7 @@ function qtest(qf::DataType; order::Union{Bool, Base.Order.Ordering}=false, f::U
 			@test num in [getindex(x, 2) for x in collect(q)];
 		end
 		@test !(42 in [getindex(x, 2) for x in collect(q)]);
-		return [pop!(q) for i in range(0, length(q))];
+		return [pop!(q) for i in range(1, stop=length(q))];
 	end
 end
 
@@ -66,7 +66,7 @@ mabs = MemoizedFunction(abs);		#memoize abs()
 
 @test findfirst(isfunction, [3, min, max]) == 2;
 
-@test findfirst(isfunction, [1, 2, 3]) == 0;
+@test findfirst(isfunction, [1, 2, 3]) === nothing;
 
 @test normalize_probability_distribution([1, 2, 1]) == [0.25, 0.5, 0.25];
 

@@ -29,7 +29,7 @@ struct MarkovDecisionProcess{T} <: AbstractMarkovDecisionProcess
     gamma::Float64
     reward::Dict
 
-    function MarkovDecisionProcess{T}(initial::T, actions_list::Set{T}, terminal_states::Set{T}, transitions::Dict, states::Union{Void, Set{T}}, gamma::Float64) where T
+    function MarkovDecisionProcess{T}(initial::T, actions_list::Set{T}, terminal_states::Set{T}, transitions::Dict, states::Union{Nothing, Set{T}}, gamma::Float64) where T
         if (!(0 < gamma <= 1))
             error("MarkovDecisionProcess(): The gamma variable of an MDP must be between 0 and 1, the constructor was given ", gamma, "!");
         end
@@ -43,23 +43,23 @@ struct MarkovDecisionProcess{T} <: AbstractMarkovDecisionProcess
     end  
 end
 
-MarkovDecisionProcess(initial, actions_list::Set, terminal_states::Set, transitions::Dict; states::Union{Void, Set}=nothing, gamma::Float64=0.9) = MarkovDecisionProcess{typeof(initial)}(initial, actions_list, terminal_states, transitions, states, gamma);
+MarkovDecisionProcess(initial, actions_list::Set, terminal_states::Set, transitions::Dict; states::Union{Nothing, Set}=nothing, gamma::Float64=0.9) = MarkovDecisionProcess{typeof(initial)}(initial, actions_list, terminal_states, transitions, states, gamma);
 
 """
-    reward{T <: AbstractMarkovDecisionProcess}(mdp::T, state)
+    reward(mdp::T, state) where {T <: AbstractMarkovDecisionProcess}
 
 Return a reward based on the given 'state'.
 """
-function reward{T <: AbstractMarkovDecisionProcess}(mdp::T, state)
+function reward(mdp::T, state) where {T <: AbstractMarkovDecisionProcess}
     return mdp.reward[state];
 end
 
 """
-    transition_model{T <: AbstractMarkovDecisionProcess}(mdp::T, state, action)
+    transition_model(mdp::T, state, action) where {T <: AbstractMarkovDecisionProcess}
 
 Return a list of (P(s'|s, a), s') pairs given the state 's' and action 'a'.
 """
-function transition_model{T <: AbstractMarkovDecisionProcess}(mdp::T, state, action)
+function transition_model(mdp::T, state, action) where {T <: AbstractMarkovDecisionProcess}
     if (length(mdp.transitions) == 0)
         error("transition_model(): The transition model for the given 'mdp' could not be found!");
     else
@@ -68,13 +68,13 @@ function transition_model{T <: AbstractMarkovDecisionProcess}(mdp::T, state, act
 end
 
 """
-    actions{T <: AbstractMarkovDecisionProcess}(mdp::T, state)
+    actions(mdp::T, state) where {T <: AbstractMarkovDecisionProcess}
 
 Return a set of actions that are possible in the given state.
 """
-function actions{T <: AbstractMarkovDecisionProcess}(mdp::T, state)
+function actions(mdp::T, state) where {T <: AbstractMarkovDecisionProcess}
     if (state in mdp.terminal_states)
-        return Set{Void}([nothing]);
+        return Set{Nothing}([nothing]);
     else
         return mdp.actions;
     end
@@ -94,11 +94,11 @@ struct GridMarkovDecisionProcess <: AbstractMarkovDecisionProcess
     states::Set{Tuple{Int64, Int64}}
     actions::Set{Tuple{Int64, Int64}}
     terminal_states::Set{Tuple{Int64, Int64}}
-    grid::Array{Nullable{Float64}, 2}
+    grid::Array{Union{Nothing, Float64}, 2}
     gamma::Float64
     reward::Dict
 
-    function GridMarkovDecisionProcess(initial::Tuple{Int64, Int64}, terminal_states::Set{Tuple{Int64, Int64}}, grid::Array{Nullable{Float64}, 2}; states::Union{Void, Set{Tuple{Int64, Int64}}}=nothing, gamma::Float64=0.9)
+    function GridMarkovDecisionProcess(initial::Tuple{Int64, Int64}, terminal_states::Set{Tuple{Int64, Int64}}, grid::Array{Union{Nothing, Float64}, 2}; states::Union{Nothing, Set{Tuple{Int64, Int64}}}=nothing, gamma::Float64=0.9)
         if (!(0 < gamma <= 1))
             error("GridMarkovDecisionProcess(): The gamma variable of an MDP must be between 0 and 1, the constructor was given ", gamma, "!");
         end
@@ -113,7 +113,7 @@ struct GridMarkovDecisionProcess <: AbstractMarkovDecisionProcess
         for i in 1:getindex(size(grid), 1)
             for j in 1:getindex(size(grid, 2))
                 reward[(i, j)] = grid[i, j]
-                if (!isnull(grid[i, j]))
+                if (!(grid[i, j] === nothing))
                     push!(new_states, (i, j));
                 end
             end
@@ -136,7 +136,7 @@ function go_to(gmdp::GridMarkovDecisionProcess, state::Tuple{Int64, Int64}, dire
     end
 end
 
-function transition_model(gmdp::GridMarkovDecisionProcess, state::Tuple{Int64, Int64}, action::Void)
+function transition_model(gmdp::GridMarkovDecisionProcess, state::Tuple{Int64, Int64}, action::Nothing)
     return [(0.0, state)];
 end
 
@@ -147,12 +147,12 @@ function transition_model(gmdp::GridMarkovDecisionProcess, state::Tuple{Int64, I
 end
 
 function show_grid(gmdp::GridMarkovDecisionProcess, mapping::Dict)
-    local grid::Array{Nullable{String}, 2};
+    local grid::Array{Union{Nothing, String}, 2};
     local rows::AbstractVector = [];
     for i in 1:getindex(size(gmdp.grid), 1)
-        local row::Array{Nullable{String}, 1} = Array{Nullable{String}, 1}();
+        local row::Array{Union{Nothing, String}, 1} = Array{Union{Nothing, String}, 1}();
         for j in 1:getindex(size(gmdp.grid), 2)
-            push!(row, Nullable{String}(get(mapping, (i, j), nothing)));
+            push!(row, get(mapping, (i, j), nothing));
         end
         push!(rows, reshape(row, (1, length(row))));
     end
@@ -180,17 +180,17 @@ end
 # Matrices in Julia start from the upper-left corner and index (1, 1).
 sequential_decision_environment = GridMarkovDecisionProcess((1, 1),
                                             Set([(2, 4), (3, 4)]),
-                                            map(Nullable{Float64}, [-0.04 -0.04 -0.04 -0.04;
-                                                                    -0.04 nothing -0.04 -1;
-                                                                    -0.04 -0.04 -0.04 +1]));
+                                            [-0.04 -0.04 -0.04 -0.04;
+                                            -0.04 nothing -0.04 -1;
+                                            -0.04 -0.04 -0.04 +1]);
 
 """
-    value_iteration{T <: AbstractMarkovDecisionProcess}(mdp::T; epsilon::Float64=0.001)
+    value_iteration(mdp::T; epsilon::Float64=0.001) where {T <: AbstractMarkovDecisionProcess}
 
 Return the utilities of the MDP's states as a Dict by applying the value iteration algorithm (Fig. 17.4)
 on the given Markov decision process 'mdp' and a arbitarily small positive number 'epsilon'.
 """
-function value_iteration{T <: AbstractMarkovDecisionProcess}(mdp::T; epsilon::Float64=0.001)
+function value_iteration(mdp::T; epsilon::Float64=0.001) where {T <: AbstractMarkovDecisionProcess}
     local U_prime::Dict = Dict(collect(Pair(state, 0.0) for state in mdp.states));
     while (true)
         local U::Dict = copy(U_prime);
@@ -215,8 +215,7 @@ function value_iteration(gmdp::GridMarkovDecisionProcess; epsilon::Float64=0.001
         local U::Dict = copy(U_prime);
         local delta::Float64 = 0.0;
         for state in gmdp.states
-            # Extract Float64 from Nullable{Float64}
-            U_prime[state] = (get(reward(gmdp, state))
+            U_prime[state] = (reward(gmdp, state)
                             + (gmdp.gamma 
                             * max((sum(collect(p * U[state_prime] 
                                                 for (p, state_prime) in transition_model(gmdp, state, action)))
@@ -229,24 +228,24 @@ function value_iteration(gmdp::GridMarkovDecisionProcess; epsilon::Float64=0.001
     end
 end
 
-function expected_utility{T <: AbstractMarkovDecisionProcess}(mdp::T, U::Dict, state::Tuple{Int64, Int64}, action::Tuple{Int64, Int64})
+function expected_utility(mdp::T, U::Dict, state::Tuple{Int64, Int64}, action::Tuple{Int64, Int64}) where {T <: AbstractMarkovDecisionProcess}
     return sum((p * U[state_prime] for (p, state_prime) in transition_model(mdp, state, action)));
 end
 
-function expected_utility{T <: AbstractMarkovDecisionProcess}(mdp::T, U::Dict, state::Tuple{Int64, Int64}, action::Void)
+function expected_utility(mdp::T, U::Dict, state::Tuple{Int64, Int64}, action::Nothing) where {T <: AbstractMarkovDecisionProcess}
     return sum((p * U[state_prime] for (p, state_prime) in transition_model(mdp, state, action)));
 end
 
 """
-    optimal_policy{T <: AbstractMarkovDecisionProcess}(mdp::T, U::Dict)
+    optimal_policy(mdp::T, U::Dict) where {T <: AbstractMarkovDecisionProcess}
 
 Return the optimal_policy 'π*(s)' (Equation 17.4) given the Markov decision process 'mdp'
 and the utility function 'U'.
 """ 
-function optimal_policy{T <: AbstractMarkovDecisionProcess}(mdp::T, U::Dict)
+function optimal_policy(mdp::T, U::Dict) where {T <: AbstractMarkovDecisionProcess}
     local pi::Dict = Dict();
     for state in mdp.states
-        pi[state] = argmax(collect(actions(mdp, state)), (function(action::Union{Void, Tuple{Int64, Int64}})
+        pi[state] = argmax(collect(actions(mdp, state)), (function(action::Union{Nothing, Tuple{Int64, Int64}})
                                                                 return expected_utility(mdp, U, state, action);
                                                             end));
     end
@@ -254,13 +253,13 @@ function optimal_policy{T <: AbstractMarkovDecisionProcess}(mdp::T, U::Dict)
 end
 
 """
-    policy_evaluation{T <: AbstractMarkovDecisionProcess}(pi::Dict, U::Dict, mdp::T; k::Int64=20)
+    policy_evaluation(pi::Dict, U::Dict, mdp::T; k::Int64=20) where {T <: AbstractMarkovDecisionProcess}
 
 Return the updated utilities of the MDP's states by applying the modified policy iteration
 algorithm on the given Markov decision process 'mdp', utility function 'U', policy 'pi',
 and number of Bellman updates to use 'k'.
 """
-function policy_evaluation{T <: AbstractMarkovDecisionProcess}(pi::Dict, U::Dict, mdp::T; k::Int64=20)
+function policy_evaluation(pi::Dict, U::Dict, mdp::T; k::Int64=20) where {T <: AbstractMarkovDecisionProcess}
     for i in 1:k
         for state in mdp.states
             U[state] = (reward(mdp, state)
@@ -271,23 +270,23 @@ function policy_evaluation{T <: AbstractMarkovDecisionProcess}(pi::Dict, U::Dict
     return U;
 end
 
-function policy_evaluation(pi::Dict, U::Dict, mdp::GridMarkovDecisionProcess; k::Int64=20)
+function policy_evaluation(pi::Dict, U::Dict, gmdp::GridMarkovDecisionProcess; k::Int64=20)
     for i in 1:k
-        for state in mdp.states
-            U[state] = (get(reward(mdp, state))
-                        + (mdp.gamma
-                        * sum((p * U[state_prime] for (p, state_prime) in transition_model(mdp, state, pi[state])))));
+        for state in gmdp.states
+            U[state] = (reward(gmdp, state)
+                        + (gmdp.gamma
+                        * sum((p * U[state_prime] for (p, state_prime) in transition_model(gmdp, state, pi[state])))));
         end
     end
     return U;
 end
 
 """
-    policy_iteration{T <: AbstractMarkovDecisionProcess}(mdp::T)
+    policy_iteration(mdp::T) where {T <: AbstractMarkovDecisionProcess}
 
 Return a policy using the policy iteration algorithm (Fig. 17.7) given the Markov decision process 'mdp'.
 """
-function policy_iteration{T <: AbstractMarkovDecisionProcess}(mdp::T)
+function policy_iteration(mdp::T) where {T <: AbstractMarkovDecisionProcess}
     local U::Dict = Dict(collect(Pair(state, 0.0) for state in mdp.states));
     local pi::Dict = Dict(collect(Pair(state, rand(RandomDeviceInstance, collect(actions(mdp, state))))
                                     for state in mdp.states));
@@ -295,7 +294,7 @@ function policy_iteration{T <: AbstractMarkovDecisionProcess}(mdp::T)
         U = policy_evaluation(pi, U, mdp);
         local unchanged::Bool = true;
         for state in mdp.states
-            local action = argmax(collect(actions(mdp, state)), (function(action::Union{Void, Tuple{Int64, Int64}})
+            local action = argmax(collect(actions(mdp, state)), (function(action::Union{Nothing, Tuple{Int64, Int64}})
                                                                     return expected_utility(mdp, U, state, action);
                                                                 end));
             if (action != pi[state])

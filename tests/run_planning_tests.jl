@@ -1,8 +1,8 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
 
-using aimajulia;
+using Main.aimajulia;
 
 #The following planning tests are from the aima-python doctests
 
@@ -14,13 +14,13 @@ plan_action = PlanningAction(expr("A(x, y, z)"), precondition, effect);
 
 arguments = map(expr, ["A", "B", "C"]);
 
-@test (substitute(plan_action, expr("P(x, z, y)"), (arguments...)) == expr("P(A, C, B)"));
+@test (substitute(plan_action, expr("P(x, z, y)"), (arguments...,)) == expr("P(A, C, B)"));
 
 test_planning_kb = FirstOrderLogicKnowledgeBase(map(expr, ["P(A)", "Q(B, C)", "R(D)"]));
 
-@test check_precondition(plan_action, test_planning_kb, (arguments...));
+@test check_precondition(plan_action, test_planning_kb, (arguments...,));
 
-execute_action(plan_action, test_planning_kb, (arguments...));
+execute_action(plan_action, test_planning_kb, (arguments...,));
 
 # Found no valid substitutions!
 @test (length(ask(test_planning_kb, expr("P(A)"))) == 0);
@@ -31,7 +31,7 @@ execute_action(plan_action, test_planning_kb, (arguments...));
 # Found valid substitutions!
 @test (length(ask(test_planning_kb, expr("Q(A)"))) != 0);
 
-@test (!check_precondition(plan_action, test_planning_kb, (arguments...)));
+@test (!check_precondition(plan_action, test_planning_kb, (arguments...,)));
 
 air_cargo = air_cargo_pddl();
 
@@ -105,7 +105,7 @@ negated_kb = FirstOrderLogicKnowledgeBase([expr("At(Flat, Trunk)")]);
 
 spare_tire_gp = GraphPlanProblem(spare_tire, negated_kb);
 
-@test (!(typeof(graphplan(spare_tire_gp, ([expr("At(Spare, Axle)"), expr("At(Flat, Ground)")], []))) <: Void));
+@test (!(typeof(graphplan(spare_tire_gp, ([expr("At(Spare, Axle)"), expr("At(Flat, Ground)")], []))) <: Nothing));
 
 doubles_tennis = doubles_tennis_pddl();
 

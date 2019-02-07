@@ -1,8 +1,8 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
 
-using aimajulia;
+using Main.aimajulia;
 
 #The following search tests are from the aima-python doctest
 
@@ -36,12 +36,12 @@ ab = GraphProblem("A", "B", aimajulia.romania);
                         GraphProblem("Q", "WA", aimajulia.australia)],
                         ["Searcher", "Romania(A, B)", "Romania(O, N)", "Australia"]) == 
     ["Searcher"                     "Romania(A, B)"         "Romania(O, N)"         "Australia";
-    "aimajulia.breadth_first_tree_search"     "<  23/  24/  63/B>"    "<1191/1192/3378/N>"    "<   9/  10/  32/WA>";
-    "aimajulia.breadth_first_search"          "<   7/  11/  18/B>"    "<  18/  20/  44/N>"    "<   3/   6/   9/WA>";
-    "aimajulia.depth_first_graph_search"      "<   8/   9/  20/B>"    "<  16/  17/  37/N>"    "<   2/   3/   8/WA>";
-    "aimajulia.iterative_deepening_search"    "<  13/  36/  36/B>"    "< 683/1874/1875/N>"    "<   4/  13/  12/WA>";
-    "aimajulia.depth_limited_search"          "<  64/  94/ 167/B>"    "< 948/2629/2701/N>"    "<  51/  57/ 153/WA>";
-    "aimajulia.recursive_best_first_search"   "<  11/  12/  35/B>"    "<8481/8482/23788/N>"   "<  10/  11/  38/WA>"];
+    "Main.aimajulia.breadth_first_tree_search"     "<  23/  24/  63/B>"    "<1191/1192/3378/N>"    "<   9/  10/  32/WA>";
+    "Main.aimajulia.breadth_first_search"          "<   7/  11/  18/B>"    "<  18/  20/  44/N>"    "<   3/   6/   9/WA>";
+    "Main.aimajulia.depth_first_graph_search"      "<   8/   9/  20/B>"    "<  16/  17/  37/N>"    "<   2/   3/   8/WA>";
+    "Main.aimajulia.iterative_deepening_search"    "<  13/  36/  36/B>"    "< 683/1874/1875/N>"    "<   4/  13/  12/WA>";
+    "Main.aimajulia.depth_limited_search"          "<  64/  94/ 167/B>"    "< 948/2629/2701/N>"    "<  51/  57/ 153/WA>";
+    "Main.aimajulia.recursive_best_first_search"   "<  11/  12/  35/B>"    "<8481/8482/23788/N>"   "<  10/  11/  38/WA>"];
 
 # Initialize LRTAStarAgentProgram with an OnlineSearchProblem.
 

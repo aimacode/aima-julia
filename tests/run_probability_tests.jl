@@ -1,8 +1,9 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
+using Random;
 
-using aimajulia;
+using Main.aimajulia;
 
 #The following probability tests are from the aima-python doctests
 
@@ -96,13 +97,13 @@ p = rejection_sampling("Earthquake", Dict(), aimajulia.burglary_network, 1000, m
 
 @test ((p[true], p[false]) == (0.002, 0.998));
 
-mt_rng = srand(mt_rng, 71);
+mt_rng = Random.seed!(mt_rng, 71);
 
 p = likelihood_weighting("Earthquake", Dict(), aimajulia.burglary_network, 1000, mt_rng);
 
 @test ((p[true], p[false]) == (0.0, 1.0));
 
-mt_rng = srand(mt_rng, 1017);
+mt_rng = Random.seed!(mt_rng, 1017);
 
 @test (show_approximation(likelihood_weighting("Burglary",
                             Dict([Pair("JohnCalls", true), Pair("MaryCalls", true)]),

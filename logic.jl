@@ -1,4 +1,6 @@
 
+using Printf
+
 import Base: hash, ==, show;
 
 export hash, ==, show,
@@ -32,6 +34,7 @@ struct Expression
 	arguments::Tuple
 end
 
+Expression(expression::Expression) = identity(expression)
 Expression(op::String, args::Vararg{Any}) = Expression(op, map(Expression, args));
 
 function (e::Expression)(args::Vararg{Any})
@@ -72,17 +75,17 @@ end
 
 abstract type AbstractKnowledgeBase end;
 
-function tell{T <: AbstractKnowledgeBase}(kb::T, e::Expression)
+function tell(kb::T, e::Expression) where {T <: AbstractKnowledgeBase}
     println("tell() is not implemented yet for ", typeof(kb), "!");
     nothing;
 end
 
-function ask{T <: AbstractKnowledgeBase}(kb::T, e::Expression)
+function ask(kb::T, e::Expression) where {T <: AbstractKnowledgeBase}
     println("ask() is not implemented yet for ", typeof(kb), "!");
     nothing;
 end
 
-function retract{T <: AbstractKnowledgeBase}(kb::T, e::Expression)
+function retract(kb::T, e::Expression) where {T <: AbstractKnowledgeBase}
     println("retract() is not implemented yet for ", typeof(kb), "!");
     nothing;
 end
@@ -112,7 +115,7 @@ function tell(kb::PropositionalKnowledgeBase, e::Expression)
 end
 
 function ask(kb::PropositionalKnowledgeBase, e::Expression)
-    if (tt_entails(Expression("&", kb.clauses...), e))
+    if (tt_entails(Expression("&", kb.clauses...,), e))
         return Dict([]);
     else
         return false;
@@ -193,7 +196,7 @@ mutable struct KnowledgeBaseAgentProgram <: AgentProgram
     knowledge_base::AbstractKnowledgeBase
     t::UInt64
 
-    function KnowledgeBaseAgentProgram{T <: AbstractKnowledgeBase}(kb::T; trace::Bool=false)
+    function KnowledgeBaseAgentProgram(kb::T; trace::Bool=false) where {T <: AbstractKnowledgeBase}
         return new(trace, kb, UInt64(0));
     end
 end
@@ -247,7 +250,7 @@ function tell(kb::PropositionalDefiniteKnowledgeBase, e::Expression)
 end
 
 function ask(kb::PropositionalDefiniteKnowledgeBase, e::Expression)
-    if (pl_fc_entails(Expression("&", kb.clauses...), e))
+    if (pl_fc_entails(Expression("&", kb.clauses...,), e))
         return Dict([]);
     else
         return false;
@@ -280,7 +283,7 @@ function pl_fc_entails(kb::PropositionalDefiniteKnowledgeBase, q::Expression)
     local agenda::AbstractVector = collect(s for s in kb.clauses if (is_logic_proposition_symbol(s.operator)));
     local inferred::Dict = Dict{Expression, Bool}();
     while (length(agenda) != 0)
-        p = shift!(agenda);
+        p = popfirst!(agenda);
         if (p == q)
             return true;
         end
@@ -334,7 +337,7 @@ function unit_clause_assign(clause::Expression, model::Dict)
             if (model[symbol] == positive)
                 return nothing, nothing;
             end
-        elseif (!(typeof(P) <: Void))
+        elseif (!(typeof(P) <: Nothing))
             return nothing, nothing;
         else
             P = symbol;
@@ -347,7 +350,7 @@ end
 function find_unit_clause(clauses::Array{Expression, 1}, model::Dict)
     for clause in clauses
         P, value = unit_clause_assign(clause, model);
-        if (!(typeof(P) <: Void))
+        if (!(typeof(P) <: Nothing))
             return P, value;
         end
     end
@@ -369,11 +372,11 @@ function dpll(clauses::Array{Expression, 1}, symbols::Array{Expression, 1}, mode
         return model;
     end
     P, value = find_pure_symbol(symbols, unknown_clauses);
-    if (!(typeof(P) <: Void))
+    if (!(typeof(P) <: Nothing))
         return dpll(clauses, removeall(symbols, P), extend(model, P, value));
     end
     P, value = find_unit_clause(clauses, model);
-    if (!(typeof(P) <: Void))
+    if (!(typeof(P) <: Nothing))
         return dpll(clauses, removeall(symbols, P), extend(model, P, value));
     end
     P, symbols = symbols[1], symbols[2:end];
@@ -452,7 +455,7 @@ mutable struct HybridWumpusAgentProgram <: AgentProgram
     t::UInt64
     plan::AbstractVector
 
-    function HybridWumpusAgentProgram{T <: AbstractKnowledgeBase}(kb::T; trace::Bool=false)
+    function HybridWumpusAgentProgram(kb::T; trace::Bool=false) where {T <: AbstractKnowledgeBase}
         return new(trace, kb, UInt64(0), []);
     end
 end
@@ -467,14 +470,14 @@ function execute(ap::HybridWumpusAgentProgram, percept::AbstractVector)
     nothing;
 end
 
-function translate_to_sat{T}(initial::T, transition::Dict, goal::T, time::Int64, state_dict::Dict, action_dict::Dict)
+function translate_to_sat(initial::T, transition::Dict, goal::T, time::Int64, state_dict::Dict, action_dict::Dict) where T
     local clauses::Array{Expression, 1} = Array{Expression, 1}();
     local states::AbstractVector = collect(keys(transition));
     local state_count_iterator = Base.Iterators.countfrom();
     local state_number::Int64 = -1;
     for state in states
         for t in 0:time
-            state_number = next(state_count_iterator, state_number)[2];
+            state_number = iterate(state_count_iterator, state_number)[2];
             state_dict[(state, t)] = Expression(@sprintf("State_%lli", state_number));
         end
     end
@@ -486,7 +489,7 @@ function translate_to_sat{T}(initial::T, transition::Dict, goal::T, time::Int64,
         for action in keys(transition[state])
             state_val_key = transition[state][action];
             for t in 0:(time - 1)
-                transition_number = next(transition_count_iterator, transition_number)[2];
+                transition_number = iterate(transition_count_iterator, transition_number)[2];
                 action_dict[(state, action, t)] = Expression(@sprintf("Transition_%lli", transition_number));
                 push!(clauses, Expression("==>", action_dict[(state, action, t)], state_dict[(state, t)]));
                 push!(clauses, Expression("==>", action_dict[(state, action, t)], state_dict[(state_val_key, (t + 1))]));
@@ -494,7 +497,7 @@ function translate_to_sat{T}(initial::T, transition::Dict, goal::T, time::Int64,
         end
     end
     for t in 0:time
-        push!(clauses, associate("|", Tuple((collect(state_dict[(state, t)] for state in states)...))));
+        push!(clauses, associate("|", Tuple((collect(state_dict[(state, t)] for state in states)...,))));
         for (i, state) in enumerate(states)
             for state_val_key in states[(i+1):end]
                 push!(clauses, Expression("|",
@@ -505,7 +508,7 @@ function translate_to_sat{T}(initial::T, transition::Dict, goal::T, time::Int64,
     end
     for t in 0:(time - 1)
         local transitions_t::AbstractVector = collect(transition_t for transition_t in keys(action_dict) if (transition_t[3] == t));
-        push!(clauses, associate("|", Tuple((collect(action_dict[transition_t] for transition_t in transitions_t)...))));
+        push!(clauses, associate("|", Tuple((collect(action_dict[transition_t] for transition_t in transitions_t)...,))));
         for (i, transition_t) in enumerate(transitions_t)
             for transition_t_alternative in transitions_t[(i + 1):end]
                 push!(clauses, Expression("|",
@@ -514,7 +517,7 @@ function translate_to_sat{T}(initial::T, transition::Dict, goal::T, time::Int64,
             end
         end
     end
-    return associate("&", Tuple((clauses...)));
+    return associate("&", Tuple((clauses...,)));
 end
 
 function extract_solution(model::Dict, action_dict::Dict)
@@ -535,7 +538,7 @@ order to be solved as a satisfication problem.
 
 The 'initial' and 'goal' states should have the same type.
 """
-function sat_plan{T}(initial::T, transition::Dict, goal::T, t_max::Int64; sat_solver::Function=dpll_satisfiable)
+function sat_plan(initial::T, transition::Dict, goal::T, t_max::Int64; sat_solver::Function=dpll_satisfiable) where T
     local states::Dict = Dict();
     local actions::Dict = Dict();
     for t in 0:(t_max - 1)
@@ -554,16 +557,16 @@ function is_logic_symbol(s::String)
     if (length(s) == 0)
         return false;
     else
-        return isalpha(s[1]);
+        return isletter(s[1]);
     end
 end
 
 function is_logic_variable_symbol(s::String)
-    return (is_logic_symbol(s) && islower(s[1]));
+    return (is_logic_symbol(s) && islowercase(s[1]));
 end
 
 function is_logic_variable(e::Expression)
-    return ((length(e.arguments) == 0) && islower(e.operator[1]))
+    return ((length(e.arguments) == 0) && islowercase(e.operator[1]))
 end
 
 """
@@ -572,7 +575,7 @@ end
 Return if the given 's' is an initial uppercase String that is not 'TRUE' or 'FALSE'.
 """
 function is_logic_proposition_symbol(s::String)
-    return (is_logic_symbol(s) && isupper(s[1]) && (s != "TRUE") && (s != "FALSE"));
+    return (is_logic_symbol(s) && isuppercase(s[1]) && (s != "TRUE") && (s != "FALSE"));
 end
 
 #=
@@ -680,7 +683,7 @@ end
 function tt_check_all(kb::Expression, alpha::Expression, symbols::AbstractVector, model::Dict)
     if (length(symbols) == 0)
         eval_kb = pl_true(kb, model=model)
-        if (typeof(eval_kb) <: Void)
+        if (typeof(eval_kb) <: Nothing)
             return true;
         elseif (eval_kb == false)
             return true;
@@ -717,7 +720,7 @@ function pl_true(e::Expression; model::Dict=Dict())
         return get(model, e, nothing);
     elseif (e.operator == "~")
         subexpression = pl_true(e.arguments[1], model=model);
-        if (typeof(subexpression) <: Void)
+        if (typeof(subexpression) <: Nothing)
             return nothing;
         else
             return !subexpression;
@@ -729,7 +732,7 @@ function pl_true(e::Expression; model::Dict=Dict())
             if (subexpression == true)
                 return true;
             end
-            if (typeof(subexpression) <: Void)
+            if (typeof(subexpression) <: Nothing)
                 result = nothing;
             end
         end
@@ -741,7 +744,7 @@ function pl_true(e::Expression; model::Dict=Dict())
             if (subexpression == false)
                 return false;
             end
-            if (typeof(subexpression) <: Void)
+            if (typeof(subexpression) <: Nothing)
                 result = nothing;
             end
         end
@@ -761,11 +764,11 @@ function pl_true(e::Expression; model::Dict=Dict())
         return pl_true(Expression("|", p, Expression("~", q)), model=model);
     end;
     p_t = pl_true(p, model=model);
-    if (typeof(p_t) <: Void)
+    if (typeof(p_t) <: Nothing)
         return nothing;
     end
     q_t = pl_true(q, model=model);
-    if (typeof(q_t) <: Void)
+    if (typeof(q_t) <: Nothing)
         return nothing;
     end
     if (e.operator == "<=>")
@@ -808,7 +811,7 @@ function eliminate_implications(e::Expression)
         if (!(e.operator in ("&", "|", "~")))
             error("EliminateImplicationsError: Found an unexpected operator '", e.operator, "'!");
         end
-        return Expression(e.operator, arguments...);
+        return Expression(e.operator, arguments...,);
     end
 end
 
@@ -836,7 +839,7 @@ function move_not_inwards(e::Expression)
     elseif (is_logic_symbol(e.operator) || (length(e.arguments) == 0))
         return e;
     else
-        return Expression(e.operator, map(move_not_inwards, e.arguments)...);
+        return Expression(e.operator, map(move_not_inwards, e.arguments)...,);
     end
 end
 
@@ -853,15 +856,15 @@ function distribute_and_over_or(e::Expression)
         conjunction = findfirst((function(arg)
                             return (arg.operator == "&");
                         end), a.arguments);
-        if (conjunction == 0)  #(&) operator was not found in a.arguments
+        if (conjunction === nothing)  #(&) operator was not found in a.arguments
             return a;
         else
             conjunction = a.arguments[conjunction];
         end
-        others = Tuple((collect(a for a in a.arguments if (!(a == conjunction)))...));
+        others = Tuple((collect(a for a in a.arguments if (!(a == conjunction)))...,));
         rest = associate("|", others);
         return associate("&", Tuple((collect(distribute_and_over_or(Expression("|", conjunction_arg, rest))
-                                    for conjunction_arg in conjunction.arguments)...)));
+                                    for conjunction_arg in conjunction.arguments)...,)));
     elseif (e.operator == "&")
         return associate("&", map(distribute_and_over_or, e.arguments));
     else
@@ -896,7 +899,7 @@ function associate(operator::String, arguments::Tuple)
     elseif (length(dissociated_arguments) == 1)
         return dissociated_arguments[1];
     else
-        return Expression(operator, Tuple((dissociated_arguments...)));
+        return Expression(operator, Tuple((dissociated_arguments...,)));
     end
 end
 
@@ -944,7 +947,7 @@ function pl_resolve(c_i::Expression, c_j::Expression)
     for d_i in disjuncts(c_i)
         for d_j in disjuncts(c_j)
             if ((d_i == Expression("~", d_j)) || (Expression("~", d_i) == d_j))
-                d_new = Tuple((collect(Set{Expression}(append!(removeall(disjuncts(c_i), d_i), removeall(disjuncts(c_j), d_j))))...));
+                d_new = Tuple((collect(Set{Expression}(append!(removeall(disjuncts(c_i), d_i), removeall(disjuncts(c_j), d_j))))...,));
                 push!(clauses, associate("|", d_new));
             end
         end
@@ -959,7 +962,7 @@ Apply a simple propositional logic resolution algorithm (Fig. 7.12) on the given
 and propositional logic sentence (query). Return a boolean indicating if the sentence follows
 the clauses that exist in the given knowledge base.
 """
-function pl_resolution{T <: AbstractKnowledgeBase}(kb::T, alpha::Expression)
+function pl_resolution(kb::T, alpha::Expression) where {T <: AbstractKnowledgeBase}
     local clauses::AbstractVector = append!(copy(kb.clauses), conjuncts(to_conjunctive_normal_form(Expression("~", alpha))));
     local new_set = Set{Expression}();
     while (true)
@@ -992,9 +995,9 @@ function occurrence_check(key, x, substitutions::Dict)
     end
 end
 
-function occurrence_check{T <: Union{Tuple, AbstractVector}}(key::Expression, x::T, substitutions::Dict)
+function occurrence_check(key::Expression, x::T, substitutions::Dict) where {T <: Union{Tuple, Vector}}
     if (key == x)
-        println("occurrence_check(::Expression, ::Union{Tuple, AbstractVector}, ::Dict) returned true!!!");
+        println("occurrence_check(::Expression, ::Union{Tuple, Vector}, ::Dict) returned true!!!");
         return true;
     else
         if (length(collect(true for element in x if (occurrence_check(key, element, substitutions)))) == 0)
@@ -1035,7 +1038,7 @@ end
 Return a dictionary of substitutions that make 'e1' equal to 'e2' using the unification algorithm (Fig. 9.1)
 and return 'nothing' on failure.
 """
-unify(e1, e2, substitutions::Void) = nothing;
+unify(e1, e2, substitutions::Nothing) = nothing;
 unify(e1::Expression, e2::String, substitutions::Dict) = nothing;
 
 function unify(e1::String, e2::String, substitutions::Dict)
@@ -1058,7 +1061,7 @@ function unify(e1::Expression, e2::Expression, substitutions::Dict)
     end
 end
 
-function unify{S <: Union{AbstractVector, Tuple}, T <: Union{AbstractVector, Tuple}}(a1::S, a2::T, substitutions::Dict)
+function unify(a1::S, a2::T, substitutions::Dict) where {S <: Union{Vector, Tuple}, T <: Union{Vector, Tuple}}
     if (a1 == a2)
         return substitutions;
     else
@@ -1083,10 +1086,10 @@ function extend(dict::Dict, key, val)
 end
 
 function substitute(dict::Dict, e)
-    if (typeof(e) <: AbstractVector)
+    if (typeof(e) <: Vector)
         return collect(substitute(dict, element) for element in e);
     elseif (typeof(e) <: Tuple)
-        return (collect(substitute(dict, element) for element in e)...);
+        return (collect(substitute(dict, element) for element in e)...,);
     else
         return e;
     end
@@ -1096,32 +1099,32 @@ function substitute(dict::Dict, e::Expression)
     if (is_logic_variable_symbol(e.operator))
         return get(dict, e, e);
     else
-        return Expression(e.operator, collect(substitute(dict, argument) for argument in e.arguments)...);
+        return Expression(e.operator, collect(substitute(dict, argument) for argument in e.arguments)...,);
     end
 end
 
 # This number is used to generate new variables in standardize_variables().
 standardize_variables_counter = [Base.Iterators.countfrom(BigInt(1)), BigInt(-1)];
 
-function standardize_variables(e, counter::AbstractVector; dict::Union{Void, Dict}=nothing)
+function standardize_variables(e, counter::AbstractVector; dict::Union{Nothing, Dict}=nothing)
     return e;
 end
 
-function standardize_variables(e::Expression, counter::AbstractVector; dict::Union{Void, Dict}=nothing)
-    if (typeof(dict) <: Void)
+function standardize_variables(e::Expression, counter::AbstractVector; dict::Union{Nothing, Dict}=nothing)
+    if (typeof(dict) <: Nothing)
         dict = Dict();
     end
     if (is_logic_variable_symbol(e.operator))
         if (haskey(dict, e))
             return dict[e]
         else
-            counter[2] = next(counter[1], counter[2])[2];
+            counter[2] = iterate(counter[1], counter[2])[2];
             local val::Expression = Expression(@sprintf("v_%s", repr(counter[2])));
             dict[e] = val;
             return val;
         end
     else
-        return Expression(e.operator, collect(standardize_variables(argument, counter, dict=dict) for argument in e.arguments)...);
+        return Expression(e.operator, collect(standardize_variables(argument, counter, dict=dict) for argument in e.arguments)...,);
     end
 end
 
@@ -1149,11 +1152,11 @@ function fol_fc_ask(kb::FirstOrderLogicKnowledgeBase, alpha::Expression)
                     #
                     # Both unify(::Expression, ::Expression) and atomic_sentences(kb)
                     # are unimplemented.
-                    if (!(typeof(unify(q_prime, atomic_sentences(kb))) <: Void) ||
-                        !(typeof(unify(q_prime, new_sentences)) <: Void))
+                    if (!(typeof(unify(q_prime, atomic_sentences(kb))) <: Nothing) ||
+                        !(typeof(unify(q_prime, new_sentences)) <: Nothing))
                         push!(new_sentence, q_prime);
                         phi = unify(q_prime, alpha);
-                        if (!(typeof(phi) <: Void))
+                        if (!(typeof(phi) <: Nothing))
                             return phi;
                         end
                     end
@@ -1170,7 +1173,7 @@ function fol_fc_ask(kb::FirstOrderLogicKnowledgeBase, alpha::Expression)
     return false;
 end
 
-function fol_bc_and(kb::FirstOrderLogicKnowledgeBase, goals::Array{Expression, 1}, theta::Void, standardize_variables_counter_ref::AbstractVector)
+function fol_bc_and(kb::FirstOrderLogicKnowledgeBase, goals::Array{Expression, 1}, theta::Nothing, standardize_variables_counter_ref::AbstractVector)
     return ();
 end
 
@@ -1212,11 +1215,11 @@ function fol_bc_ask(kb::FirstOrderLogicKnowledgeBase, query::Expression)
     return fol_bc_or(kb, query, Dict(), standardize_variables_counter);
 end
 
-function is_number(n::String)   # Not to be confused with isnumber() from Julia's Base library.
+function is_number(n::String)   # Not to be confused with isnumeric() from Julia's Base library.
     if (length(n) == 0)
         return false;
     else
-        if (all(isnumber, strip(n)))
+        if (all(isnumeric, strip(n)))
             return true;
         else
             local period_count = count((function(c::Char)
@@ -1227,7 +1230,7 @@ function is_number(n::String)   # Not to be confused with isnumber() from Julia'
                 if (decimal_index == UInt64(0))
                     error("is_number(): Could not find decimal point!");
                 else
-                    return (all(isnumber, n[1:(decimal_index - UInt64(1))]) && all(isnumber, n[(decimal_index + UInt64(1)):end]))
+                    return (all(isnumeric, n[1:(decimal_index - UInt64(1))]) && all(isnumeric, n[(decimal_index + UInt64(1)):end]))
                 end
             else
                 return false
@@ -1369,7 +1372,7 @@ function simplify(x::Expression)
     else
         error("simplify(): Found unknown operator ", operator, "!");
     end
-    return Expression(operator, arguments...);
+    return Expression(operator, arguments...,);
 end
 
 function differentiate_simplify(y::Expression, x::Expression)
@@ -1377,12 +1380,12 @@ function differentiate_simplify(y::Expression, x::Expression)
 end
 
 mutable struct ExpressionNode
-    value::Nullable{String}
-    parent::Nullable{ExpressionNode}
+    value::Union{Nothing, String}
+    parent::Union{Nothing, ExpressionNode}
     children::Array{ExpressionNode, 1}
 
-    function ExpressionNode(;val::Union{Void, String}=nothing, parent::Union{Void, ExpressionNode}=nothing)
-        return new(Nullable{String}(val), Nullable{ExpressionNode}(parent), []);
+    function ExpressionNode(;val::Union{Nothing, String}=nothing, parent::Union{Nothing, ExpressionNode}=nothing)
+        return new(val, parent, []);
     end
 end
 
@@ -1486,7 +1489,7 @@ function parenthesize_arguments(tokens::AbstractVector)
     end
     for i in reverse(1:length(comma_indices))
         ####println("index to modify: ", comma_indices[i], " token: ", tokens[comma_indices[i]],
-        ####        " comma indices: ", comma_indices, " tokens: ", tokens...);
+        ####        " comma indices: ", comma_indices, " tokens: ", tokens...,);
         no_parentheses = false; #boolean indicating if the current argument is enclosed in parentheses
         # ,=>    #the order of indices to search rightward
         existing_parenthesis = 0;
@@ -1535,7 +1538,7 @@ function parenthesize_arguments(tokens::AbstractVector)
         no_parentheses = false; #boolean indicating if the current argument is enclosed in parentheses
         #<=,    # reverse the order of indices to search leftward
         existing_parenthesis = 0;
-        ####println("comma indices: ", comma_indices, " tokens: ", tokens...);
+        ####println("comma indices: ", comma_indices, " tokens: ", tokens...,);
         for index in reverse(1:(comma_indices[i] - 1))
             if (tokens[index] == "(")
                 existing_parenthesis = existing_parenthesis + 1;
@@ -1590,7 +1593,7 @@ function parenthesize_tokens(tokens::AbstractVector)
     end
     for last_entry_index in reverse(add_parentheses_at)
         ####println("index to modify: ", last_entry_index, " token: ", tokens[last_entry_index],
-        ####        " tokens: ", tokens...);
+        ####        " tokens: ", tokens...,);
         modified_tokens::Bool = false;
         for index in (last_entry_index + 1):length(tokens)
             if (tokens[index] == "(")
@@ -1641,20 +1644,20 @@ function construct_expression_tree(tokens::AbstractVector)
             current_node = new_node;
         elseif (token == ")")
             existing_parenthesis = existing_parenthesis - 1;
-            if (!isnull(current_node.parent))
-                current_node = get(current_node.parent);
+            if (!(current_node.parent === nothing))
+                current_node = current_node.parent;
             else
                 error("ConstructExpressionTreeError: The root node does not have a parent!");
             end
         elseif (token == ",")
-            if (!isnull(current_node.value) && get(current_node.value) != ",")
+            if (!(current_node.value === nothing) && (current_node.value != ","))
                 notFound = true;
                 
-                new_intermediate_node = ExpressionNode(val=token, parent=get(current_node.parent));
-                for (i, c) in enumerate(get(current_node.parent).children)
+                new_intermediate_node = ExpressionNode(val=token, parent=current_node.parent);
+                for (i, c) in enumerate(current_node.parent.children)
                     if (c == current_node)
-                        deleteat!(get(current_node.parent).children, i);
-                        insert!(get(current_node.parent).children, i, new_intermediate_node);
+                        deleteat!(current_node.parent.children, i);
+                        insert!(current_node.parent.children, i, new_intermediate_node);
                         notFound = false;
                         break;
                     end
@@ -1664,37 +1667,37 @@ function construct_expression_tree(tokens::AbstractVector)
                 end
                 
 
-                current_node.parent = Nullable{ExpressionNode}(new_intermediate_node);
+                current_node.parent = new_intermediate_node;
                 push!(new_intermediate_node.children, current_node);
                 current_node = new_intermediate_node;
             else
-                current_node.value = Nullable{String}(",");
+                current_node.value = ",";
             end
         elseif (any((function(c::Char)
                         return c in token;
                     end),
                     ('+', '-', '*', '/', '\\', '=', '<', '>', '\$', '|', '%', '^', '~', '&', '?')))
             #Check if operator exists already
-            if (isnull(current_node.value))
-                current_node.value = Nullable{String}(token);
+            if ((current_node.value === nothing))
+                current_node.value = token;
             else
                 if (!any((function(c::Char)
                         return c in token;
                     end),
                     ('+', '-', '*', '/', '\\', '=', '<', '>', '\$', '|', '%', '^', '~', '&', '?')))
-                    if (isnull(current_node.parent))
+                    if ((current_node.parent === nothing))
                         new_root_node = ExpressionNode(val=token);
                         push!(new_root_node.children, current_node);
                         current_node.parent = new_root_node;
                         current_node = new_root_node;
                     else
                         notFound = true;
-                        new_intermediate_node = ExpressionNode(val=token, parent=get(current_node.parent));
+                        new_intermediate_node = ExpressionNode(val=token, parent=current_node.parent);
 
-                        for (i, c) in enumerate(get(current_node.parent).children)
+                        for (i, c) in enumerate(current_node.parent.children)
                             if (c == current_node)
-                                deleteat!(get(current_node.parent).children, i);
-                                insert!(get(current_node.parent).children, i, new_intermediate_node);
+                                deleteat!(current_node.parent.children, i);
+                                insert!(current_node.parent.children, i, new_intermediate_node);
                                 notFound = false;
                                 break;
                             end
@@ -1703,24 +1706,24 @@ function construct_expression_tree(tokens::AbstractVector)
                             error("ConstructExpressionTreeError: Could not find existing child node!");
                         end
 
-                        current_node.parent = Nullable{ExpressionNode}(new_intermediate_node);
+                        current_node.parent = new_intermediate_node;
                         push!(new_intermediate_node.children, current_node);
                         current_node = new_intermediate_node;
                     end
                 else
-                    if (isnull(current_node.parent))
+                    if ((current_node.parent === nothing))
                         new_root_node = ExpressionNode(val=token);
                         current_node.parent = new_root_node;
                         push!(new_root_node.children, current_node);
                         current_node = new_root_node;
                     else
                         notFound = true;
-                        new_intermediate_node = ExpressionNode(val=token, parent=get(current_node.parent));
+                        new_intermediate_node = ExpressionNode(val=token, parent=current_node.parent);
 
-                        for (i, c) in enumerate(get(current_node.parent).children)
+                        for (i, c) in enumerate(current_node.parent.children)
                             if (c == current_node)
-                                deleteat!(get(current_node.parent).children, i);
-                                insert!(get(current_node.parent).children, i, new_intermediate_node);
+                                deleteat!(current_node.parent.children, i);
+                                insert!(current_node.parent.children, i, new_intermediate_node);
                                 notFound = false;
                                 break;
                             end
@@ -1729,15 +1732,15 @@ function construct_expression_tree(tokens::AbstractVector)
                             error("ConstructExpressionTreeError: Could not find existing child node!");
                         end
 
-                        current_node.parent = Nullable{ExpressionNode}(new_intermediate_node);
+                        current_node.parent = new_intermediate_node;
                         push!(new_intermediate_node.children, current_node);
                         current_node = new_intermediate_node;
                     end
                 end
             end
         else    #Not a special operator
-            if (isnull(current_node.value))
-                current_node.value = Nullable{String}(token);
+            if ((current_node.value === nothing))
+                current_node.value = token;
             else
                 new_node = ExpressionNode(val=token, parent=current_node);
                 push!(current_node.children, new_node);
@@ -1750,8 +1753,8 @@ function construct_expression_tree(tokens::AbstractVector)
         end
     end
 
-    while (!isnull(root_node.parent))
-        root_node = get(root_node.parent);
+    while (!(root_node.parent === nothing))
+        root_node = root_node.parent;
     end
 
     if (existing_parenthesis != 0)
@@ -1765,20 +1768,20 @@ function prune_nodes(node::ExpressionNode)
     for child in node.children
         prune_nodes(child);
     end
-    if (isnull(node.value))
+    if ((node.value === nothing))
         if (length(node.children) == 1)
-            if (isnull(node.parent))
+            if ((node.parent === nothing))
                 new_root_node = pop!(node.children);
-                new_root_node.parent = Nullable{ExpressionNode}();
+                new_root_node.parent = nothing;
                 return new_root_node;
             else
                 notFound = true;
                 new_node = pop!(node.children);
 
-                for (i, c) in enumerate(get(node.parent).children)
+                for (i, c) in enumerate(node.parent.children)
                     if (c == node)
-                        deleteat!(get(current_node.parent).children, i);
-                        insert!(get(current_node.parent).children, i, new_node);
+                        deleteat!(current_node.parent.children, i);
+                        insert!(current_node.parent.children, i, new_node);
                         notFound = false;
                         break;
                     end
@@ -1787,7 +1790,7 @@ function prune_nodes(node::ExpressionNode)
                     error("ConstructExpressionTreeError: Could not find existing child node!");
                 end
 
-                new_node.parent = Nullable{ExpressionNode}(current_node.parent);
+                new_node.parent = current_node.parent;
                 return new_node;
             end
         else
@@ -1800,7 +1803,7 @@ end
 function evaluate_expression_tree(node::ExpressionNode)
     local queue::AbstractVector = [];
     for child in node.children
-        if (get(child.value) != ",")
+        if (child.value != ",")
             push!(queue, evaluate_expression_tree(child));
         else #Use current operator for childrens' children
             for child_child in child.children
@@ -1809,9 +1812,9 @@ function evaluate_expression_tree(node::ExpressionNode)
         end
     end
     if (length(node.children) == 0)
-        return Expression(get(node.value));
+        return Expression(node.value);
     else
-        return Expression(get(node.value), queue...);
+        return Expression(node.value, queue...,);
     end
 end
 

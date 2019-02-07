@@ -1,3 +1,6 @@
+
+using Statistics;
+
 import Base: run;
 
 export AgentProgram,
@@ -34,11 +37,11 @@ export AgentProgram,
 =#
 
 """
-    execute{T <: AgentProgram}(ap::T, p::Tuple{Any, Any})
+    execute(ap::T, p::Tuple{Any, Any}) where {T <: AgentProgram}
 
 Return an action using the given agent program 'ap' and percept 'p'.
 """
-function execute{T <: AgentProgram}(ap::T, p::Tuple{Any, Any})      # implement methods for other AgentPrograms later
+function execute(ap::T, p::Tuple{Any, Any}) where {T <: AgentProgram}      # implement methods for other AgentPrograms later
     # comment the following line to reduce verbosity
     #println("execute() is not implemented yet for ", typeof(ap), "!");
     nothing;
@@ -56,8 +59,8 @@ struct TableDrivenAgentProgram <: AgentProgram
     percepts::Array{Tuple{Any, Any}, 1}
     table::Dict{Any, Any}
 
-    function TableDrivenAgentProgram(;table_dict::Union{Void, Dict{Any, Any}}=nothing, trace::Bool=false)
-        if (table_dict == C_NULL)           #no table given, create empty dictionary
+    function TableDrivenAgentProgram(;table_dict::Union{Nothing, Dict{Any, Any}}=nothing, trace::Bool=false)
+        if (table_dict == nothing)           #no table given, create empty dictionary
             return new(Bool(trace), Array{Tuple{Any, Any}, 1}(), Dict{Any, Any}());
         else
             return new(Bool(trace), Array{Tuple{Any, Any}, 1}(), table_dict);
@@ -91,7 +94,7 @@ mutable struct ModelBasedVacuumAgentProgram <: AgentProgram
     isTracing::Bool
     model::Dict{Any, Any}
 
-    function ModelBasedVacuumAgentProgram(;trace::Bool=false, model::Union{Void, Dict{Any, Any}}=nothing)
+    function ModelBasedVacuumAgentProgram(;trace::Bool=false, model::Union{Nothing, Dict{Any, Any}}=nothing)
         if (typeof(model) <: Dict{Any, Any})
             new_ap = new(Bool(trace));
             new_ap.model = deepcopy(model);
@@ -195,7 +198,7 @@ mutable struct Agent <: EnvironmentAgent
                                             Array{Any, 1}());
     end
 
-    function Agent{T <: AgentProgram}(ap::T)
+    function Agent(ap::T) where {T <: AgentProgram}
         new_agent = new(Bool(true), Float64(0), Bool(false),
                                                 rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
                                                 Array{Any, 1}());   # program is undefined
@@ -219,7 +222,7 @@ mutable struct Wumpus <: EnvironmentAgent
                                             Array{Any, 1}());
     end
 
-    function Wumpus{T <: AgentProgram}(ap::T)
+    function Wumpus(ap::T) where {T <: AgentProgram}
         new_agent = new(Bool(true), Float64(0), Bool(false),
                                                 rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
                                                 Array{Any, 1}());   # program is undefined
@@ -243,7 +246,7 @@ mutable struct Explorer <: EnvironmentAgent
                                             Array{Any, 1}());
     end
 
-    function Explorer{T <: AgentProgram}(ap::T)
+    function Explorer(ap::T) where {T <: AgentProgram}
         new_agent = new(Bool(true), Float64(0), Bool(false),
                                                 rand(RandomDeviceInstance, [(1, 0), (0, 1), (-1, 0), (0, -1)]),
                                                 Array{Any, 1}());   # program is undefined
@@ -252,11 +255,11 @@ mutable struct Explorer <: EnvironmentAgent
     end
 end
 
-function isAlive{T <: Agent}(a::T)
+function isAlive(a::T) where {T <: Agent}
     return a.alive;
 end
 
-function setAlive{T <: Agent}(a::T, bv::Bool)
+function setAlive(a::T, bv::Bool) where {T <: Agent}
     a.alive = bv;
     nothing;
 end
@@ -339,8 +342,8 @@ percept 'percept', and table 'ap.table'.
 function execute(ap::TableDrivenAgentProgram, percept::Tuple{Any, Any})
     push!(ap.percepts, percept);
     local action;
-    if (haskey(ap.table, Tuple((ap.percepts...))))
-        action = ap.table[Tuple((ap.percepts...))]  # convert percept sequence to tuple
+    if (haskey(ap.table, Tuple((ap.percepts...,))))
+        action = ap.table[Tuple((ap.percepts...,))]  # convert percept sequence to tuple
         if (ap.isTracing)
             @printf("%s perceives %s and does %s\n", string(typeof(ap)), string(percept), action.name);
         end
@@ -435,21 +438,21 @@ function rule_match(state::String, rules::Array{Rule, 1})
 end
 
 """
-    interpret_input{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})
+    interpret_input(ap::T, percept::Tuple{Any, Any}) where {T <: AgentProgram}
 
 Return a new state for the given agent program 'ap' and percept 'percept'.
 """
-function interpret_input{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})
+function interpret_input(ap::T, percept::Tuple{Any, Any}) where {T <: AgentProgram}
     println("interpret_input() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
 
 """
-    update_state{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})
+    update_state(ap::T, percept::Tuple{Any, Any}) where {T <: AgentProgram}
 
 Return a new state for the given agent program 'ap' and percept 'percept'.
 """
-function update_state{T <: AgentProgram}(ap::T, percept::Tuple{Any, Any})
+function update_state(ap::T, percept::Tuple{Any, Any}) where {T <: AgentProgram}
     println("update_state() is not implemented yet for ", typeof(ap), "!");
     nothing;
 end
@@ -531,8 +534,8 @@ Return an agent that tracks statuses of clean and dirty locations.
 """
 function ModelBasedVacuumAgent()
     return Agent(ModelBasedVacuumAgentProgram(model=Dict{Any, Any}([
-            Pair(loc_A, Void),
-            Pair(loc_B, Void),
+            Pair(loc_A, Nothing),
+            Pair(loc_B, Nothing),
             ])));
 end
 
@@ -645,7 +648,7 @@ end
 
 Returns a percept representing what the agent perceives in the enviroment.
 """
-function percept{T1 <: Environment, T2 <: EnvironmentAgent, T3 <: String}(e::T1, a::T2, act::T3)    #implement this later
+function percept(e::T1, a::T2, act::T3) where {T1 <: Environment, T2 <: EnvironmentAgent, T3 <: String}    #implement this later
     println("percept() is not implemented yet for ", typeof(e), "!");
     nothing;
 end
@@ -662,8 +665,8 @@ end
 
 Return a list of EnvironmentObjects within the radius of a given location.
 """
-function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius::Union{Void, Float64}=nothing)
-    if (typeof(radius) <: Void)
+function objects_near(e::XYEnvironment, loc::Tuple{Any, Any}; radius::Union{Nothing, Float64}=nothing)
+    if (typeof(radius) <: Nothing)
         radius = e.perceptible_distance;
     end
     sq_radius = radius * radius;
@@ -672,14 +675,14 @@ end
 
 function percept(e::XYEnvironment, a::Agent)
     # this percept might not consist of exactly 2 elements
-    return Tuple(([string(typeof(obj)) for obj in objects_near(a.location)]...));
+    return Tuple(([string(typeof(obj)) for obj in objects_near(a.location)]...,));
 end
 
 function percept(e::TrivialVacuumEnvironment, a::Agent)
     return (a.location, e.status[a.location]);
 end
 
-function get_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::DataType)
+function get_objects_at(e::T, loc::Tuple{Any, Any}, objType::DataType) where {T <: Environment}
     if (objType <: EnvironmentObject)
         return [obj for obj in e.objects if (typeof(obj) <: objType && obj.location == loc)];
     else
@@ -687,7 +690,7 @@ function get_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::D
     end
 end
 
-function some_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::DataType)
+function some_objects_at(e::T, loc::Tuple{Any, Any}, objType::DataType) where {T <: Environment}
     object_array = get_objects_at(e, loc, objType);
     if (length(object_array) == 0)
         return false;
@@ -696,7 +699,7 @@ function some_objects_at{T <: Environment}(e::T, loc::Tuple{Any, Any}, objType::
     end
 end
 
-function is_done{T <:Environment}(e::T)
+function is_done(e::T) where {T <: Environment}
     for a in e.agents
         if (a.alive)
             return false;
@@ -705,7 +708,7 @@ function is_done{T <:Environment}(e::T)
     return true;
 end
 
-function step{T <: Environment}(e::T)
+function step(e::T) where {T <: Environment}
     if (!is_done(e))
         local actions = [execute(agent.program, percept(e, agent)) for agent in e.agents];
         for t in zip(e.agents, actions)
@@ -717,8 +720,8 @@ function step{T <: Environment}(e::T)
     end
 end
 
-function run{T <: Environment}(e::T; steps::Int64=1000)
-    for i in range(0, steps)
+function run(e::T; steps::Int64=1000) where {T <: Environment}
+    for i in range(0, stop=(steps - 1))
         if (is_done(e))
             break;
         end
@@ -726,25 +729,25 @@ function run{T <: Environment}(e::T; steps::Int64=1000)
     end
 end
 
-function exogenous_change{T <: Environment}(e::T)   # implement this later
+function exogenous_change(e::T) where {T <: Environment}   # implement this later
     # comment the following line to reduce verbosity
     #println("exogenous_change() not yet implemented for ", typeof(e), "!");
     nothing;
 end
 
-function default_location{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2)   #implement this later
+function default_location(e::T1, obj::T2) where {T1 <: Environment, T2 <: EnvironmentObject}   #implement this later
     return false;
 end
 
-function default_location{T <: EnvironmentObject}(e::TrivialVacuumEnvironment, obj::T)
+function default_location(e::TrivialVacuumEnvironment, obj::T) where {T <: EnvironmentObject}
     return rand(RandomDeviceInstance, [loc_A, loc_B]);
 end
 
-function default_location{T <: EnvironmentObject}(e::XYEnvironment, obj::T)
-    return (rand(RandomDeviceInstance, range(0, e.width)), rand(RandomDeviceInstance, range(0, e.height)));
+function default_location(e::XYEnvironment, obj::T) where {T <: EnvironmentObject}
+    return (rand(RandomDeviceInstance, range(0, stop=(e.width - 1))), rand(RandomDeviceInstance, range(0, stop=(e.height - 1))));
 end
 
-function environment_objects{T <: Environment}(e::T)
+function environment_objects(e::T) where {T <: Environment}
     return [];
 end
 
@@ -764,7 +767,7 @@ function environment_objects(e::WumpusEnvironment)
     return [Wall, Gold, Pit, Arrow, Wumpus, Explorer];
 end
 
-function execute_action{T1 <: Environment, T2 <: EnvironmentAgent}(e::T1, a::T2, act::String)   #implement this later
+function execute_action(e::T1, a::T2, act::String) where {T1 <: Environment, T2 <: EnvironmentAgent}   #implement this later
     println("execute_action() is not implemented yet for ", string(typeof(e)), "!");
     nothing;
 end
@@ -829,9 +832,9 @@ function execute_action(e::TrivialVacuumEnvironment, a::EnvironmentAgent, act::S
     nothing;
 end
 
-function add_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2; location::Union{Void, Tuple{Any, Any}}=nothing)
+function add_object(e::T1, obj::T2; location::Union{Nothing, Tuple{Any, Any}}=nothing) where {T1 <: Environment, T2 <: EnvironmentObject}
     if (!(obj in e.objects))
-        if (!(typeof(location) <: Void))
+        if (!(typeof(location) <: Nothing))
             obj.location = location;
         else
             obj.location = default_location(e, obj);
@@ -847,7 +850,7 @@ function add_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2; 
     nothing;
 end
 
-function delete_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T2)
+function delete_object(e::T1, obj::T2) where {T1 <: Environment, T2 <: EnvironmentObject}
     local i = utils.index(e.objects, obj);
     if (i > -1)
         deleteat!(e.objects, i);
@@ -859,12 +862,12 @@ function delete_object{T1 <: Environment, T2 <: EnvironmentObject}(e::T1, obj::T
     nothing;
 end
 
-function add_walls{T <: TwoDimensionalEnvironment}(e::T)
-    for x in range(0, e.width)
+function add_walls(e::T) where {T <: TwoDimensionalEnvironment}
+    for x in range(0, stop=(e.width - 1))
         add_object(Wall(), location=(x, 0));
         add_object(Wall(), location=(x, e.height - 1));
     end
-    for y in range(0, e.height)
+    for y in range(0, stop=(e.height - 1))
         add_object(Wall(), location=(0, y));
         add_object(Wall(), location=(e.width - 1, 0));
     end
@@ -876,7 +879,7 @@ end
 
 Move the EnvironmentObject to the destination given.
 """
-function move_to{T <: TwoDimensionalEnvironment}(e::T, obj::EnvironmentObject, destination::Tuple{Any, Any})
+function move_to(e::T, obj::EnvironmentObject, destination::Tuple{Any, Any}) where {T <: TwoDimensionalEnvironment}
     obj.bump = some_objects_at(e, destination, Wall);   # Wall is a subtype of Obstacle, not an alias
     if (!obj.bump)
         obj.location = destination;
@@ -896,7 +899,7 @@ end
 
 Calculates the average of the scores of running the given Agent in each of the environments.
 """
-function test_agent{T <: Environment}(AgentGenerator::Function, steps::Int, envs::Array{T, 1})
+function test_agent(AgentGenerator::Function, steps::Int, envs::Array{T, 1}) where {T <: Environment}
     return mean([run_once(envs[i], AgentGenerator, steps) for i in 1:length(envs)]);
 end
 
@@ -907,7 +910,7 @@ Creates an array of 'n' Environments and runs each Agent in each separate copy o
 array for 'steps' times. Then, return a list of (agent, average_score) tuples.
 """
 function compare_agents(EnvironmentGenerator::DataType, AgentGenerators::Array{Function, 1}; n::Int64=10, steps::Int64=1000)
-    local envs = [EnvironmentGenerator() for i in range(0, n)];
+    local envs = [EnvironmentGenerator() for i in range(0, stop=(n - 1))];
     return [(string(typeof(A)), test_agent(A, steps, deepcopy(envs))) for A in AgentGenerators];
 end
 

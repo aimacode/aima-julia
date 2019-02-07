@@ -19,7 +19,7 @@ git clone https://github.com/aimacode/aima-data
 
 echo
 
-julia -e "versioninfo();"
+julia -e "using InteractiveUtils; versioninfo();"
 
 echo
 

@@ -1,10 +1,10 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
 
-using aimajulia;
+using Main.aimajulia;
 
-using aimajulia.utils;
+using Main.aimajulia.utils;
 
 #The following learning tests are from the aima-python doctests
 
@@ -69,7 +69,7 @@ means_dict, deviations_dict = find_means_and_deviations(iris_dataset);
 
 @test (means_dict["setosa"][1] == 5.006);
 
-@test (means_dict["versicolor"][1] == 5.936);
+@test (means_dict["versicolor"][1] == 5.935999999999999);
 
 @test (means_dict["virginica"][1] == 6.587999999999999);
 

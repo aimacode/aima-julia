@@ -1,5 +1,9 @@
 
-import Base: getindex, setindex!, values, normalize;
+using Random
+using LinearAlgebra
+
+import Base: getindex, setindex!, values;
+import LinearAlgebra: normalize;
 
 export getindex, setindex!, values,
         AbstractProbabilityDistribution,
@@ -24,12 +28,12 @@ export getindex, setindex!, values,
 =#
 mutable struct DecisionTheoreticAgentProgram <: AgentProgram
     state::String
-    goal::Nullable{String}
+    goal::Union{Nothing, String}
     actions::AbstractVector
     compute_probabilities::Function     # compute outcome probabilities and utility of an action
 
-    function DecisionTheoreticAgentProgram(;initial_state::Union{Void, String}=nothing)
-        return new(initial_state, Nullable{String}(), []);
+    function DecisionTheoreticAgentProgram(;initial_state::Union{Nothing, String}=nothing)
+        return new(initial_state, nothing, []);
     end
 end
 
@@ -59,9 +63,9 @@ struct ProbabilityDistribution <: AbstractProbabilityDistribution
     probabilities::Dict
     values::Array{Float64, 1}
 
-    function ProbabilityDistribution(;variable_name::String="?", frequencies::Union{Void, Dict}=nothing)
+    function ProbabilityDistribution(;variable_name::String="?", frequencies::Union{Nothing, Dict}=nothing)
         local pd::ProbabilityDistribution = new(variable_name, Dict(), []);
-        if (!(typeof(frequencies) <: Void))
+        if (!(typeof(frequencies) <: Nothing))
             for (k, v) in frequencies
                 if (!(v in pd.values))
                     push!(pd.values, Float64(v));
@@ -90,7 +94,7 @@ function setindex!(pd::ProbabilityDistribution, value, key)
     nothing;
 end
 
-function normalize{T <: AbstractProbabilityDistribution}(pd::T; epsilon::Float64=1e-09)
+function normalize(pd::T; epsilon::Float64=1e-09) where {T <: AbstractProbabilityDistribution}
     local total::Float64 = sum(values(pd.probabilities));
     if (!((1.0 - epsilon) < total < (1.0 + epsilon)))
         for k in keys(pd.probabilities)
@@ -108,7 +112,7 @@ Return a String representing the sorted approximate values of the probabilities.
 Note: The @sprintf macro does not allow string concatenation for its format string.
 The usage of the macro requires the format string to be a static string.
 """
-function show_approximation{T <: AbstractProbabilityDistribution}(pd::T)
+function show_approximation(pd::T) where {T <: AbstractProbabilityDistribution}
     return join(collect(@sprintf("%s: %.4g", key, pd.probabilities[key])
                         for key in sort(collect(keys(pd.probabilities)))), ", ");
 end
@@ -122,7 +126,7 @@ function event_values(event::Tuple, variables::AbstractVector)
 end
 
 function event_values(event::Dict, variables::AbstractVector)
-    return Tuple((collect(event[v] for v in variables)...));
+    return Tuple((collect(event[v] for v in variables)...,));
 end
 
 #=
@@ -168,7 +172,7 @@ function values(jpd::JointProbabilityDistribution, key)
     return jpd.values[key];
 end
 
-function enumerate_joint{T <: AbstractProbabilityDistribution}(variables::AbstractVector, e::Dict, P::T)
+function enumerate_joint(variables::AbstractVector, e::Dict, P::T) where {T <: AbstractProbabilityDistribution}
     if (length(variables) == 0)
         return P[e];
     else
@@ -209,7 +213,7 @@ struct BayesianNetworkNode
     cpt::Dict
     children::AbstractVector
 
-    function BayesianNetworkNode{T <: Real}(X::String, parents::String, conditional_probability_table::T)
+    function BayesianNetworkNode(X::String, parents::String, conditional_probability_table::T) where {T <: Real}
         local parents_array::Array{String, 1} = map(String, split(parents));
         local cpt::Dict = Dict([Pair((), conditional_probability_table)]);
         for (keys, value) in cpt
@@ -248,7 +252,7 @@ struct BayesianNetworkNode
         return new(X, parents_array, cpt, []);;
     end
 
-    function BayesianNetworkNode{T <: Real}(X::String, parents::Array{String, 1}, conditional_probability_table::T)
+    function BayesianNetworkNode(X::String, parents::Array{String, 1}, conditional_probability_table::T) where {T <: Real}
         local cpt::Dict = Dict([Pair((), conditional_probability_table)]);
         for (keys, value) in cpt
             if (!((typeof(keys) <: Tuple) & (length(keys) == length(parents))))
@@ -326,7 +330,7 @@ struct BayesianNetwork
 end
 
 function add_node(bn::BayesianNetwork, ns::Tuple)
-    local node::BayesianNetworkNode = BayesianNetworkNode(ns...);
+    local node::BayesianNetworkNode = BayesianNetworkNode(ns...,);
     if (node.variable in bn.variables)
         error("add_node(): The node's variable '", node.variable, "'' can't be used, as it already exists in the Bayesian network's variables!");
     end
@@ -771,7 +775,7 @@ Use the online smoothing algorithm (Fig. 15.6) given the evidence 'e_t' and numb
 to lag for smoothing 'd'. Return a smoothed estimate or 'nothing' if no new time steps were found.
 """
 function fixed_lag_smoothing(e_t::Bool, hmm::HiddenMarkovModel, d::Int64, ev::AbstractVector; t::Int64=1)
-    local T::Array{Float64, 2} = reduce(hcat, hmm.transition_model).';
+    local T::Array{Float64, 2} = transpose(reduce(hcat, hmm.transition_model));
     local f::Array{Float64, 2} = reshape(hmm.prior, (1, length(hmm.prior)));
     local B::Array{Float64, 2} = [1.0 0.0; 0.0 1.0];
     local evidence::AbstractVector = [];
@@ -842,10 +846,10 @@ end
 struct MonteCarloLocalizationMap
     map::AbstractMatrix
     empty::AbstractVector
-    rng::Nullable{MersenneTwister}
+    rng::Union{Nothing, MersenneTwister}
 
-    function MonteCarloLocalizationMap(m::AbstractMatrix; rng::Union{Void, MersenneTwister}=nothing)
-        local mclm::MonteCarloLocalizationMap = new(m, [], Nullable{MersenneTwister}(rng));
+    function MonteCarloLocalizationMap(m::AbstractMatrix; rng::Union{Nothing, MersenneTwister}=nothing)
+        local mclm::MonteCarloLocalizationMap = new(m, [], rng);
         for i in 1:size(m)[1]
             for j in 1:size(m)[2]
                 if (m[i, j] == 0)
@@ -865,12 +869,12 @@ Return a random kinematic state in the given map 'mclm'.
 function sample(mclm::MonteCarloLocalizationMap)
     local position::Tuple;
     local orientation::Int64;
-    if (isnull(mclm.rng))
+    if (mclm.rng === nothing)
         position = rand(RandomDeviceInstance, mclm.empty);
         orientation = rand(RandomDeviceInstance, collect(1:4));
     else
-        position = rand(get(mclm.rng), mclm.empty);
-        orientation = rand(get(mclm.rng), collect(1:4));
+        position = rand(mclm.rng, mclm.empty);
+        orientation = rand(mclm.rng, collect(1:4));
     end
     local kinematic_state::Tuple = (position..., orientation);
     return kinematic_state;

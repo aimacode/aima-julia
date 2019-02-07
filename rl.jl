@@ -45,7 +45,7 @@ Return a set of actions that are possible in the given state.
 """
 function actions(mdp::PassiveADPAgentMDP, state)
     if (state in mdp.mdp.terminal_states)
-        return Set{Void}([nothing]);
+        return Set{Nothing}([nothing]);
     else
         return mdp.mdp.actions;
     end
@@ -81,17 +81,17 @@ end
 
 =#
 mutable struct PassiveADPAgentProgram <: AgentProgram
-    state::Nullable
-    action::Nullable
+    state   # can be any DataType, but check for Nothing DataType later
+    action  # can be any DataType, but check for Nothing DataType later
     U::Dict
     pi::Dict
     mdp::PassiveADPAgentMDP
     N_sa::Dict
     N_s_prime_sa::Dict
 
-    function PassiveADPAgentProgram{T <: AbstractMarkovDecisionProcess}(pi::Dict, mdp::T)
-        return new(Nullable(),
-                    Nullable(),
+    function PassiveADPAgentProgram(pi::Dict, mdp::T) where {T <: AbstractMarkovDecisionProcess}
+        return new(nothing,
+                    nothing,
                     Dict(),
                     pi,
                     PassiveADPAgentMDP(mdp.initial, mdp.actions, mdp.terminal_states, mdp.gamma),
@@ -109,28 +109,24 @@ function execute(padpap::PassiveADPAgentProgram, percept::Tuple{Any, Any})
         padpap.U[s_prime] = r_prime;
         padpap.mdp.mdp.reward[s_prime] = r_prime;
     end
-    if (!isnull(padpap.state))
-        padpap.N_sa[(get(padpap.state), get(padpap.action))] = get!(padpap.N_sa, (get(padpap.state), get(padpap.action)), 0) + 1;
-        padpap.N_s_prime_sa[(s_prime, get(padpap.state), get(padpap.action))] = get!(padpap.N_s_prime_sa, (s_prime, get(padpap.state), get(padpap.action)), 0) + 1;
+    if (!(padpap.state === nothing))
+        padpap.N_sa[(padpap.state, padpap.action)] = get!(padpap.N_sa, (padpap.state, padpap.action), 0) + 1;
+        padpap.N_s_prime_sa[(s_prime, padpap.state, padpap.action)] = get!(padpap.N_s_prime_sa, (s_prime, padpap.state, padpap.action), 0) + 1;
         for t in collect(result_state
                         for ((result_state, state, action), occurrences) in padpap.N_s_prime_sa
-                        if (((state, action) == (get(padpap.state), get(padpap.action))) && (occurrences != 0)))
-            get!(padpap.mdp.mdp.transitions, (get(padpap.state), get(padpap.action)), Dict())[t] = padpap.N_s_prime_sa[(t, get(padpap.state), get(padpap.action))] / padpap.N_sa[(get(padpap.state), get(padpap.action))];
+                        if (((state, action) == (padpap.state, padpap.action)) && (occurrences != 0)))
+            get!(padpap.mdp.mdp.transitions, (padpap.state, padpap.action), Dict())[t] = padpap.N_s_prime_sa[(t, padpap.state, padpap.action)] / padpap.N_sa[(padpap.state, padpap.action)];
         end
     end
     local U::Dict = policy_evaluation(padpap.pi, padpap.U, padpap.mdp);
     if (s_prime in padpap.mdp.mdp.terminal_states)
-        padpap.state = Nullable();
-        padpap.action = Nullable();
+        padpap.state = nothing;
+        padpap.action = nothing;
     else
-        padpap.state = Nullable(s_prime);
-        padpap.action = Nullable(padpap.pi[s_prime]);
+        padpap.state = s_prime;
+        padpap.action = padpap.pi[s_prime];
     end
-    if (isnull(padpap.action))
-        return nothing;
-    else
-        return get(padpap.action);
-    end
+    return padpap.action;
 end
 
 function update_state(padpap::PassiveADPAgentProgram, percept::Tuple{Any, Any})
@@ -145,9 +141,9 @@ end
 
 =#
 mutable struct PassiveTDAgentProgram <: AgentProgram
-    state::Nullable
-    action::Nullable
-    reward::Nullable
+    state   # can be any DataType, but check for Nothing DataType later
+    action  # can be any DataType, but check for Nothing DataType later
+    reward  # can be any DataType, but check for Nothing DataType later
     gamma::Float64
     U::Dict
     pi::Dict
@@ -155,7 +151,7 @@ mutable struct PassiveTDAgentProgram <: AgentProgram
     terminal_states::Set
     alpha::Function
 
-    function PassiveTDAgentProgram{T <: AbstractMarkovDecisionProcess}(pi::Dict, mdp::T; alpha::Union{Void, Function}=nothing)
+    function PassiveTDAgentProgram(pi::Dict, mdp::T; alpha::Union{Nothing, Function}=nothing) where {T <: AbstractMarkovDecisionProcess}
         local gamma::Float64;
         local terminal_states::Set;
         local new_alpha::Function;
@@ -166,16 +162,16 @@ mutable struct PassiveTDAgentProgram <: AgentProgram
             gamma = mdp.gamma;
             terminal_states = mdp.terminal_states;
         end
-        if (typeof(alpha) <: Void)
+        if (typeof(alpha) <: Nothing)
             new_alpha = (function(n::Number)
                             return (1/(n + 1));
                         end);
         else
             new_alpha = alpha;
         end
-        return new(Nullable(),
-                    Nullable(),
-                    Nullable(),
+        return new(nothing,
+                    nothing,
+                    nothing,
                     gamma,
                     Dict(),
                     pi,
@@ -191,28 +187,24 @@ function execute(ptdap::PassiveTDAgentProgram, percept::Tuple{Any, Any})
     if (!haskey(ptdap.N_s, s_prime))
         ptdap.U[s_prime] = r_prime;
     end
-    if (!isnull(ptdap.state))
-        ptdap.N_s[get(ptdap.state)] = get!(ptdap.N_s, get(ptdap.state), 0) + 1;
-        ptdap.U[get(ptdap.state)] = (get!(ptdap.U, get(ptdap.state), 0.0)
-                                    + ptdap.alpha(get!(ptdap.N_s, get(ptdap.state), 0))
-                                    * (get(ptdap.reward)
+    if (!(ptdap.state === nothing))
+        ptdap.N_s[ptdap.state] = get!(ptdap.N_s, ptdap.state, 0) + 1;
+        ptdap.U[ptdap.state] = (get!(ptdap.U, ptdap.state, 0.0)
+                                    + ptdap.alpha(get!(ptdap.N_s, ptdap.state, 0))
+                                    * (ptdap.reward
                                     + (ptdap.gamma * get!(ptdap.U, s_prime, 0.0))
-                                    - get!(ptdap.U, get(ptdap.state), 0.0)));
+                                    - get!(ptdap.U, ptdap.state, 0.0)));
     end
     if (s_prime in ptdap.terminal_states)
-        ptdap.state = Nullable();
-        ptdap.action = Nullable();
-        ptdap.reward = Nullable();
+        ptdap.state = nothing;
+        ptdap.action = nothing;
+        ptdap.reward = nothing;
     else
-        ptdap.state = Nullable(s_prime);
-        ptdap.action = Nullable(ptdap.pi[s_prime]);
-        ptdap.reward = Nullable(r_prime);
+        ptdap.state = s_prime;
+        ptdap.action = ptdap.pi[s_prime];
+        ptdap.reward = r_prime;
     end
-    if (isnull(ptdap.action))
-        return nothing;
-    else
-        return get(ptdap.action);
-    end
+    return ptdap.action;
 end
 
 function update_state(ptdap::PassiveTDAgentProgram, percept::Tuple{Any, Any})
@@ -233,9 +225,9 @@ end
 
 =#
 mutable struct QLearningAgentProgram <: AgentProgram
-    state::Nullable
-    action::Nullable
-    reward::Nullable
+    state   # can be any DataType, but check for Nothing DataType later
+    action  # can be any DataType, but check for Nothing DataType later
+    reward  # can be any DataType, but check for Nothing DataType later
     gamma::Float64
     Q::Dict
     N_sa::Dict
@@ -246,7 +238,7 @@ mutable struct QLearningAgentProgram <: AgentProgram
     f::Function
     alpha::Function
 
-    function QLearningAgentProgram{T <: AbstractMarkovDecisionProcess}(mdp::T, N_e::Int64, R_plus::Number; alpha::Union{Void, Function}=nothing)
+    function QLearningAgentProgram(mdp::T, N_e::Int64, R_plus::Number; alpha::Union{Nothing, Function}=nothing) where {T <: AbstractMarkovDecisionProcess}
         local new_alpha::Function;
         local gamma::Float64;
         local actions::Set;
@@ -260,16 +252,16 @@ mutable struct QLearningAgentProgram <: AgentProgram
             actions = mdp.actions;
             terminal_states = mdp.terminal_states;
         end
-        if (typeof(alpha) <: Void)
+        if (typeof(alpha) <: Nothing)
             new_alpha = (function(n::Number)
                             return (1/(n + 1));
                         end);
         else
             new_alpha = alpha;
         end
-        return new(Nullable(),
-                    Nullable(),
-                    Nullable(),
+        return new(nothing,
+                    nothing,
+                    nothing,
                     gamma,
                     Dict(),
                     Dict(),
@@ -301,37 +293,33 @@ end
 function execute(qlap::QLearningAgentProgram, percept::Tuple{Any, Any})
     local r_prime::Float64;
     s_prime, r_prime = update_state(qlap, percept);
-    if (!isnull(qlap.state))
-        if (get(qlap.state) in qlap.terminal_states)
-            qlap.Q[(get(qlap.state), nothing)] = r_prime;
+    if (!(qlap.state === nothing))
+        if (qlap.state in qlap.terminal_states)
+            qlap.Q[(qlap.state, nothing)] = r_prime;
         end
-        qlap.N_sa[(get(qlap.state), get(qlap.action))] = get!(qlap.N_sa, (get(qlap.state), get(qlap.action)), 0) + 1;
+        qlap.N_sa[(qlap.state, qlap.action)] = get!(qlap.N_sa, (qlap.state, qlap.action), 0) + 1;
         # Default value for Q keys is 0.0.
-        get!(qlap.Q, (get(qlap.state), get(qlap.action)), 0.0);
-        qlap.Q[(get(qlap.state), get(qlap.action))] = (qlap.Q[(get(qlap.state), get(qlap.action))]
-                                                    + (qlap.alpha(qlap.N_sa[(get(qlap.state), get(qlap.action))]) *
-                                                    (get(qlap.reward) +
+        get!(qlap.Q, (qlap.state, qlap.action), 0.0);
+        qlap.Q[(qlap.state, qlap.action)] = (qlap.Q[(qlap.state, qlap.action)]
+                                                    + (qlap.alpha(qlap.N_sa[(qlap.state, qlap.action)]) *
+                                                    (qlap.reward +
                                                     (qlap.gamma * reduce(max, collect(get!(qlap.Q, (s_prime, a_prime), 0.0)
                                                                                     for a_prime in actions(qlap, s_prime))))
-                                                    - qlap.Q[(get(qlap.state), get(qlap.action))])));
+                                                    - qlap.Q[(qlap.state, qlap.action)])));
     end
-    if (!isnull(qlap.state) && get(qlap.state) in qlap.terminal_states)
-        qlap.state = Nullable();
-        qlap.action = Nullable();
-        qlap.reward = Nullable();
+    if (!(qlap.state === nothing) && (qlap.state in qlap.terminal_states))
+        qlap.state = nothing;
+        qlap.action = nothing;
+        qlap.reward = nothing;
     else
-        qlap.state = Nullable(s_prime);
-        qlap.action = Nullable(argmax(collect(actions(qlap, s_prime)),
-                                    (function(a_prime)
-                                        return qlap.f(qlap, get!(qlap.Q, (s_prime, a_prime), 0.0), get!(qlap.N_sa, (s_prime, a_prime), 0));
-                                    end)));
-        qlap.reward = Nullable(r_prime);
+        qlap.state = s_prime;
+        qlap.action = argmax(collect(actions(qlap, s_prime)),
+                            (function(a_prime)
+                                return qlap.f(qlap, get!(qlap.Q, (s_prime, a_prime), 0.0), get!(qlap.N_sa, (s_prime, a_prime), 0));
+                            end));
+        qlap.reward = r_prime;
     end
-    if (isnull(qlap.action))
-        return nothing;
-    else
-        return get(qlap.action);
-    end
+    return qlap.action;
 end
 
 function update_state(qlap::QLearningAgentProgram, percept::Tuple{Any, Any})
@@ -339,12 +327,12 @@ function update_state(qlap::QLearningAgentProgram, percept::Tuple{Any, Any})
 end
 
 """
-    take_single_action{T <: AbstractMarkovDecisionProcess}(mdp::T, state, action)
+    take_single_action(mdp::T, state, action) where {T <: AbstractMarkovDecisionProcess}
 
 Return the next state by choosing a weighted sample of the resulting states for
 taking the action 'action' in state 'state'.
 """
-function take_single_action{T <: AbstractMarkovDecisionProcess}(mdp::T, state, action)
+function take_single_action(mdp::T, state, action) where {T <: AbstractMarkovDecisionProcess}
     local x::Float64 = rand(RandomDeviceInstance);
     local cumulative_probability::Float64 = 0.0;
     for (p, state_p) in transition_model(mdp, state, action)
@@ -358,22 +346,17 @@ function take_single_action{T <: AbstractMarkovDecisionProcess}(mdp::T, state, a
 end
 
 """
-    run_single_trial{T1 <: AgentProgram, T2 <: AbstractMarkovDecisionProcess}(ap::T1, mdp::T2)
+    run_single_trial(ap::T1, mdp::T2) where {T1 <: AgentProgram, T2 <: AbstractMarkovDecisionProcess}
 
 The agent program 'ap' executes a trial in the environment represented by the MDP 'mdp'.
 """
-function run_single_trial{T1 <: AgentProgram, T2 <: AbstractMarkovDecisionProcess}(ap::T1, mdp::T2)
+function run_single_trial(ap::T1, mdp::T2) where {T1 <: AgentProgram, T2 <: AbstractMarkovDecisionProcess}
     current_state = mdp.initial;
     while (true)
-        local current_reward::Float64;
-        if (typeof(reward(mdp, current_state)) <: Nullable)
-            current_reward = get(reward(mdp, current_state));
-        else
-            current_reward = reward(mdp, current_state);
-        end
+        local current_reward::Float64 = reward(mdp, current_state);
         local percept::Tuple = (current_state, current_reward);
         next_action = execute(ap, percept);
-        if (typeof(next_action) <: Void)
+        if (typeof(next_action) <: Nothing)
             break;
         end
         current_state = take_single_action(mdp, current_state, next_action);

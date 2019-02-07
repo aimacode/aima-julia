@@ -21,6 +21,10 @@ In more detail:
 - Look at the issues and pick one to work on.
 - One of the issues is that some algorithms are missing from the list of algorithms and that some don't have tests.
 
+## Writing and Running Tests
+
+For aima-julia, Julia tests should avoid the `@testset` macro for greater modularity. For example, in Machine Learning, the trained neural network might fail during a `@test` for accuracy. The training should still be evaluated, so its corresponding test will be a custom Julia function that does not assert a threshold on accuracy.
+
 ## RandomDevice()
 
 Avoid using `RandomDevice()`. Try using `aimajulia.RandomDeviceInstance` (can be referenced as `RandomDeviceInstance` within the `aimajulia` module) instead. Multiple `RandomDevice()` calls cause errors on some operating systems when opening multiple concurrent file descriptors to  `/dev/urandom` or `/dev/random`.
@@ -67,7 +71,7 @@ There are a few style rules that are unique to this project:
 - Don't make a function more complicated than the pseudocode in the book, even if the complication would add a nice feature, or give an efficiency gain. Instead, remain faithful to the pseudocode, and if you must, add a new function (not in the book) with the added feature.
 - I use functional programming (functions with no side effects) in many cases, but not exclusively (sometimes type declarations and/or functions with side effects are used). Let the book's pseudocode be the guide.
 
-Beyond the above rules, we use the official Julia Style Guide ([0.5](https://docs.julialang.org/en/release-0.5/manual/style-guide/)/[0.6](https://docs.julialang.org/en/release-0.5/manual/style-guide/)), with a few minor exceptions:
+Beyond the above rules, we use the official Julia Style Guide ([0.5](https://docs.julialang.org/en/release-0.5/manual/style-guide/)/[0.6](https://docs.julialang.org/en/release-0.5/manual/style-guide/)/[1.1](https://docs.julialang.org/en/v1/manual/style-guide/)), with a few minor exceptions:
 
 - One line comments start with a space after the # sign.
 - Use 4 spaces instead of tabs
@@ -79,7 +83,7 @@ Beyond the above rules, we use the official Julia Style Guide ([0.5](https://doc
 Updating existing code to newer Julia versions
 ==============================================
 
-The Julia language frequently changes their latest stable version (pre v1.0). For example, Julia 0.5 was announced October 11, 2016 and Julia 0.6 was announced June 27, 2017. As a result, we should have a separate branch for each supported Julia version. Pull requests should be made specifically to those branches (make an issue if the branch does not exist).
+The Julia language frequently changes their latest stable version. For example, Julia 0.5 was announced October 11, 2016 and Julia 0.6 was announced June 27, 2017. As a result, we should have a separate branch for each supported Julia version. Pull requests should be made specifically to those branches (make an issue if the branch does not exist).
 
 Contributing a Patch
 ====================
@@ -104,7 +108,7 @@ Reporting Issues
 Patch Rules
 ===========
 
-- Ensure that the patch is Julia 0.6 compliant.
+- Ensure that the patch is Julia 1.1 compliant.
 
 - Include tests if your patch is supposed to solve a bug, and explain clearly under which circumstances the bug happens. Make sure the test fails without your patch.
 

@@ -42,7 +42,7 @@ struct PlanningAction <: AbstractPlanningAction
     end
 end
 
-function substitute{T <: AbstractPlanningAction}(action::T, e::Expression, arguments::Tuple{Vararg{Expression}})
+function substitute(action::T, e::Expression, arguments::Tuple{Vararg{Expression}}) where {T <: AbstractPlanningAction}
     local new_arguments::AbstractVector = collect(e.arguments);
     for (index_1, argument) in enumerate(e.arguments)
         for index_2 in 1:length(action.arguments)
@@ -51,10 +51,10 @@ function substitute{T <: AbstractPlanningAction}(action::T, e::Expression, argum
             end
         end
     end
-    return Expression(e.operator, Tuple((new_arguments...)));
+    return Expression(e.operator, Tuple((new_arguments...,)));
 end
 
-function check_precondition{T1 <: AbstractPlanningAction, T2 <: AbstractKnowledgeBase}(action::T1, kb::T2, arguments::Tuple)
+function check_precondition(action::T1, kb::T2, arguments::Tuple) where {T1 <: AbstractPlanningAction, T2 <: AbstractKnowledgeBase}
     # Check for positive clauses.
     for clause in action.precondition_positive
         if (!(substitute(action, clause, arguments) in kb.clauses))
@@ -75,7 +75,7 @@ end
 
 Execute the given action 'action' on the knowledge base of the planning problem.
 """
-function execute_action{T1 <: AbstractPlanningAction, T2 <: AbstractKnowledgeBase}(action::T1, kb::T2, arguments::Tuple)
+function execute_action(action::T1, kb::T2, arguments::Tuple) where {T1 <: AbstractPlanningAction, T2 <: AbstractKnowledgeBase}
     if (!(check_precondition(action, kb, arguments)))
         error(@sprintf("execute_action(): Action \"%s\" preconditions are not satisfied!", action.name));
     end
@@ -113,7 +113,7 @@ struct PDDL <: AbstractPDDL
     end
 end
 
-function goal_test{T <: AbstractPDDL}(plan::T)
+function goal_test(plan::T) where {T <: AbstractPDDL}
     return plan.goal_test(plan.kb);
 end
 
@@ -123,7 +123,7 @@ end
 Execute the first relevant PlanningAction associated with action 'action'
 on the given planning problem's knowledgebase.
 """
-function execute_action{T <: AbstractPDDL}(plan::T, action::Expression)
+function execute_action(plan::T, action::Expression) where {T <: AbstractPDDL}
     local action_name::String = action.operator;
     local arguments::Tuple = action.arguments;
     local relevant_actions::AbstractVector = collect(a for a in plan.actions if (a.name == action_name));
@@ -440,7 +440,7 @@ function build_level_links_permute_arguments(depth::Int64, objects::AbstractVect
     else
         for (i, item) in enumerate(objects)
             build_level_links_permute_arguments((depth - 1),
-                                                Tuple((objects[1:(i - 1)]..., objects[(i + 1):end]...)),
+                                                Tuple((objects[1:(i - 1)]..., objects[(i + 1):end]...,)),
                                                 Tuple((current_permutation..., item)),
                                                 permutations_array)
         end
@@ -455,7 +455,7 @@ function build_level_links_permute_arguments(depth::Int64, objects::Tuple, curre
     else
         for (i, item) in enumerate(objects)
             build_level_links_permute_arguments((depth - 1),
-                                                Tuple((objects[1:(i - 1)]..., objects[(i + 1):end]...)),
+                                                Tuple((objects[1:(i - 1)]..., objects[(i + 1):end]...,)),
                                                 Tuple((current_permutation..., item)),
                                                 permutations_array)
         end
@@ -486,8 +486,8 @@ function build_level_links(level::PlanningLevel, actions::AbstractVector, object
         for argument in possible_arguments
             if (check_precondition(action, level.positive_kb, argument))
                 for (number, symbol) in enumerate(action.arguments)
-                    if (!all(islower, symbol.operator))
-                        argument = Tuple((argument[1:(number - 1)]..., symbol, argument[(number + 1):end]...));
+                    if (!all(islowercase, symbol.operator))
+                        argument = Tuple((argument[1:(number - 1)]..., symbol, argument[(number + 1):end]...,));
                     end
                 end
                 local new_action::Expression = substitute(action, Expression(action.name, action.arguments), argument);
@@ -567,7 +567,7 @@ struct PlanningGraph
     levels::Array{PlanningLevel, 1}
     objects::Set{Expression}
 
-    function PlanningGraph{T <: AbstractPDDL}(pddl::T, n_kb::FirstOrderLogicKnowledgeBase)
+    function PlanningGraph(pddl::T, n_kb::FirstOrderLogicKnowledgeBase) where {T <: AbstractPDDL}
         return new(pddl, [PlanningLevel(pddl.kb, n_kb)], Set(collect(arg for clause in vcat(pddl.kb.clauses, n_kb.clauses) for arg in clause.arguments)));
     end
 end
@@ -717,7 +717,7 @@ function graphplan(gpp::GraphPlanProblem, goals::Tuple)
     while (true)
         if (goal_test(gpp, goals_positive) && non_mutex_goals(gpp.graph, vcat(goals_positive, goals_negated), -1))
             solution = extract_solution(gpp, goals_positive, goals_negated, -1);
-            if (!(typeof(solution) <: Void))
+            if (!(typeof(solution) <: Nothing))
                 return solution;
             end
         end
@@ -933,7 +933,7 @@ function get_result(plan::HighLevelPDDL, action::PlanningHighLevelAction)
     return plan;
 end
 
-function get_result(plan::HighLevelPDDL, action::Void)
+function get_result(plan::HighLevelPDDL, action::Nothing)
     return plan;
 end
 
@@ -974,13 +974,13 @@ function hierarchical_search(problem::HighLevelPDDL, hierarchy)
         end
         local plan = pop!(frontier);
         hla = plan.state;
-        if (!isnull(plan.parent))
-            prefix = get(plan.parent).action;
+        if (!(plan.parent === nothing))
+            prefix = plan.parent.action;
         else
             prefix = nothing;
         end
         local outcome::HighLevelPDDL = get_result(problem, prefix);
-        if (typeof(hla) <: Void)
+        if (typeof(hla) <: Nothing)
             if (goal_test(outcome))
                 return path(plan);
             end

@@ -16,10 +16,10 @@ mutable struct UnigramWordModel <: AbstractCountingProbabilityDistribution
     dict::Dict
     number_of_observations::Int64
     default::Int64
-    sample_function::Nullable{Function}
+    sample_function::Union{Nothing, Function}
 
     function UnigramWordModel(observations::AbstractVector; default::Int64=0)
-        local uwm::UnigramWordModel = new(Dict(), 0, default, Nullable{Function}());
+        local uwm::UnigramWordModel = new(Dict(), 0, default, nothing);
         for observation in observations
             add(uwm, observation);
         end
@@ -27,7 +27,7 @@ mutable struct UnigramWordModel <: AbstractCountingProbabilityDistribution
     end
 
     function UnigramWordModel(; default::Int64=0)
-        local uwm::UnigramWordModel = new(Dict(), 0, default, Nullable{Function}());
+        local uwm::UnigramWordModel = new(Dict(), 0, default, nothing);
         return uwm;
     end
 end
@@ -38,10 +38,10 @@ end
 Return a random sample from the probability distribution 'uwm'.
 """
 function sample(uwm::UnigramWordModel)
-    if (isnull(uwm.sample_function))
+    if (uwm.sample_function === nothing)
         uwm.sample_function = weighted_sampler(collect(keys(uwm.dict)), collect(values(uwm.dict)));
     end
-    return get(uwm.sample_function)();
+    return uwm.sample_function();
 end
 
 """
@@ -64,12 +64,12 @@ mutable struct NgramWordModel <: AbstractCountingProbabilityDistribution
     dict::Dict
     number_of_observations::Int64
     default::Int64
-    sample_function::Nullable{Function}
+    sample_function::Union{Nothing, Function}
     n::Int64
     conditional_probabilities::Dict
 
     function NgramWordModel(n::Int64, observations::AbstractVector; default::Int64=0)
-        local nwm::NgramWordModel = new(Dict(), 0, default, Nullable{Function}(), n, Dict());
+        local nwm::NgramWordModel = new(Dict(), 0, default, nothing, n, Dict());
         add_sequence(nwm, observations);
         return nwm;
     end
@@ -81,10 +81,10 @@ end
 Return a random sample from the probability distribution 'nwm'.
 """
 function sample(nwm::NgramWordModel)
-    if (isnull(nwm.sample_function))
+    if (nwm.sample_function === nothing)
         nwm.sample_function = weighted_sampler(collect(keys(nwm.dict)), collect(values(nwm.dict)));
     end
-    return get(nwm.sample_function)();
+    return nwm.sample_function();
 end
 
 """
@@ -107,7 +107,7 @@ Add Tuples of 'n' consecutive characters as observations for probability distrib
 """
 function add_sequence(nwm::NgramWordModel, words::AbstractVector)
     for i in 1:(length(words) - nwm.n + 1)
-        local t::Tuple = Tuple((words[i:(i + nwm.n - 1)]...));
+        local t::Tuple = Tuple((words[i:(i + nwm.n - 1)]...,));
         add(nwm, t);
         add_conditional_probability(nwm, t);
     end
@@ -127,7 +127,7 @@ function samples(nwm::NgramWordModel, n::Int64)
     local output::AbstractVector = collect(sample(nwm));
     for i in nwm.n+1:n
         local start_index::Int64 = length(output) - nwm.n + 2;
-        local last::Tuple = Tuple((output[start_index:end]...));
+        local last::Tuple = Tuple((output[start_index:end]...,));
         local next_word::String = sample(nwm.conditional_probabilities[last]);
         push!(output, next_word);
     end
@@ -143,10 +143,10 @@ mutable struct UnigramCharModel <: AbstractCountingProbabilityDistribution
     dict::Dict
     number_of_observations::Int64
     default::Int64
-    sample_function::Nullable{Function}
+    sample_function::Union{Nothing, Function}
 
     function UnigramCharModel(observations::AbstractVector; default::Int64=0)
-        local ucm::UnigramCharModel = new(Dict(), 0, default, Nullable{Function}());
+        local ucm::UnigramCharModel = new(Dict(), 0, default, nothing);
         add_sequence(ucm, observations);
         return ucm;
     end
@@ -158,10 +158,10 @@ end
 Return a random sample from the probability distribution 'ucm'.
 """
 function sample(ucm::UnigramCharModel)
-    if (isnull(ucm.sample_function))
+    if (ucm.sample_function === nothing)
         ucm.sample_function = weighted_sampler(collect(keys(ucm.dict)), collect(values(ucm.dict)));
     end
-    return get(ucm.sample_function)();
+    return ucm.sample_function();
 end
 
 """
@@ -198,12 +198,12 @@ mutable struct NgramCharModel <: AbstractCountingProbabilityDistribution
     dict::Dict
     number_of_observations::Int64
     default::Int64
-    sample_function::Nullable{Function}
+    sample_function::Union{Nothing, Function}
     n::Int64
     conditional_probabilities::Dict
 
     function NgramCharModel(n::Int64, observations::AbstractVector; default::Int64=0)
-        local ncm::NgramCharModel = new(Dict(), 0, default, Nullable{Function}(), n, Dict());
+        local ncm::NgramCharModel = new(Dict(), 0, default, nothing, n, Dict());
         add_sequence(ncm, observations);
         return ncm;
     end
@@ -215,10 +215,10 @@ end
 Return a random sample from the probability distribution 'ncm'.
 """
 function sample(ncm::NgramCharModel)
-    if (isnull(ncm.sample_function))
+    if (ncm.sample_function === nothing)
         ncm.sample_function = weighted_sampler(collect(keys(ncm.dict)), collect(values(ncm.dict)));
     end
-    return get(ncm.sample_function)();
+    return ncm.sample_function();
 end
 
 """
@@ -242,7 +242,7 @@ Add Tuples of 'n' consecutive characters as observations for probability distrib
 function add_sequence(ncm::NgramCharModel, words::AbstractVector)
     for word in map(*, Base.Iterators.repeated(" ", length(words)), words)
         for i in 1:(length(word) - ncm.n + 1)
-            local t::Tuple = Tuple((word[i:(i + ncm.n - 1)]...));
+            local t::Tuple = Tuple((word[i:(i + ncm.n - 1)]...,));
             add(ncm, t);
             add_conditional_probability(ncm, t);
         end
@@ -263,7 +263,7 @@ function samples(ncm::NgramCharModel, n::Int64)
     local output::AbstractVector = collect(sample(ncm));
     for i in ncm.n+1:n
         local start_index::Int64 = length(output) - ncm.n + 2;
-        local last::Tuple = Tuple((output[start_index:end]...));
+        local last::Tuple = Tuple((output[start_index:end]...,));
         local next_word::String = sample(ncm.conditional_probabilities[last]);
         push!(output, next_word);
     end
@@ -276,7 +276,7 @@ end
 Return an Array of lowercase alphanumeric Strings.
 """
 function extract_words(str::String)
-    return map(lowercase, matchall(@r_str("[a-zA-Z0-9]+"), str));
+    return map(lowercase, collect(m.match for m in eachmatch(@r_str("[a-zA-Z0-9]+"), str)));
 end
 
 """
@@ -339,7 +339,7 @@ end
 Return an array of 2 character Strings of consisting of adjacent letters in the given String 'text'.
 """
 function bigrams(text::String)
-    return collect(Tuple((text[i:(i + 1)]...)) for i in 1:(length(text) - 1));
+    return collect(Tuple((text[i:(i + 1)]...,)) for i in 1:(length(text) - 1));
 end
 
 """
@@ -348,7 +348,7 @@ end
 Return an array of 2 word Tuples of consisting of adjacent words in the given array 'text'.
 """
 function bigrams(text::AbstractVector)
-    return collect(Tuple((text[i:(i + 1)]...)) for i in 1:(length(text) - 1));
+    return collect(Tuple((text[i:(i + 1)]...,)) for i in 1:(length(text) - 1));
 end
 
 """
@@ -380,7 +380,7 @@ function viterbi_text_segmentation(text::String, P::UnigramWordModel)
     local sequence::AbstractVector = [];
     local idx::Int64 = length(words);
     while (idx > 1)     # Julia uses 1-indexing
-        unshift!(sequence, words[idx]);
+        pushfirst!(sequence, words[idx]);
         idx = idx - length(words[idx]);
     end
     return sequence, best[end];
@@ -425,12 +425,18 @@ struct InformationRetrievalSystem <: AbstractInformationRetrievalSystem
 end
 
 """
-    index_document{T <: AbstractInformationRetrievalSystem}(irs::T, text::String, url::String)
+    index_document(irs::T, text::String, url::String) where {T <: AbstractInformationRetrievalSystem}
 
 Index the document by its text 'text' and URL 'url'.
 """
-function index_document{T <: AbstractInformationRetrievalSystem}(irs::T, text::String, url::String)
-    local title::String = strip(text[1:(Base.search(text, "\n").stop)]);
+function index_document(irs::T, text::String, url::String) where {T <: AbstractInformationRetrievalSystem}
+    local first_newline::Union{Nothing, UnitRange} = findfirst("\n", text)
+    local title::String;
+    if (first_newline === nothing)
+        title = strip(text);
+    else
+        title = strip(text[1:first_newline.stop]);
+    end
     local document_words::AbstractVector = extract_words(text);
     push!(irs.documents, DocumentMetadata(title, url, length(document_words)));
     local document_id::Int64 = length(irs.documents);
@@ -443,11 +449,11 @@ function index_document{T <: AbstractInformationRetrievalSystem}(irs::T, text::S
 end
 
 """
-    index_collection{T <: AbstractInformationRetrievalSystem}(irs::T, filenames::AbstractVector)
+    index_collection(irs::T, filenames::AbstractVector) where {T <: AbstractInformationRetrievalSystem}
 
 Index the given collection of files 'filenames'.
 """
-function index_collection{T <: AbstractInformationRetrievalSystem}(irs::T, filenames::AbstractVector)
+function index_collection(irs::T, filenames::AbstractVector) where {T <: AbstractInformationRetrievalSystem}
     for filename in filenames
         index_document(irs, String(read(filename)), relpath(filename, AIMAJULIA_DIRECTORY));
     end
@@ -455,25 +461,25 @@ function index_collection{T <: AbstractInformationRetrievalSystem}(irs::T, filen
 end
 
 """
-    score_document{T <: AbstractInformationRetrievalSystem}(irs::T, word::String, document_id::Int64)
+    score_document(irs::T, word::String, document_id::Int64) where {T <: AbstractInformationRetrievalSystem}
 
 Return a score for the given word 'word' and document referenced by ID 'document_id'.
 """
-function score_document{T <: AbstractInformationRetrievalSystem}(irs::T, word::String, document_id::Int64)
+function score_document(irs::T, word::String, document_id::Int64) where {T <: AbstractInformationRetrievalSystem}
     return (log(1 + get!(get!(irs.index, word, Dict()), document_id, 0)) / log(1 + irs.documents[document_id].number_of_words));
 end
 
 """
-    total_score_document{T <: AbstractInformationRetrievalSystem}(irs::T, words::AbstractVector, document_id::Int64)
+    total_score_document(irs::T, words::AbstractVector, document_id::Int64) where {T <: AbstractInformationRetrievalSystem}
 
 Return the sum of scores for the given words 'words' within the document referenced by ID 'document_id'.
 """
-function total_score_document{T <: AbstractInformationRetrievalSystem}(irs::T, words::AbstractVector, document_id::Int64)
+function total_score_document(irs::T, words::AbstractVector, document_id::Int64) where {T <: AbstractInformationRetrievalSystem}
     return sum(score_document(irs, word, document_id) for word in words);
 end
 
 """
-    execute_query{T <: AbstractInformationRetrievalSystem}(irs::T, query::String; n::Int64=10)
+    execute_query(irs::T, query::String; n::Int64=10) where {T <: AbstractInformationRetrievalSystem}
 
 Return an array of at most 'n' best matches (score, document ID) Tuples for the given
 query string 'query' and IR system 'irs'.
@@ -481,10 +487,10 @@ query string 'query' and IR system 'irs'.
 If the query starts with 'learn: ', the following command within the query is executed.
 Then the command output is then indexed with index_document().
 """
-function execute_query{T <: AbstractInformationRetrievalSystem}(irs::T, query::String; n::Int64=10)
+function execute_query(irs::T, query::String; n::Int64=10) where {T <: AbstractInformationRetrievalSystem}
     if (startswith(query, "learn:"))
         local truncated_query::String = strip(query[7:end]);
-        local document_text::String = strip(readstring(`$truncated_query`));
+        local document_text::String = strip(read(pipeline(stdin, `$truncated_query`), String));
         index_document(irs, document_text, query);
         return [];
     end
@@ -673,8 +679,8 @@ struct PermutationCipherDecoderProblem <: AbstractProblem
     initial::AbstractVector
     decoder::PermutationCipherDecoder
 
-    function PermutationCipherDecoderProblem(decoder::PermutationCipherDecoder; initial::Union{Void, AbstractVector}=nothing)
-        if (typeof(initial) <: Void)
+    function PermutationCipherDecoderProblem(decoder::PermutationCipherDecoder; initial::Union{Nothing, AbstractVector}=nothing)
+        if (typeof(initial) <: Nothing)
             return new([], decoder);
         else
             return new(initial, decoder);

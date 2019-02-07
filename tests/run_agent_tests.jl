@@ -1,8 +1,8 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
 
-using aimajulia;
+using Main.aimajulia;
 
 #The following Agent tests are from the aima-python doctest
 
@@ -32,13 +32,13 @@ TVE = TrivialVacuumEnvironment();
 
 function colorize_testv_doctest_results(result::Bool)
     if (result)
-        print_with_color(:green, "Test Passed\n");
+        printstyled("Test Passed\n", color=:green, bold=true);
     else
-        print_with_color(:red, "Test Failed\n");
+        printstyled("Test Failed\n", color=:red, bold=true);
     end
 end
 
-envs = [TrivialVacuumEnvironment() for i in range(0, 100)];
+envs = [TrivialVacuumEnvironment() for i in range(0, stop=(100 - 1))];
 
 mbva_result = test_agent(ModelBasedVacuumAgent, 4, deepcopy(envs));
 colorize_testv_doctest_results(7 < mbva_result < 11);

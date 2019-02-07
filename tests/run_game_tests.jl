@@ -1,8 +1,8 @@
 include("../aimajulia.jl");
 
-using Base.Test;
+using Test;
 
-using aimajulia;
+using Main.aimajulia;
 
 #The following game tests are from the aima-python doctest
 
@@ -24,9 +24,9 @@ using aimajulia;
 
 function colorize_testv_doctest_results(result::Bool)
     if (result)
-        print_with_color(:green, "Test Passed\n");
+        printstyled("Test Passed\n", color=:green, bold=true);
     else
-        print_with_color(:red, "Test Failed\n");
+        printstyled("Test Failed\n", color=:red, bold=true);
     end
 end
 
