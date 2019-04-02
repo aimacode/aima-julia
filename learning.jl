@@ -713,8 +713,16 @@ end
 """
     truncated_svd(A::Array{T, 2}; num_of_eigenvalues=2, max_iterations=1000, epsilon::Float64=1e-10) where {T <: AbstractFloat}
 
-Return the computed approximations of the left-singular vectors, right-singular vectors, and non-zero singular values
-for the given matrix 'A'.
+Return the computed approximations of the left-singular vectors, right-singular vectors,
+and singular values for the given matrix 'A'.
+
+Note: This implementation of the truncated SVD uses the Gram-Schmidt process for orthogonalization, 
+which is known for numerical instability. When computing for very small singular values, this
+function will return erroneous values in place of the expected singular values. 
+
+For example, 'truncated_svd([1 2 3 4; 5 6 7 8; 9 10 11 12; 13 14 15 16], num_of_eigenvalues=4)' will
+generate approximations for the first 2 singular values (38.6227 and 2.07132) of the given matrix 
+but not the last 2 singular values (7.60977e-16 and 3.86064e-16) of the given matrix.
 """
 function truncated_svd(A::Array{T, 2}; num_of_eigenvalues=2, max_iterations=1000, epsilon::Float64=1e-10) where {T <: AbstractFloat}
     local m::Int = size(A, 1)
