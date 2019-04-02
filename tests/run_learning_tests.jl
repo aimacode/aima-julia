@@ -6,6 +6,8 @@ using Main.aimajulia;
 
 using Main.aimajulia.utils;
 
+using LinearAlgebra;
+
 #The following learning tests are from the aima-python doctests
 
 @test (repr(euclidean_distance([1, 2], [3, 4])) == "2.8284271247461903");
@@ -139,6 +141,52 @@ k_nearest_neighbors = NearestNeighborLearner(iris_dataset, 3);
 
 iris_dataset = DataSet(name="iris", examples="./aima-data/iris.csv");
 
+# Truncated SVD
+test_epsilon = 1e-9
+
+# Test for consistent properties of the SVD, recall that we randomize initial values during computation
+for test_iteration in 1:1000
+    U, S, V = svd([1 5 9 13; 2 6 10 14; 3 7 11 15; 4 8 12 16]);
+    ev_m, ev_n, singular_values = truncated_svd([1 5 9 13; 2 6 10 14; 3 7 11 15; 4 8 12 16]);
+
+    @test (all(i->(abs(i) < test_epsilon), singular_values - S[1:2]));
+
+    # A * v = eigenvalue * v
+    @test (all(i->(abs(i) < test_epsilon),
+                (ev_n[1]*singular_values[1])
+                - [1 5 9 13; 2 6 10 14; 3 7 11 15; 4 8 12 16]*ev_m[1]));
+    @test (all(i->(abs(i) < test_epsilon),
+                (ev_n[2]*singular_values[2])
+                - [1 5 9 13; 2 6 10 14; 3 7 11 15; 4 8 12 16]*ev_m[2]));
+
+    # check if returned eigenvectors applies to the transpose of our original matrix
+    @test (all(i->(abs(i) < test_epsilon),
+                (ev_m[1]*singular_values[1])
+                - [1 2 3 4; 5 6 7 8; 9 10 11 12; 13 14 15 16]*ev_n[1]));
+    @test (all(i->(abs(i) < test_epsilon),
+                (ev_m[2]*singular_values[2])
+                - [1 2 3 4; 5 6 7 8; 9 10 11 12; 13 14 15 16]*ev_n[2]));
+
+    #A=U*S*V^T
+    @test (all(i->(abs(i) < test_epsilon),
+                ([1.0 5.0 9.0 13.0; 2.0 6.0 10.0 14.0; 3.0 7.0 11.0 15.0; 4.0 8.0 12.0 16.0]
+                - (hcat(ev_n[1], ev_n[2]) * Diagonal(singular_values) * transpose(hcat(ev_m[1], ev_m[2]))))));
+end
+
+# aima-python doctests for truncated_svd()
+@test (all(i->(abs(i) < test_epsilon),
+            (truncated_svd([17 0; 0 11])[3] - [17.0, 11.0])));
+
+@test (all(i->(abs(i) < test_epsilon),
+            (truncated_svd([17 0; 0 -34])[3] - [34.0, 17.0])));
+
+@test (all(i->(abs(i) < test_epsilon),
+            (truncated_svd([1 0 0 0 2; 0 0 3 0 0; 0 0 0 0 0; 0 2 0 0 0])[3] - [3.0, sqrt(5)])));
+
+@test (all(i->(abs(i) < test_epsilon),
+            (truncated_svd([3 2 2; 2 3 -2])[3] - [5.0, 3.0])));
+
+# Decision Tree
 dtl = DecisionTreeLearner(iris_dataset);
 
 @test (predict(dtl, [5, 3, 1, 0.1]) == "setosa");
