@@ -1,5 +1,7 @@
 
 using DelimitedFiles
+using Random
+using LinearAlgebra
 
 import Base: getindex, copy;
 
@@ -13,6 +15,7 @@ export euclidean_distance, mean_square_error, root_mean_square_error,
         AbstractLearner, PluralityLearner, predict,
         AbstractNaiveBayesModel, NaiveBayesLearner, NaiveBayesSimpleModel,
         NaiveBayesDiscreteModel, NaiveBayesContinuousModel, NearestNeighborLearner,
+        truncated_svd,
         AbstractDecisionTreeNode, DecisionLeafNode, DecisionForkNode, classify,
         DecisionTreeLearner, plurality_value,
         RandomForest, data_bagging, feature_bagging,
@@ -687,6 +690,82 @@ function predict(nnl::NearestNeighborLearner, example::AbstractVector)
     end
     return mode(dataset_example[nnl.dataset.target] for (distance, dataset_example) in best_distances);
 end
+
+function truncated_svd_gram_schmidt_orthogonalization(M::Array{T, 1}, eigenvectors_m, eigenvectors_n, m, n) where {T <: Number}
+    for ev_i_m in eigenvectors_m
+        proj_ev_i_m = (dot(M[1:n], ev_i_m) * ev_i_m)
+        M[1:n] = collect(m_i - proj_ev_i_m_i for (m_i, proj_ev_i_m_i) in zip(M[1:n], proj_ev_i_m))
+    end
+    for ev_i_n in eigenvectors_n
+        proj_ev_i_n = (dot(M[n + 1:end], ev_i_n) * ev_i_n)
+        M[n + 1:end] = collect(n_i - proj_ev_i_n_i for (n_i, proj_ev_i_n_i) in zip(M[n + 1:end], proj_ev_i_n))
+    end
+    return M
+end
+
+function truncated_svd_gram_schmidt_orthonormalization(M::Array{T, 1}, eigenvectors_m, eigenvectors_n, m, n) where {T <: Number}
+    M = truncated_svd_gram_schmidt_orthogonalization(M, eigenvectors_m, eigenvectors_n, m, n)
+    # normalize resulting vectors for orthonormalization
+    M = vcat(collect(m_i/norm(M[1:n]) for m_i in M[1:n]), collect(n_i/norm(M[n + 1:end]) for n_i in M[n + 1:end]))
+    return M
+end
+
+"""
+    truncated_svd(A::Array{T, 2}; num_of_eigenvalues=2, max_iterations=1000, epsilon::Float64=1e-10) where {T <: AbstractFloat}
+
+Return the computed approximations of the left-singular vectors, right-singular vectors, and non-zero singular values
+for the given matrix 'A'.
+"""
+function truncated_svd(A::Array{T, 2}; num_of_eigenvalues=2, max_iterations=1000, epsilon::Float64=1e-10) where {T <: AbstractFloat}
+    local m::Int = size(A, 1)
+    local n::Int = size(A, 2)
+
+    local Y::Array{T, 2} = zeros(T, (m + n), (m + n))
+    #     [0 A^T]
+    # Y = [A 0]
+    for i in 1:m
+        for j in 1:n
+            # copy A to Y
+            Y[n + i, j] = A[i, j]
+            # copy A^T to Y
+            Y[j, n + i] = A[i, j]
+        end
+    end
+
+    local eigenvectors_m::Array{Array{T, 1}} = Array{Array{T, 1}}([])
+    local eigenvectors_n::Array{Array{T, 1}} = Array{Array{T, 1}}([])
+    local eigenvalues::Array{T, 1} = Array{T, 1}([])
+
+    for ev_i in 1:num_of_eigenvalues
+        # vector of (m + n) numbers
+        X = rand(RandomDeviceInstance, T, (m + n))
+        X = truncated_svd_gram_schmidt_orthonormalization(X, eigenvectors_m, eigenvectors_n, m, n)
+        for i in 1:max_iterations
+            previous_X = X
+            X = Y*X
+            X = truncated_svd_gram_schmidt_orthonormalization(X, eigenvectors_m, eigenvectors_n, m, n)
+            # check for convergence
+            if (norm(collect(p_x_i - x_i for (p_x_i, x_i) in zip(previous_X, X))) <= epsilon)
+                break
+            end
+        end
+        projected_X = Y * X
+        new_eigenvalue = sum(projected_X)/sum(X)
+        ev_m = X[1:n]
+        ev_n = X[n + 1:end]
+        if (new_eigenvalue < 0)
+            new_eigenvalue = -new_eigenvalue
+            ev_m = -ev_m
+            ev_n = ev_n
+        end
+        push!(eigenvalues, new_eigenvalue)
+        push!(eigenvectors_m, ev_m)
+        push!(eigenvectors_n, ev_n)
+    end
+    return eigenvectors_m, eigenvectors_n, eigenvalues
+end
+
+truncated_svd(A::Array{T, 2}; kwargs...) where {T <: Integer} = truncated_svd(map(Float64, A); kwargs...)
 
 abstract type AbstractDecisionTreeNode end;
 
